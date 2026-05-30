@@ -1,5 +1,92 @@
 [
-  { "id": "n0001", "en": "apple", "ar": "تفاح" },
-  { "id": "n0002", "en": "river", "ar": "نهر" },
-  { "id": "n0003", "en": "book", "ar": "كتاب" }
+  {
+    "category": "nature",
+    "concepts": [
+      { "id": "nature-001", "ar": "نهر", "en": "river" },
+      { "id": "nature-002", "ar": "جبل", "en": "mountain" },
+      { "id": "nature-003", "ar": "غابة", "en": "forest" },
+      { "id": "nature-004", "ar": "بحر", "en": "sea" },
+      { "id": "nature-005", "ar": "قمر", "en": "moon" },
+      { "id": "nature-006", "ar": "شمس", "en": "sun" },
+      { "id": "nature-007", "ar": "نجمة", "en": "star" },
+      { "id": "nature-008", "ar": "نار", "en": "fire" },
+      { "id": "nature-009", "ar": "ثلج", "en": "snow" },
+      { "id": "nature-010", "ar": "ريح", "en": "wind" }
+    ]
+  },
+  {
+    "category": "places",
+    "concepts": [
+      { "id": "places-001", "ar": "بيت", "en": "house" },
+      { "id": "places-002", "ar": "سوق", "en": "market" },
+      { "id": "places-003", "ar": "مدرسة", "en": "school" },
+      { "id": "places-004", "ar": "مطار", "en": "airport" },
+      { "id": "places-005", "ar": "متحف", "en": "museum" },
+      { "id": "places-006", "ar": "قصر", "en": "palace" },
+      { "id": "places-007", "ar": "مكتبة", "en": "library" },
+      { "id": "places-008", "ar": "جزيرة", "en": "island" },
+      { "id": "places-009", "ar": "جسر", "en": "bridge" },
+      { "id": "places-010", "ar": "ميناء", "en": "harbor" }
+    ]
+  },
+  {
+    "category": "objects",
+    "concepts": [
+      { "id": "objects-001", "ar": "كتاب", "en": "book" },
+      { "id": "objects-002", "ar": "مفتاح", "en": "key" },
+      { "id": "objects-003", "ar": "ساعة", "en": "clock" },
+      { "id": "objects-004", "ar": "سيف", "en": "sword" },
+      { "id": "objects-005", "ar": "باب", "en": "door" },
+      { "id": "objects-006", "ar": "خاتم", "en": "ring" },
+      { "id": "objects-007", "ar": "مصباح", "en": "lamp" },
+      { "id": "objects-008", "ar": "كرسي", "en": "chair" },
+      { "id": "objects-009", "ar": "مرآة", "en": "mirror" },
+      { "id": "objects-010", "ar": "صندوق", "en": "box" }
+    ]
+  },
+  {
+    "category": "people",
+    "concepts": [
+      { "id": "people-001", "ar": "ملك", "en": "king" },
+      { "id": "people-002", "ar": "طبيب", "en": "doctor" },
+      { "id": "people-003", "ar": "رسام", "en": "painter" },
+      { "id": "people-004", "ar": "قائد", "en": "leader" },
+      { "id": "people-005", "ar": "بحار", "en": "sailor" },
+      { "id": "people-006", "ar": "حارس", "en": "guard" },
+      { "id": "people-007", "ar": "شاعر", "en": "poet" },
+      { "id": "people-008", "ar": "لاعب", "en": "player" },
+      { "id": "people-009", "ar": "معلم", "en": "teacher" },
+      { "id": "people-010", "ar": "ضيف", "en": "guest" }
+    ]
+  },
+  {
+    "category": "animals",
+    "concepts": [
+      { "id": "animals-001", "ar": "حصان", "en": "horse" },
+      { "id": "animals-002", "ar": "طائر", "en": "bird" },
+      { "id": "animals-003", "ar": "سمكة", "en": "fish" },
+      { "id": "animals-004", "ar": "أسد", "en": "lion" },
+      { "id": "animals-005", "ar": "نحلة", "en": "bee" },
+      { "id": "animals-006", "ar": "فراشة", "en": "butterfly" },
+      { "id": "animals-007", "ar": "جمل", "en": "camel" },
+      { "id": "animals-008", "ar": "ذئب", "en": "wolf" },
+      { "id": "animals-009", "ar": "نسر", "en": "eagle" },
+      { "id": "animals-010", "ar": "قطة", "en": "cat" }
+    ]
+  },
+  {
+    "category": "food",
+    "concepts": [
+      { "id": "food-001", "ar": "تفاح", "en": "apple" },
+      { "id": "food-002", "ar": "خبز", "en": "bread" },
+      { "id": "food-003", "ar": "تمر", "en": "dates" },
+      { "id": "food-004", "ar": "عسل", "en": "honey" },
+      { "id": "food-005", "ar": "قهوة", "en": "coffee" },
+      { "id": "food-006", "ar": "رز", "en": "rice" },
+      { "id": "food-007", "ar": "ملح", "en": "salt" },
+      { "id": "food-008", "ar": "ليمون", "en": "lemon" },
+      { "id": "food-009", "ar": "حليب", "en": "milk" },
+      { "id": "food-010", "ar": "جبن", "en": "cheese" }
+    ]
+  }
 ]

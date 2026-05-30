@@ -1,12 +1,49 @@
-import type { GameState } from "../engine";
+import type { Clue, GameState, Lang } from "../engine";
 
 export type Unsubscribe = () => void;
+export type RoomVisibility = "public" | "private";
+
+export interface ClueLogEntry {
+  id: string;
+  team: "red" | "blue";
+  clue: Clue;
+}
+
+export interface RoomUiState {
+  votes: Record<string, number | null>;
+  clueLog: ClueLogEntry[];
+}
+
+export interface RoomRecord {
+  id: string;
+  code: string;
+  hostId: string;
+  visibility: RoomVisibility;
+  state: GameState;
+  ui: RoomUiState;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRoomInput {
+  id: string;
+  code: string;
+  hostId: string;
+  hostName: string;
+  lang: Lang;
+  visibility?: RoomVisibility;
+  now: string;
+}
 
 export interface RoomProvider {
-  load(roomId: string): Promise<GameState | null>;
-  save(roomId: string, state: GameState): Promise<void>;
+  create(room: RoomRecord): Promise<void>;
+  delete(roomId: string): Promise<void>;
+  load(roomId: string): Promise<RoomRecord | null>;
+  loadByCode(code: string): Promise<RoomRecord | null>;
+  save(room: RoomRecord, expectedVersion?: number): Promise<void>;
   subscribe(
     roomId: string,
-    onChange: (state: GameState) => void,
+    onChange: (room: RoomRecord | null) => void,
   ): Unsubscribe;
 }

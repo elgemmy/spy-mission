@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Codenames Hub">
+  <rect width="512" height="512" rx="112" fill="#f1e8da"/>
+  <rect x="54" y="54" width="404" height="404" rx="92" fill="#2f2a24"/>
+  <rect x="110" y="110" width="124" height="124" rx="34" fill="#c8553d"/>
+  <rect x="278" y="110" width="124" height="124" rx="34" fill="#2f7e8c"/>
+  <rect x="110" y="278" width="124" height="124" rx="34" fill="#cba968"/>
+  <rect x="278" y="278" width="124" height="124" rx="34" fill="#fdfaf3"/>
+  <path d="M172 146 206 206h-68z" fill="#fdf3ec"/>
+  <circle cx="340" cy="172" r="38" fill="#eef7f8"/>
+  <rect x="151" y="319" width="42" height="42" rx="13" fill="#2f2616"/>
+  <path d="m318 318 44 44m0-44-44 44" stroke="#2f2a24" stroke-width="24" stroke-linecap="round"/>
+</svg>

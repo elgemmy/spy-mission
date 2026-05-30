@@ -62,8 +62,38 @@ describe("codenames viewFor contract", () => {
     expect(lobbyView.can.giveClue).toBe(false);
 
     const playing = startTestGame();
-    const spymasterView = viewFor(playing, playing.turn === "red" ? "p-red-sm" : "p-blue-sm");
+    const spymasterView = viewFor(
+      playing,
+      playing.turn === "red" ? "p-red-sm" : "p-blue-sm",
+    );
     expect(spymasterView.can.giveClue).toBe(true);
     expect(spymasterView.can.guess).toBe(false);
+  });
+
+  it("exposes no affordances after the game ends", () => {
+    let state = startTestGame();
+    const assassinIndex = state.board.findIndex(
+      (card) => card.kind === "assassin",
+    );
+    const operativeId = state.turn === "red" ? "p-red-op" : "p-blue-op";
+    const spymasterId = state.turn === "red" ? "p-red-sm" : "p-blue-sm";
+
+    state = reducer(
+      state,
+      { type: "giveClue", word: "go", count: 0 },
+      spymasterId,
+    );
+    state = reducer(
+      state,
+      { type: "guess", cardIndex: assassinIndex },
+      operativeId,
+    );
+
+    expect(state.phase).toBe("ended");
+    expect(
+      Object.values(viewFor(state, operativeId).can).every(
+        (allowed) => !allowed,
+      ),
+    ).toBe(true);
   });
 });

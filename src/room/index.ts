@@ -1,3 +1,28 @@
-export type { RoomProvider, Unsubscribe } from "./types";
-export { InMemoryRoomProvider, inMemoryRoomProvider } from "./inMemoryRoomProvider";
+export type {
+  ClueLogEntry,
+  CreateRoomInput,
+  RoomProvider,
+  RoomRecord,
+  RoomUiState,
+  RoomVisibility,
+  Unsubscribe,
+} from "./types";
+export {
+  InMemoryRoomProvider,
+  inMemoryRoomProvider,
+} from "./inMemoryRoomProvider";
 export { SupabaseRoomProvider } from "./supabaseRoomProvider";
+export {
+  clearVote,
+  confirmGuess,
+  createRoomRecord,
+  dispatchRoomAction,
+  joinRoomRecord,
+  removePlayer,
+  returnToLobby,
+  RoomError,
+  startNewGame,
+  transferHost,
+  updateRoomSettings,
+  voteCard,
+} from "./session";

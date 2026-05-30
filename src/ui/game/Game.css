@@ -1,0 +1,332 @@
+.cn-app {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  padding: 18px 16px;
+  gap: 16px;
+}
+
+.cn-card-panel {
+  background: var(--cn-surface);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-bar);
+  box-shadow: var(--cn-shadow-bar);
+}
+
+.cn-field {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-sm);
+  background: var(--cn-surface);
+  color: var(--cn-ink);
+  font: inherit;
+  padding-block: 10px;
+  padding-inline: 12px;
+}
+
+.cn-field:focus {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+.cn-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px 12px 12px;
+}
+
+.cn-board__cell {
+  position: relative;
+  min-width: 0;
+}
+
+.cn-board__cell.is-selected .cn-card__face--front,
+.cn-board__cell.is-selected .cn-card__face--back {
+  outline: 2px solid var(--cn-ink);
+  outline-offset: 2px;
+}
+
+.cn-board__vote {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: var(--cn-r-chip);
+  display: grid;
+  place-items: center;
+  padding-inline: 6px;
+  background: var(--cn-primary);
+  color: var(--cn-primary-on);
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+}
+
+.cn-topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 10px;
+}
+
+.cn-count-chip {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--cn-r-chip);
+  padding-block: 6px;
+  padding-inline: 12px 10px;
+  font-family: var(--cn-font-mono);
+  font-size: 18px;
+}
+
+.cn-count-chip svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cn-count-chip[data-team="red"][data-active="true"] {
+  background: var(--cn-red);
+  color: var(--cn-red-on);
+  box-shadow: var(--cn-shadow-bar);
+}
+
+.cn-count-chip[data-team="red"][data-active="false"] {
+  background: var(--cn-red-tint);
+  color: var(--cn-red-ink);
+}
+
+.cn-count-chip[data-team="blue"][data-active="true"] {
+  background: var(--cn-blue);
+  color: var(--cn-blue-on);
+  box-shadow: var(--cn-shadow-bar);
+}
+
+.cn-count-chip[data-team="blue"][data-active="false"] {
+  background: var(--cn-blue-tint);
+  color: var(--cn-blue-ink);
+}
+
+.cn-turn {
+  display: flex;
+  min-width: 92px;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.cn-turn__eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cn-ink-soft);
+}
+
+.cn-turn__team {
+  margin-block-start: 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.cn-turn__team[data-team="red"] {
+  color: var(--cn-red-ink);
+}
+
+.cn-turn__team[data-team="blue"] {
+  color: var(--cn-blue-ink);
+}
+
+.cn-cluebar {
+  margin-block-start: auto;
+  border-radius: var(--cn-r-bar);
+  background: var(--cn-surface);
+  box-shadow: var(--cn-shadow-bar);
+  padding-block: 12px calc(12px + env(safe-area-inset-bottom));
+  padding-inline: 14px;
+}
+
+.cn-cluebar[data-disabled="true"] {
+  opacity: 0.55;
+}
+
+.cn-clue-submit[data-team="red"] {
+  background: var(--cn-red);
+  color: var(--cn-red-on);
+}
+
+.cn-clue-submit[data-team="blue"] {
+  background: var(--cn-blue);
+  color: var(--cn-blue-on);
+}
+
+.cn-clue-form-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--cn-space-2);
+}
+
+.cn-clue-word {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.cn-clue-toast {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  inset-block-start: 42%;
+  inset-inline: 24px;
+  max-width: 420px;
+  margin-inline: auto;
+  border-radius: var(--cn-r-bar);
+  background: var(--cn-primary);
+  color: var(--cn-primary-on);
+  box-shadow: var(--cn-shadow-cta);
+  padding-block: 18px;
+  padding-inline: 20px;
+  text-align: center;
+  animation: clue-pop 1600ms ease both;
+}
+
+@keyframes clue-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  18%,
+  78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+.cn-wordmark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.cn-wordmark span {
+  border-radius: 6px;
+  background: var(--cn-neutral-tint);
+}
+
+.cn-wordmark span:nth-child(1) {
+  background: var(--cn-red);
+}
+
+.cn-wordmark span:nth-child(2) {
+  background: var(--cn-blue);
+}
+
+.cn-wordmark span:nth-child(3) {
+  background: var(--cn-neutral);
+}
+
+.cn-wordmark span:nth-child(4) {
+  background: var(--cn-surface);
+  border: 1px solid var(--cn-line);
+}
+
+.cn-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  border-radius: var(--cn-r-chip);
+  background: var(--cn-surface-2);
+  padding: 4px;
+}
+
+.cn-segmented button {
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--cn-r-chip);
+  background: transparent;
+  color: var(--cn-ink-soft);
+  font: inherit;
+  font-weight: 600;
+}
+
+.cn-segmented button[aria-pressed="true"] {
+  background: var(--cn-surface);
+  color: var(--cn-ink);
+  box-shadow: var(--cn-shadow-tile);
+}
+
+.cn-team-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-sm);
+  background: var(--cn-surface);
+  padding: 10px;
+}
+
+.cn-team-card[data-team="red"] {
+  border-color: var(--cn-red);
+}
+
+.cn-team-card[data-team="blue"] {
+  border-color: var(--cn-blue);
+}
+
+.cn-player-chip {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-radius: var(--cn-r-sm);
+  background: var(--cn-surface-2);
+  padding-block: 6px;
+  padding-inline: 8px;
+  font-size: 12px;
+}
+
+.cn-player-button {
+  min-width: 44px;
+  min-height: 44px;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--cn-ink);
+  font: inherit;
+  padding: 0;
+  text-align: start;
+}
+
+.cn-player-button:disabled {
+  color: var(--cn-ink-soft);
+  cursor: default;
+}
+
+.cn-room-code {
+  font-family: var(--cn-font-mono);
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--cn-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-clue-toast {
+    animation: none;
+  }
+}
