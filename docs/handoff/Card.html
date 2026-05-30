@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Card — reference component</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<link rel="stylesheet" href="card.css" />
+<style>
+  body { margin: 0; background: var(--cn-bg); font-family: var(--cn-font-ui); color: var(--cn-ink); }
+  .wrap { max-width: 480px; margin-inline: auto; padding: 28px 18px 48px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 24px; color: var(--cn-ink-soft); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .legend { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 26px; }
+  .legend figure { margin: 0; display: flex; flex-direction: column; gap: 7px; align-items: center; }
+  .legend figcaption { font-size: 11px; font-weight: 600; color: var(--cn-ink-soft); text-align: center; }
+  .legend .cn-card { aspect-ratio: 1 / 0.92; }
+  .hint { margin-top: 22px; font-size: 13px; color: var(--cn-ink-soft); }
+</style>
+</head>
+<body>
+<!-- glyph symbol set — state never depends on colour alone -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="g-red" viewBox="0 0 24 24"><path d="M12 4.2 L20.2 19 H3.8 Z" fill="currentColor" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></symbol>
+  <symbol id="g-blue" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.4" fill="currentColor"/></symbol>
+  <symbol id="g-neutral" viewBox="0 0 24 24"><rect x="5.2" y="5.2" width="13.6" height="13.6" rx="4.2" fill="none" stroke="currentColor" stroke-width="3.2"/></symbol>
+  <symbol id="g-assassin" viewBox="0 0 24 24"><path d="M8.3 3.6 h7.4 L20.4 8.3 v7.4 L15.7 20.4 h-7.4 L3.6 15.7 v-7.4 Z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M9.2 9.2 L14.8 14.8 M14.8 9.2 L9.2 14.8" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <h1>Card — reference component</h1>
+  <p class="sub">Tap any tile to flip it. Markup is identical across roles; only <code>data-role</code> / <code>data-view</code> change.</p>
+
+  <!-- a live operative board row: tap to reveal -->
+  <div class="grid" id="demo"></div>
+
+  <div class="legend" id="legend"></div>
+
+  <p class="hint">Every card is a <code>&lt;button class="cn-card cn-card--ar" data-role data-view&gt;</code> with a front + back face inside <code>.cn-card__inner</code>. The flip is a 190ms <code>rotateY</code> with a slight overshoot; reduced-motion users get a cross-fade.</p>
+</div>
+
+<script>
+  // Reference markup builder — your React <Card/> mirrors this structure.
+  function cardHTML(word, role, view) {
+    return `
+<button class="cn-card cn-card--ar" data-role="${role}" data-view="${view}">
+  <span class="cn-card__inner">
+    <span class="cn-card__face cn-card__face--front">
+      <svg class="cn-card__key" aria-hidden="true"><use href="#g-${role}"/></svg>
+      <span class="cn-card__word">${word}</span>
+    </span>
+    <span class="cn-card__face cn-card__face--back">
+      <span class="cn-card__watermark"><svg aria-hidden="true"><use href="#g-${role}"/></svg></span>
+      <span class="cn-card__reveal">
+        <svg aria-hidden="true"><use href="#g-${role}"/></svg>
+        <span class="cn-card__word">${word}</span>
+      </span>
+    </span>
+  </span>
+</button>`;
+  }
+
+  const words = [
+    ['قطار','red'],['بحر','blue'],['نجمة','neutral'],['قمر','red'],['كتاب','blue'],
+    ['باب','neutral'],['شمس','red'],['ملك','blue'],['جبل','neutral'],['نهر','red'],
+    ['وردة','blue'],['حصان','neutral'],['سيف','assassin'],['ذهب','red'],['طائر','blue'],
+    ['سمكة','neutral'],['بيت','red'],['شجرة','blue'],['غابة','neutral'],['مفتاح','red'],
+    ['ساعة','blue'],['قلب','neutral'],['ثعلب','red'],['جسر','blue'],['نار','red'],
+  ];
+  document.getElementById('demo').innerHTML = words.map(([w, r]) => cardHTML(w, r, 'operative')).join('');
+
+  // legend: the six canonical states
+  const legend = [
+    ['قطار','neutral','operative', false, 'مغلقة · لاعب'],
+    ['بحر','blue','spymaster', false, 'مفتاح · سيّد'],
+    ['نار','red','operative', true, 'عميل أحمر'],
+    ['قمر','blue','operative', true, 'عميل أزرق'],
+    ['باب','neutral','operative', true, 'مارّ'],
+    ['سيف','assassin','operative', true, 'القاتل'],
+  ];
+  document.getElementById('legend').innerHTML = legend.map(([w, r, v, rev, cap]) =>
+    `<figure>${cardHTML(w, r, v).replace('cn-card ', 'cn-card ' + (rev ? 'is-revealed ' : ''))}<figcaption>${cap}</figcaption></figure>`
+  ).join('');
+
+  // interaction: tap to flip (operative reveal)
+  document.addEventListener('click', e => {
+    const card = e.target.closest('#demo .cn-card');
+    if (card) card.classList.toggle('is-revealed');
+  });
+</script>
+</body>
+</html>

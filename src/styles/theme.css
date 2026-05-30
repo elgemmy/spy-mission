@@ -1,0 +1,10 @@
+/* Theme scopes — map tokens to semantic aliases per theme. */
+
+[data-theme="default"] {
+  color-scheme: light;
+}
+
+/* Placeholder for a future theme; override token aliases here when ready. */
+[data-theme="future-dark"] {
+  color-scheme: dark;
+}

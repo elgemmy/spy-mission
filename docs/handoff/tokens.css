@@ -1,0 +1,79 @@
+/* ============================================================
+   Codename — design tokens  ·  direction: "Warm Sand"
+   Mobile-first family Codenames. Arabic-first / English secondary.
+   Drop into your Vite app and import once (e.g. in main.tsx).
+   ============================================================ */
+
+:root {
+  /* ---- Type -------------------------------------------------
+     Rubik   → UI chrome, Latin words, headings
+     Cairo   → Arabic board words (Rubik has no Arabic script;
+               Cairo shares its rounded-geometric DNA)
+     DM Mono → room codes, counts, clue numbers (tabular)        */
+  --cn-font-ui:     'Rubik', system-ui, sans-serif;
+  --cn-font-ar:     'Cairo', system-ui, sans-serif;
+  --cn-font-mono:   'DM Mono', ui-monospace, monospace;
+
+  /* Arabic runs ~1px–3px larger than Latin at the same role.
+     Use --cn-ar-boost as a multiplier on board/word type.       */
+  --cn-ar-boost:    1.18;
+
+  /* ---- Surfaces & ink --------------------------------------- */
+  --cn-bg:          #f1e8da;   /* app background (warm sand)      */
+  --cn-surface:     #fdfaf3;   /* cards, bars (warm cream)        */
+  --cn-surface-2:   #f6efe2;   /* insets, segmented track         */
+  --cn-ink:         #2f2a24;   /* primary text                    */
+  --cn-ink-soft:    #7d7263;   /* secondary text / labels         */
+  --cn-line:        #e4dac8;   /* hairlines, borders              */
+
+  /* ---- Factions ---------------------------------------------
+     Each faction: base (solid fill), -ink (text/border on light),
+     -tint (key wash + chips), -on (text/glyph on the solid fill) */
+  --cn-red:         #c8553d;
+  --cn-red-ink:     #9a3b28;
+  --cn-red-tint:    #f4ddd4;
+  --cn-red-on:      #fdf3ec;
+
+  --cn-blue:        #2f7e8c;
+  --cn-blue-ink:    #1f5a66;
+  --cn-blue-tint:   #d8e9eb;
+  --cn-blue-on:     #eef7f8;
+
+  --cn-neutral:     #cba968;
+  --cn-neutral-ink: #7a5e2e;
+  --cn-neutral-tint:#efe5cd;
+  --cn-neutral-on:  #2f2616;
+
+  --cn-assassin:    #2b2622;
+  --cn-assassin-ink:#2b2622;
+  --cn-assassin-tint:#d8cfc4;
+  --cn-assassin-on: #f0e9dd;
+
+  /* Global CTA (neutral, never reads as a team) */
+  --cn-primary:     var(--cn-ink);
+  --cn-primary-on:  var(--cn-surface);
+
+  /* ---- Radii ------------------------------------------------- */
+  --cn-r-card:      12px;  /* word tiles                          */
+  --cn-r-chip:      999px; /* count chips, pills, segmented        */
+  --cn-r-bar:       18px;  /* clue bar, room-code card, CTAs       */
+  --cn-r-sm:        10px;  /* player chips, small insets           */
+
+  /* ---- Elevation -------------------------------------------- */
+  --cn-shadow-tile: 0 2px 3px rgba(60, 45, 30, 0.10);  /* resting tile  */
+  --cn-shadow-bar:  0 4px 16px rgba(60, 45, 30, 0.06); /* floating bars  */
+  --cn-shadow-cta:  0 6px 18px rgba(43, 38, 34, 0.22); /* primary button */
+
+  /* ---- Motion ----------------------------------------------- */
+  --cn-flip-dur:    190ms;
+  --cn-flip-ease:   cubic-bezier(.34, 1.2, .46, 1);    /* slight overshoot */
+}
+
+/* Layout baseline: design at 390px, center the column on desktop. */
+.cn-shell {
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  min-height: 100dvh;
+  background: var(--cn-bg);
+}

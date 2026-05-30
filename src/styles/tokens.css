@@ -1,0 +1,78 @@
+/* ============================================================
+   Codename — design tokens  ·  direction: "Warm Sand"
+   Canonical source: docs/handoff/tokens.css
+   Mobile-first family Codenames. Arabic-first / English secondary.
+   ============================================================ */
+
+:root {
+  /* ---- Type ------------------------------------------------- */
+  --cn-font-ui: "Rubik", system-ui, sans-serif;
+  --cn-font-ar: "Cairo", system-ui, sans-serif;
+  --cn-font-mono: "DM Mono", ui-monospace, monospace;
+  --cn-ar-boost: 1.18;
+
+  /* ---- Surfaces & ink --------------------------------------- */
+  --cn-bg: #f1e8da;
+  --cn-surface: #fdfaf3;
+  --cn-surface-2: #f6efe2;
+  --cn-ink: #2f2a24;
+  --cn-ink-soft: #7d7263;
+  --cn-line: #e4dac8;
+
+  /* ---- Factions --------------------------------------------- */
+  --cn-red: #c8553d;
+  --cn-red-ink: #9a3b28;
+  --cn-red-tint: #f4ddd4;
+  --cn-red-on: #fdf3ec;
+
+  --cn-blue: #2f7e8c;
+  --cn-blue-ink: #1f5a66;
+  --cn-blue-tint: #d8e9eb;
+  --cn-blue-on: #eef7f8;
+
+  --cn-neutral: #cba968;
+  --cn-neutral-ink: #7a5e2e;
+  --cn-neutral-tint: #efe5cd;
+  --cn-neutral-on: #2f2616;
+
+  --cn-assassin: #2b2622;
+  --cn-assassin-ink: #2b2622;
+  --cn-assassin-tint: #d8cfc4;
+  --cn-assassin-on: #f0e9dd;
+
+  --cn-primary: var(--cn-ink);
+  --cn-primary-on: var(--cn-surface);
+
+  /* ---- Radii ------------------------------------------------- */
+  --cn-r-card: 12px;
+  --cn-r-chip: 999px;
+  --cn-r-bar: 18px;
+  --cn-r-sm: 10px;
+
+  /* ---- Elevation -------------------------------------------- */
+  --cn-shadow-tile: 0 2px 3px rgba(60, 45, 30, 0.1);
+  --cn-shadow-bar: 0 4px 16px rgba(60, 45, 30, 0.06);
+  --cn-shadow-cta: 0 6px 18px rgba(43, 38, 34, 0.22);
+
+  /* ---- Motion ----------------------------------------------- */
+  --cn-flip-dur: 190ms;
+  --cn-flip-ease: cubic-bezier(0.34, 1.2, 0.46, 1);
+
+  /* ---- Spacing scale (planning doc; use via Tailwind spacing) -- */
+  --cn-space-1: 4px;
+  --cn-space-2: 8px;
+  --cn-space-3: 12px;
+  --cn-space-4: 16px;
+  --cn-space-5: 24px;
+  --cn-space-6: 32px;
+  --cn-space-7: 48px;
+}
+
+/* Layout baseline: design at 390px, center the column on desktop. */
+.cn-shell {
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  min-height: 100dvh;
+  background: var(--cn-bg);
+}

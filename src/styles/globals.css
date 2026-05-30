@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: var(--cn-bg);
+  --color-surface: var(--cn-surface);
+  --color-surface-2: var(--cn-surface-2);
+  --color-ink: var(--cn-ink);
+  --color-ink-soft: var(--cn-ink-soft);
+  --color-line: var(--cn-line);
+  --color-primary: var(--cn-primary);
+  --color-primary-on: var(--cn-primary-on);
+
+  --color-red: var(--cn-red);
+  --color-red-ink: var(--cn-red-ink);
+  --color-red-tint: var(--cn-red-tint);
+  --color-red-on: var(--cn-red-on);
+
+  --color-blue: var(--cn-blue);
+  --color-blue-ink: var(--cn-blue-ink);
+  --color-blue-tint: var(--cn-blue-tint);
+  --color-blue-on: var(--cn-blue-on);
+
+  --color-neutral: var(--cn-neutral);
+  --color-neutral-ink: var(--cn-neutral-ink);
+  --color-neutral-tint: var(--cn-neutral-tint);
+  --color-neutral-on: var(--cn-neutral-on);
+
+  --color-assassin: var(--cn-assassin);
+  --color-assassin-ink: var(--cn-assassin-ink);
+  --color-assassin-tint: var(--cn-assassin-tint);
+  --color-assassin-on: var(--cn-assassin-on);
+
+  --radius-card: var(--cn-r-card);
+  --radius-chip: var(--cn-r-chip);
+  --radius-bar: var(--cn-r-bar);
+  --radius-sm: var(--cn-r-sm);
+
+  --font-ui: var(--cn-font-ui);
+  --font-ar: var(--cn-font-ar);
+  --font-mono: var(--cn-font-mono);
+
+  --shadow-tile: var(--cn-shadow-tile);
+  --shadow-bar: var(--cn-shadow-bar);
+  --shadow-cta: var(--cn-shadow-cta);
+
+  --ease-flip: var(--cn-flip-ease);
+  --default-transition-duration: var(--cn-flip-dur);
+
+  --spacing-cn-1: var(--cn-space-1);
+  --spacing-cn-2: var(--cn-space-2);
+  --spacing-cn-3: var(--cn-space-3);
+  --spacing-cn-4: var(--cn-space-4);
+  --spacing-cn-5: var(--cn-space-5);
+  --spacing-cn-6: var(--cn-space-6);
+  --spacing-cn-7: var(--cn-space-7);
+
+  --max-width-shell: 480px;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--cn-font-ui);
+    background-color: var(--cn-bg);
+    color: var(--cn-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+}

@@ -1,0 +1,136 @@
+/* ============================================================
+   Card — reference component  ·  "Warm Sand"
+   The physical word-tile that flips to reveal its allegiance.
+   Requires tokens.css. Theming is driven entirely by data-attrs:
+     data-role  = red | blue | neutral | assassin
+     data-view  = operative | spymaster   (resting appearance)
+     .is-revealed                         (flipped to faction)
+   ============================================================ */
+
+.cn-card {
+  /* reset the <button> */
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  /* layout */
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 0.92;          /* board tile; use 1.35/1 for showcase */
+  perspective: 600px;
+  cursor: pointer;
+}
+.cn-card[aria-disabled='true'] { cursor: default; }
+
+/* per-role channel */
+.cn-card[data-role='red']      { --c: var(--cn-red);      --c-ink: var(--cn-red-ink);      --c-tint: var(--cn-red-tint);      --c-on: var(--cn-red-on); }
+.cn-card[data-role='blue']     { --c: var(--cn-blue);     --c-ink: var(--cn-blue-ink);     --c-tint: var(--cn-blue-tint);     --c-on: var(--cn-blue-on); }
+.cn-card[data-role='neutral']  { --c: var(--cn-neutral);  --c-ink: var(--cn-neutral-ink);  --c-tint: var(--cn-neutral-tint);  --c-on: var(--cn-neutral-on); }
+.cn-card[data-role='assassin'] { --c: var(--cn-assassin); --c-ink: var(--cn-assassin-ink); --c-tint: var(--cn-assassin-tint); --c-on: var(--cn-assassin-on); }
+
+.cn-card__inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--cn-flip-dur) var(--cn-flip-ease);
+}
+.cn-card.is-revealed .cn-card__inner {
+  transform: rotateY(180deg);
+}
+
+.cn-card__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cn-r-card);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+/* ---- FRONT (resting) ---- */
+.cn-card__face--front {
+  background: var(--cn-surface);
+  color: var(--cn-ink);
+  border: 1px solid var(--cn-line);
+  /* resting lift lives on the face (box-shadow is safe inside preserve-3d;
+     a filter here would flatten the flip) */
+  box-shadow: var(--cn-shadow-tile), inset 0 -2px 0 rgba(0, 0, 0, 0.05);
+}
+/* spymaster resting: key tint + corner glyph + top key bar */
+.cn-card[data-view='spymaster'] .cn-card__face--front {
+  background: var(--c-tint);
+  color: var(--c-ink);
+  border: 1.5px solid var(--c);
+  box-shadow: var(--cn-shadow-tile), inset 0 3px 0 var(--c);
+}
+.cn-card__key {                    /* corner glyph, spymaster only */
+  position: absolute;
+  top: 4px;
+  inset-inline-start: 5px;
+  width: 12px;
+  height: 12px;
+  color: var(--c);
+  display: none;
+}
+.cn-card[data-view='spymaster'] .cn-card__key { display: block; }
+
+/* ---- BACK (revealed faction) ---- */
+.cn-card__face--back {
+  background: var(--c);
+  color: var(--c-on);
+  transform: rotateY(180deg);
+  flex-direction: column;
+  gap: 1px;
+  box-shadow: 0 2px 4px rgba(60, 45, 30, 0.12),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+              inset 0 -3px 6px rgba(0, 0, 0, 0.12);
+}
+.cn-card__watermark {              /* big faint glyph behind */
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0.18;
+}
+.cn-card__watermark svg { width: 56%; height: 56%; color: var(--c-on); }
+.cn-card__reveal {                 /* glyph + word, in front of watermark */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: var(--c-on);
+}
+.cn-card__reveal svg { width: 14px; height: 14px; }
+
+/* ---- word type ---- */
+.cn-card__word {
+  font-family: var(--cn-font-ui);
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.05;
+  text-align: center;
+}
+.cn-card__face--back .cn-card__word { font-weight: 700; }
+/* Arabic board words run larger (see --cn-ar-boost) */
+.cn-card[dir='rtl'] .cn-card__word,
+.cn-card--ar .cn-card__word {
+  font-family: var(--cn-font-ar);
+  font-size: 17px;
+}
+
+/* Honour reduced-motion: cross-fade instead of flipping */
+@media (prefers-reduced-motion: reduce) {
+  .cn-card__inner { transition: none; }
+}
