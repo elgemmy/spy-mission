@@ -12,7 +12,7 @@ import {
   confirmGuess,
   createRoomRecord,
   dispatchRoomAction,
-  inMemoryRoomProvider,
+  getRoomProvider,
   joinRoomRecord,
   removePlayer,
   returnToLobby,
@@ -39,24 +39,28 @@ import { initTheme } from "./theme";
 
 const PLAYER_ID_KEY = "codenames.playerId";
 const ROOM_ID_KEY = "codenames.roomId";
-const LOCAL_PLAYER_IDS_KEY = "codenames.localPlayerIds";
+
+type JoinSource = "code" | "link";
+type OnboardingStep =
+  | { type: "landing" }
+  | { type: "createName" }
+  | { type: "joinCode" }
+  | { type: "joinName"; code: string; source: JoinSource };
+
+const roomProvider = getRoomProvider();
 
 export function App() {
-  const [playerId, setPlayerId] = useState(() => loadOrCreatePlayerId());
-  const [localPlayerIds, setLocalPlayerIds] = useState(() =>
-    loadLocalPlayerIds(playerId),
+  const inviteCode = readInviteCode();
+  const [playerId] = useState(() => loadOrCreatePlayerId());
+  const [roomId, setRoomId] = useState(() =>
+    inviteCode ? null : localStorageSafe.get(ROOM_ID_KEY),
   );
-  const [roomId, setRoomId] = useState(() => localStorageSafe.get(ROOM_ID_KEY));
   const [room, setRoom] = useState<RoomRecord | null>(null);
-  const [createName, setCreateName] = useState("");
-  const [joinName, setJoinName] = useState("");
-  const [joinCode, setJoinCode] = useState(() => {
-    try {
-      return new URLSearchParams(window.location.search).get("room") ?? "";
-    } catch {
-      return "";
-    }
-  });
+  const [step, setStep] = useState<OnboardingStep>(() =>
+    inviteCode
+      ? { type: "joinName", code: inviteCode, source: "link" }
+      : { type: "landing" },
+  );
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -69,16 +73,12 @@ export function App() {
   }, [playerId]);
 
   useEffect(() => {
-    saveLocalPlayerIds(localPlayerIds);
-  }, [localPlayerIds]);
-
-  useEffect(() => {
     if (!roomId) {
       return undefined;
     }
 
     let mounted = true;
-    void inMemoryRoomProvider.load(roomId).then((loaded) => {
+    void roomProvider.load(roomId).then((loaded) => {
       if (!mounted) {
         return;
       }
@@ -88,7 +88,7 @@ export function App() {
       }
     });
 
-    const unsubscribe = inMemoryRoomProvider.subscribe(roomId, (next) => {
+    const unsubscribe = roomProvider.subscribe(roomId, (next) => {
       if (!next) {
         localStorageSafe.remove(ROOM_ID_KEY);
       }
@@ -111,15 +111,9 @@ export function App() {
     room?.ui.clueLog[room.ui.clueLog.length - 1] ?? null;
 
   const commit = async (next: RoomRecord, expectedVersion = room?.version) => {
-    await inMemoryRoomProvider.save(next, expectedVersion);
+    await roomProvider.save(next, expectedVersion);
     setRoom(next);
     setError(null);
-  };
-
-  const registerLocalPlayerId = (id: string) => {
-    setLocalPlayerIds((current) =>
-      current.includes(id) ? current : [...current, id],
-    );
   };
 
   const handleError = (caught: unknown) => {
@@ -134,37 +128,23 @@ export function App() {
     setError("حدث خطأ غير متوقع.");
   };
 
-  const createRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const hostName = createName.trim();
-    if (hostName.length === 0) {
-      return;
-    }
+  const createRoom = async (name: string) => {
     const now = new Date().toISOString();
     const next = createRoomRecord({
       id: createRoomId(),
       code: createRoomCode(),
       hostId: playerId,
-      hostName,
+      hostName: name,
       lang: "ar",
       now,
     });
-    await inMemoryRoomProvider.create(next);
-    localStorageSafe.set(ROOM_ID_KEY, next.id);
-    setRoomId(next.id);
-    setRoom(next);
-    setError(null);
+    await roomProvider.create(next);
+    enterRoom(next);
   };
 
-  const joinRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const name = joinName.trim();
-    const code = joinCode.trim().toUpperCase();
-    if (name.length === 0 || code.length === 0) {
-      return;
-    }
+  const joinRoom = async (code: string, name: string, source: JoinSource) => {
     try {
-      const found = await inMemoryRoomProvider.loadByCode(code);
+      const found = await roomProvider.loadByCode(code);
       if (!found) {
         setError("لم يتم العثور على الغرفة.");
         return;
@@ -174,33 +154,22 @@ export function App() {
         playerId,
         name,
         new Date().toISOString(),
+        {
+          allowPrivate: source === "link",
+        },
       );
-      await commit(next);
-      localStorageSafe.set(ROOM_ID_KEY, next.id);
-      setRoomId(next.id);
+      await roomProvider.save(next, found.version);
+      enterRoom(next);
     } catch (caught) {
       handleError(caught);
     }
   };
 
-  const addLocalPlayer = async (name: string) => {
-    if (!room) {
-      return;
-    }
-    try {
-      const nextPlayerId = createClientId();
-      const next = joinRoomRecord(
-        room,
-        nextPlayerId,
-        name,
-        new Date().toISOString(),
-      );
-      await commit(next);
-      registerLocalPlayerId(nextPlayerId);
-      setPlayerId(nextPlayerId);
-    } catch (caught) {
-      handleError(caught);
-    }
+  const enterRoom = (next: RoomRecord) => {
+    localStorageSafe.set(ROOM_ID_KEY, next.id);
+    setRoomId(next.id);
+    setRoom(next);
+    setError(null);
   };
 
   const assignSelf = async (team: Team, role: Role) => {
@@ -372,10 +341,8 @@ export function App() {
     if (!room || !isHost) {
       return;
     }
-    await inMemoryRoomProvider.delete(room.id);
-    localStorageSafe.remove(ROOM_ID_KEY);
-    setRoomId(null);
-    setRoom(null);
+    await roomProvider.delete(room.id);
+    leaveRoom();
   };
 
   const changeHost = async (nextHostId: string) => {
@@ -404,19 +371,11 @@ export function App() {
     }
   };
 
-  const switchPlayer = (nextPlayerId: string) => {
-    if (!localPlayerIds.includes(nextPlayerId)) {
-      setError("هذا اللاعب ليس محفوظا على هذا الجهاز.");
-      return;
-    }
-    setPlayerId(nextPlayerId);
-    setError(null);
-  };
-
-  const leaveLocalRoom = () => {
+  const leaveRoom = () => {
     localStorageSafe.remove(ROOM_ID_KEY);
     setRoomId(null);
     setRoom(null);
+    setStep({ type: "landing" });
     setError(null);
   };
 
@@ -431,7 +390,6 @@ export function App() {
                 room={room}
                 view={view}
                 playerId={playerId}
-                localPlayerIds={localPlayerIds}
                 copied={copied}
                 onCopyInvite={copyInvite}
                 onSetLang={setLang}
@@ -441,8 +399,6 @@ export function App() {
                 onDeleteRoom={deleteRoom}
                 onTransferHost={changeHost}
                 onRemovePlayer={kickPlayer}
-                onSwitchPlayer={switchPlayer}
-                onAddLocalPlayer={addLocalPlayer}
               />
             ) : (
               <PlayScreen
@@ -459,18 +415,14 @@ export function App() {
                 onRegenerate={startGame}
               />
             )}
-            <Button variant="secondary" onClick={leaveLocalRoom}>
+            <Button variant="secondary" onClick={leaveRoom}>
               الخروج من هذه الشاشة
             </Button>
           </>
         ) : (
-          <Landing
-            createName={createName}
-            joinName={joinName}
-            joinCode={joinCode}
-            onCreateName={setCreateName}
-            onJoinName={setJoinName}
-            onJoinCode={setJoinCode}
+          <Onboarding
+            step={step}
+            onStep={setStep}
             onCreateRoom={createRoom}
             onJoinRoom={joinRoom}
           />
@@ -485,90 +437,175 @@ export function App() {
   );
 }
 
-function Landing({
-  createName,
-  joinName,
-  joinCode,
-  onCreateName,
-  onJoinName,
-  onJoinCode,
+function Onboarding({
+  step,
+  onStep,
   onCreateRoom,
   onJoinRoom,
 }: {
-  createName: string;
-  joinName: string;
-  joinCode: string;
-  onCreateName: (value: string) => void;
-  onJoinName: (value: string) => void;
-  onJoinCode: (value: string) => void;
-  onCreateRoom: (event: FormEvent<HTMLFormElement>) => void;
-  onJoinRoom: (event: FormEvent<HTMLFormElement>) => void;
+  step: OnboardingStep;
+  onStep: (step: OnboardingStep) => void;
+  onCreateRoom: (name: string) => void;
+  onJoinRoom: (code: string, name: string, source: JoinSource) => void;
+}) {
+  if (step.type === "createName") {
+    return (
+      <UsernameStep
+        title="اختر اسمك"
+        description="سيظهر هذا الاسم في الغرفة."
+        submitLabel="إنشاء الغرفة"
+        onBack={() => onStep({ type: "landing" })}
+        onSubmit={onCreateRoom}
+      />
+    );
+  }
+
+  if (step.type === "joinName") {
+    return (
+      <UsernameStep
+        title="اختر اسمك"
+        description={`الغرفة ${step.code}`}
+        submitLabel="الدخول للغرفة"
+        onBack={() =>
+          onStep(
+            step.source === "link" ? { type: "landing" } : { type: "joinCode" },
+          )
+        }
+        onSubmit={(name) => onJoinRoom(step.code, name, step.source)}
+      />
+    );
+  }
+
+  if (step.type === "joinCode") {
+    return (
+      <JoinCodeStep
+        onBack={() => onStep({ type: "landing" })}
+        onSubmit={(code) => onStep({ type: "joinName", code, source: "code" })}
+      />
+    );
+  }
+
+  return (
+    <Landing
+      onCreate={() => onStep({ type: "createName" })}
+      onJoin={() => onStep({ type: "joinCode" })}
+    />
+  );
+}
+
+function Landing({
+  onCreate,
+  onJoin,
+}: {
+  onCreate: () => void;
+  onJoin: () => void;
 }) {
   return (
     <>
-      <header className="gap-cn-3 flex items-center">
-        <div className="cn-wordmark" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-        <div>
-          <h1 className="text-ink m-0 text-xl font-bold">كودنيمز</h1>
-          <p className="text-ink-soft m-0 text-sm">لعبة كلمات عربية أولا</p>
-        </div>
+      <header className="cn-landing-hero">
+        <img className="cn-landing-logo" src="/pwa-icon.svg" alt="كودنيمز" />
+        <h1 className="text-ink m-0 text-xl font-bold">كودنيمز</h1>
+        <p className="text-ink-soft m-0 text-sm">لعبة كلمات عربية أولا</p>
       </header>
 
-      <form
-        className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
-        onSubmit={onCreateRoom}
-      >
-        <label className="text-ink text-sm font-semibold" htmlFor="create-name">
-          إنشاء غرفة
-        </label>
-        <input
-          id="create-name"
-          className="cn-field"
-          value={createName}
-          onChange={(event) => onCreateName(event.target.value)}
-          placeholder="اسمك"
-        />
-        <Button type="submit" disabled={createName.trim().length === 0}>
-          إنشاء غرفة جديدة
+      <div className="gap-cn-3 flex flex-col">
+        <Button onClick={onCreate}>إنشاء غرفة جديدة</Button>
+        <Button variant="secondary" onClick={onJoin}>
+          الانضمام برمز
         </Button>
-      </form>
-
-      <form
-        className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
-        onSubmit={onJoinRoom}
-      >
-        <label className="text-ink text-sm font-semibold" htmlFor="join-code">
-          الانضمام لغرفة
-        </label>
-        <input
-          className="cn-field"
-          value={joinName}
-          onChange={(event) => onJoinName(event.target.value)}
-          placeholder="اسمك"
-        />
-        <input
-          id="join-code"
-          className="cn-field font-mono"
-          value={joinCode}
-          onChange={(event) => onJoinCode(event.target.value)}
-          placeholder="ROOM CODE"
-          dir="ltr"
-        />
-        <Button
-          type="submit"
-          disabled={
-            joinName.trim().length === 0 || joinCode.trim().length === 0
-          }
-        >
-          انضمام
-        </Button>
-      </form>
+      </div>
     </>
+  );
+}
+
+function JoinCodeStep({
+  onBack,
+  onSubmit,
+}: {
+  onBack: () => void;
+  onSubmit: (code: string) => void;
+}) {
+  const [code, setCode] = useState("");
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = code.trim().toUpperCase();
+    if (trimmed.length > 0) {
+      onSubmit(trimmed);
+    }
+  };
+
+  return (
+    <form
+      className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
+      onSubmit={submit}
+    >
+      <label className="text-ink text-sm font-semibold" htmlFor="join-code">
+        رمز الغرفة
+      </label>
+      <input
+        id="join-code"
+        className="cn-field font-mono"
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+        placeholder="ROOM CODE"
+        dir="ltr"
+      />
+      <Button type="submit" disabled={code.trim().length === 0}>
+        متابعة
+      </Button>
+      <Button variant="secondary" onClick={onBack}>
+        رجوع
+      </Button>
+    </form>
+  );
+}
+
+function UsernameStep({
+  title,
+  description,
+  submitLabel,
+  onBack,
+  onSubmit,
+}: {
+  title: string;
+  description: string;
+  submitLabel: string;
+  onBack: () => void;
+  onSubmit: (name: string) => void;
+}) {
+  const [name, setName] = useState("");
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (trimmed.length > 0) {
+      onSubmit(trimmed);
+    }
+  };
+
+  return (
+    <form
+      className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
+      onSubmit={submit}
+    >
+      <div>
+        <h1 className="text-ink m-0 text-lg font-bold">{title}</h1>
+        <p className="text-ink-soft mt-cn-1 m-0 text-sm">{description}</p>
+      </div>
+      <input
+        className="cn-field"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder="اسمك"
+      />
+      <Button type="submit" disabled={name.trim().length === 0}>
+        {submitLabel}
+      </Button>
+      <Button variant="secondary" onClick={onBack}>
+        رجوع
+      </Button>
+    </form>
   );
 }
 
@@ -596,31 +633,18 @@ const localStorageSafe = {
   },
 };
 
+function readInviteCode(): string | null {
+  try {
+    const code = new URLSearchParams(window.location.search).get("room");
+    return code?.trim().toUpperCase() || null;
+  } catch {
+    return null;
+  }
+}
+
 function loadOrCreatePlayerId(): string {
   const existing = localStorageSafe.get(PLAYER_ID_KEY);
   return existing ?? createClientId();
-}
-
-function loadLocalPlayerIds(playerId: string): string[] {
-  const raw = localStorageSafe.get(LOCAL_PLAYER_IDS_KEY);
-  if (!raw) {
-    return [playerId];
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [playerId];
-    }
-    const ids = parsed.filter((id): id is string => typeof id === "string");
-    return ids.includes(playerId) ? ids : [...ids, playerId];
-  } catch {
-    return [playerId];
-  }
-}
-
-function saveLocalPlayerIds(ids: string[]): void {
-  localStorageSafe.set(LOCAL_PLAYER_IDS_KEY, JSON.stringify(ids));
 }
 
 function errorMessage(code: string): string {

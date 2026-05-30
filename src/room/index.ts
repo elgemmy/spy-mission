@@ -11,7 +11,7 @@ export {
   InMemoryRoomProvider,
   inMemoryRoomProvider,
 } from "./inMemoryRoomProvider";
-export { SupabaseRoomProvider } from "./supabaseRoomProvider";
+export { getRoomProvider, resetRoomProviderForTests } from "./provider";
 export {
   clearVote,
   confirmGuess,

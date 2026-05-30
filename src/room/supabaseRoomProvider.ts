@@ -62,17 +62,26 @@ export class SupabaseRoomProvider implements RoomProvider {
       updated_at: room.updatedAt,
     };
 
-    const { error } =
-      expectedVersion === undefined
-        ? await supabase.from("rooms").upsert(row)
-        : await supabase
-            .from("rooms")
-            .update(row)
-            .eq("id", room.id)
-            .eq("version", expectedVersion);
+    if (expectedVersion === undefined) {
+      const { error } = await supabase.from("rooms").upsert(row);
+      if (error) {
+        throw error;
+      }
+      return;
+    }
 
+    const { data, error } = await supabase
+      .from("rooms")
+      .update(row)
+      .eq("id", room.id)
+      .eq("version", expectedVersion)
+      .select("id")
+      .maybeSingle();
     if (error) {
       throw error;
+    }
+    if (!data) {
+      throw new Error("ROOM_VERSION_CONFLICT");
     }
   }
 

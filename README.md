@@ -24,27 +24,35 @@ cp .env.example .env.local
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Local design preview does not require Supabase.
 
+When these variables are present, the app uses the Supabase room provider so
+Vercel deployments can share rooms across devices. Without them it falls back to
+the local in-memory provider.
+
+Apply the SQL in `supabase/migrations/0001_rooms.sql` before testing a deployed
+multiplayer room. The current anonymous policies are for MVP playtesting only;
+move hidden-state reads behind RPC/RLS-safe views before serious public play.
+
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run typecheck` | TypeScript |
-| `npm run lint` | ESLint |
-| `npm run test` | Vitest |
+| Command             | Description                  |
+| ------------------- | ---------------------------- |
+| `npm run dev`       | Dev server                   |
+| `npm run build`     | Typecheck + production build |
+| `npm run typecheck` | TypeScript                   |
+| `npm run lint`      | ESLint                       |
+| `npm run test`      | Vitest                       |
 
 ## Design system (handoff-canonical)
 
 **Canonical source:** [`docs/handoff/`](docs/handoff/)
 
-| File | Role |
-| --- | --- |
-| `docs/handoff/tokens.css` | Token reference (mirrored in `src/styles/tokens.css`) |
-| `docs/handoff/card.css` | Word tile styles (mirrored in `src/ui/card/Card.css`) |
-| `docs/handoff/Card.html` | Reference markup for `WordCard` |
-| `docs/handoff/component-specs.md` | TopBar, Board, ClueBar, Lobby specs |
-| `docs/handoff/CODEX_HANDOFF.md` | Codex execution guardrails |
+| File                              | Role                                                  |
+| --------------------------------- | ----------------------------------------------------- |
+| `docs/handoff/tokens.css`         | Token reference (mirrored in `src/styles/tokens.css`) |
+| `docs/handoff/card.css`           | Word tile styles (mirrored in `src/ui/card/Card.css`) |
+| `docs/handoff/Card.html`          | Reference markup for `WordCard`                       |
+| `docs/handoff/component-specs.md` | TopBar, Board, ClueBar, Lobby specs                   |
+| `docs/handoff/CODEX_HANDOFF.md`   | Codex execution guardrails                            |
 
 ### Handoff precedence
 
@@ -63,16 +71,16 @@ For any UI work, follow **`docs/handoff/*` first**. Do not mix legacy planning t
 
 ## Module boundaries
 
-| Path | Responsibility |
-| --- | --- |
-| `src/engine/` | Pure rules |
-| `src/room/` | `RoomProvider` |
-| `src/ui/card/` | Word tile (`WordCard`) |
-| `src/ui/components/` | Shared chrome controls |
-| `src/app/` | App shell |
-| `src/styles/` | Tokens + Tailwind bridge |
-| `docs/handoff/` | Canonical design specs |
-| `docs/planning/` | Engine, architecture, roadmap |
+| Path                 | Responsibility                |
+| -------------------- | ----------------------------- |
+| `src/engine/`        | Pure rules                    |
+| `src/room/`          | `RoomProvider`                |
+| `src/ui/card/`       | Word tile (`WordCard`)        |
+| `src/ui/components/` | Shared chrome controls        |
+| `src/app/`           | App shell                     |
+| `src/styles/`        | Tokens + Tailwind bridge      |
+| `docs/handoff/`      | Canonical design specs        |
+| `docs/planning/`     | Engine, architecture, roadmap |
 
 ## Doc precedence
 

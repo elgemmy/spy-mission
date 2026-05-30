@@ -50,11 +50,12 @@ export function joinRoomRecord(
   playerId: string,
   name: string,
   now: string,
+  options: { allowPrivate?: boolean } = {},
 ): RoomRecord {
   if (room.state.players[playerId]) {
     return room;
   }
-  if (room.visibility === "private") {
+  if (room.visibility === "private" && !options.allowPrivate) {
     throw new RoomError("ROOM_PRIVATE");
   }
   return withState(

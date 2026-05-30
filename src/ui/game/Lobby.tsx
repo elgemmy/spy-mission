@@ -1,4 +1,3 @@
-import { useState, type FormEvent } from "react";
 import { Button } from "../components/Button";
 import { GlyphIcon } from "../card/glyphs";
 import type { Lang, PlayerView, Role, Team } from "../../engine";
@@ -8,7 +7,6 @@ interface LobbyProps {
   room: RoomRecord;
   view: PlayerView;
   playerId: string;
-  localPlayerIds: string[];
   copied: boolean;
   onCopyInvite: () => void;
   onSetLang: (lang: Lang) => void;
@@ -18,8 +16,6 @@ interface LobbyProps {
   onDeleteRoom: () => void;
   onTransferHost: (nextHostId: string) => void;
   onRemovePlayer: (targetPlayerId: string) => void;
-  onSwitchPlayer: (nextPlayerId: string) => void;
-  onAddLocalPlayer: (name: string) => void;
 }
 
 const TEAM_LABEL: Record<Team, string> = {
@@ -31,7 +27,6 @@ export function Lobby({
   room,
   view,
   playerId,
-  localPlayerIds,
   copied,
   onCopyInvite,
   onSetLang,
@@ -41,8 +36,6 @@ export function Lobby({
   onDeleteRoom,
   onTransferHost,
   onRemovePlayer,
-  onSwitchPlayer,
-  onAddLocalPlayer,
 }: LobbyProps) {
   const isHost = room.hostId === playerId;
 
@@ -142,26 +135,20 @@ export function Lobby({
           view={view}
           room={room}
           playerId={playerId}
-          localPlayerIds={localPlayerIds}
           onAssignSelf={onAssignSelf}
           onTransferHost={onTransferHost}
           onRemovePlayer={onRemovePlayer}
-          onSwitchPlayer={onSwitchPlayer}
         />
         <TeamCard
           team="blue"
           view={view}
           room={room}
           playerId={playerId}
-          localPlayerIds={localPlayerIds}
           onAssignSelf={onAssignSelf}
           onTransferHost={onTransferHost}
           onRemovePlayer={onRemovePlayer}
-          onSwitchPlayer={onSwitchPlayer}
         />
       </section>
-
-      <LocalPlayerForm onAddLocalPlayer={onAddLocalPlayer} />
 
       <div className="gap-cn-2 flex flex-col">
         <Button disabled={!isHost || !view.can.startGame} onClick={onStartGame}>
@@ -177,74 +164,22 @@ export function Lobby({
   );
 }
 
-function LocalPlayerForm({
-  onAddLocalPlayer,
-}: {
-  onAddLocalPlayer: (name: string) => void;
-}) {
-  const [name, setName] = useState("");
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmed = name.trim();
-    if (trimmed.length === 0) {
-      return;
-    }
-    onAddLocalPlayer(trimmed);
-    setName("");
-  };
-
-  return (
-    <form
-      className="cn-card-panel gap-cn-2 p-cn-3 flex flex-col"
-      onSubmit={submit}
-    >
-      <label
-        className="text-ink text-sm font-semibold"
-        htmlFor="local-player-name"
-      >
-        لاعب محلي
-      </label>
-      <div className="gap-cn-2 grid grid-cols-2">
-        <input
-          id="local-player-name"
-          className="cn-field"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="الاسم"
-        />
-        <Button
-          variant="secondary"
-          type="submit"
-          disabled={name.trim().length === 0}
-        >
-          إضافة
-        </Button>
-      </div>
-    </form>
-  );
-}
-
 function TeamCard({
   team,
   view,
   room,
   playerId,
-  localPlayerIds,
   onAssignSelf,
   onTransferHost,
   onRemovePlayer,
-  onSwitchPlayer,
 }: {
   team: Team;
   view: PlayerView;
   room: RoomRecord;
   playerId: string;
-  localPlayerIds: string[];
   onAssignSelf: (team: Team, role: Role) => void;
   onTransferHost: (nextHostId: string) => void;
   onRemovePlayer: (targetPlayerId: string) => void;
-  onSwitchPlayer: (nextPlayerId: string) => void;
 }) {
   const isHost = room.hostId === playerId;
   const players = view.players.filter((player) => player.team === team);
@@ -254,7 +189,7 @@ function TeamCard({
   return (
     <article className="cn-team-card" data-team={team}>
       <header className="gap-cn-2 flex items-center justify-between">
-        <span className="gap-cn-2 text-ink flex items-center text-sm font-bold">
+        <span className="gap-cn-2 flex items-center text-sm font-bold">
           <GlyphIcon role={team} className="h-4 w-4" />
           {TEAM_LABEL[team]}
         </span>
@@ -270,10 +205,8 @@ function TeamCard({
             id={spymaster.id}
             name={spymaster.name}
             active={spymaster.id === playerId}
-            switchable={localPlayerIds.includes(spymaster.id)}
             host={spymaster.id === room.hostId}
             isHost={isHost}
-            onSwitchPlayer={onSwitchPlayer}
             onTransferHost={onTransferHost}
             onRemovePlayer={onRemovePlayer}
           />
@@ -296,10 +229,8 @@ function TeamCard({
             id={player.id}
             name={player.name}
             active={player.id === playerId}
-            switchable={localPlayerIds.includes(player.id)}
             host={player.id === room.hostId}
             isHost={isHost}
-            onSwitchPlayer={onSwitchPlayer}
             onTransferHost={onTransferHost}
             onRemovePlayer={onRemovePlayer}
           />
@@ -320,35 +251,26 @@ function PlayerChip({
   id,
   name,
   active,
-  switchable,
   host,
   isHost,
-  onSwitchPlayer,
   onTransferHost,
   onRemovePlayer,
 }: {
   id: string;
   name: string;
   active: boolean;
-  switchable: boolean;
   host: boolean;
   isHost: boolean;
-  onSwitchPlayer: (nextPlayerId: string) => void;
   onTransferHost: (nextHostId: string) => void;
   onRemovePlayer: (targetPlayerId: string) => void;
 }) {
   return (
     <div className="cn-player-chip">
-      <button
-        type="button"
-        className="cn-player-button"
-        disabled={!switchable}
-        onClick={() => onSwitchPlayer(id)}
-      >
+      <span className="cn-player-name">
         {active ? "• " : ""}
         {name}
         {host ? " · مضيف" : ""}
-      </button>
+      </span>
       {isHost && !host ? (
         <div className="gap-cn-1 flex">
           <button

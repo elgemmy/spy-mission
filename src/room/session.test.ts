@@ -33,6 +33,29 @@ describe("room session orchestration", () => {
     expect(joined.version).toBe(created.version + 1);
   });
 
+  it("allows private joins only when the invite link path is used", () => {
+    const room = {
+      ...createRoomRecord({
+        id: "room-private",
+        code: "secret",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      visibility: "private" as const,
+    };
+
+    expect(() =>
+      joinRoomRecord(room, "code-guest", "Guest", LATER),
+    ).toThrowError(expect.objectContaining({ code: "ROOM_PRIVATE" }));
+
+    const joined = joinRoomRecord(room, "link-guest", "Guest", LATER, {
+      allowPrivate: true,
+    });
+    expect(joined.state.players["link-guest"]?.name).toBe("Guest");
+  });
+
   it("records an active operative vote without revealing", () => {
     const room = roomFromState(giveActiveClue(startTestGame()));
     const operativeId = activeOperativeId(room.state);

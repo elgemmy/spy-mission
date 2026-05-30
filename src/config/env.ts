@@ -4,7 +4,9 @@ const PLACEHOLDER = "__REPLACE_ME__";
 
 const envSchema = z.object({
   VITE_SUPABASE_URL: z.string().min(1, "VITE_SUPABASE_URL is required"),
-  VITE_SUPABASE_ANON_KEY: z.string().min(1, "VITE_SUPABASE_ANON_KEY is required"),
+  VITE_SUPABASE_ANON_KEY: z
+    .string()
+    .min(1, "VITE_SUPABASE_ANON_KEY is required"),
 });
 
 export type Env = {
@@ -29,7 +31,9 @@ export function getEnv(): Env {
 
   const parsed = envSchema.safeParse(import.meta.env);
   if (!parsed.success) {
-    const message = parsed.error.issues.map((issue) => issue.message).join("; ");
+    const message = parsed.error.issues
+      .map((issue) => issue.message)
+      .join("; ");
     throw new Error(`Invalid environment configuration: ${message}`);
   }
 
@@ -43,6 +47,14 @@ export function getEnv(): Env {
   };
 
   return cachedEnv;
+}
+
+export function hasSupabaseEnv(): boolean {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  return Boolean(
+    url && anonKey && url !== PLACEHOLDER && anonKey !== PLACEHOLDER,
+  );
 }
 
 export function resetEnvCacheForTests(): void {
