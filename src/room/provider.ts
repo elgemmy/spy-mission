@@ -8,7 +8,9 @@ export function getRoomProvider(): RoomProvider {
   if (!provider) {
     provider = hasSupabaseEnv()
       ? new LazySupabaseRoomProvider()
-      : inMemoryRoomProvider;
+      : import.meta.env.PROD
+        ? new MissingSupabaseRoomProvider()
+        : inMemoryRoomProvider;
   }
   return provider;
 }
@@ -70,5 +72,31 @@ class LazySupabaseRoomProvider implements RoomProvider {
     );
     this.inner = await this.loading;
     return this.inner;
+  }
+}
+
+class MissingSupabaseRoomProvider implements RoomProvider {
+  async create(): Promise<void> {
+    throw new Error("SUPABASE_ENV_MISSING");
+  }
+
+  async delete(): Promise<void> {
+    throw new Error("SUPABASE_ENV_MISSING");
+  }
+
+  async load(): Promise<RoomRecord | null> {
+    throw new Error("SUPABASE_ENV_MISSING");
+  }
+
+  async loadByCode(): Promise<RoomRecord | null> {
+    throw new Error("SUPABASE_ENV_MISSING");
+  }
+
+  async save(): Promise<void> {
+    throw new Error("SUPABASE_ENV_MISSING");
+  }
+
+  subscribe(): Unsubscribe {
+    return () => undefined;
   }
 }

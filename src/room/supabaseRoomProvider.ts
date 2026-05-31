@@ -8,6 +8,10 @@ import type { RoomProvider, RoomRecord, Unsubscribe } from "./types";
 export class SupabaseRoomProvider implements RoomProvider {
   async create(room: RoomRecord): Promise<void> {
     await this.save(room);
+    const readable = await this.loadByCode(room.code);
+    if (!readable) {
+      throw new Error("ROOM_STORAGE_NOT_READABLE");
+    }
   }
 
   async delete(roomId: string): Promise<void> {

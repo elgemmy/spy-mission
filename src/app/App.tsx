@@ -125,28 +125,36 @@ export function App() {
       setError(errorMessage(caught.code));
       return;
     }
+    if (caught instanceof Error) {
+      setError(errorMessage(caught.message));
+      return;
+    }
     setError("حدث خطأ غير متوقع.");
   };
 
   const createRoom = async (name: string) => {
-    const now = new Date().toISOString();
-    const next = createRoomRecord({
-      id: createRoomId(),
-      code: createRoomCode(),
-      hostId: playerId,
-      hostName: name,
-      lang: "ar",
-      now,
-    });
-    await roomProvider.create(next);
-    enterRoom(next);
+    try {
+      const now = new Date().toISOString();
+      const next = createRoomRecord({
+        id: createRoomId(),
+        code: createRoomCode(),
+        hostId: playerId,
+        hostName: name,
+        lang: "ar",
+        now,
+      });
+      await roomProvider.create(next);
+      enterRoom(next);
+    } catch (caught) {
+      handleError(caught);
+    }
   };
 
   const joinRoom = async (code: string, name: string, source: JoinSource) => {
     try {
       const found = await roomProvider.loadByCode(code);
       if (!found) {
-        setError("لم يتم العثور على الغرفة.");
+        setError(errorMessage("ROOM_NOT_FOUND"));
         return;
       }
       const next = joinRoomRecord(
@@ -666,6 +674,13 @@ function errorMessage(code: string): string {
     ROOM_PRIVATE: "هذه الغرفة خاصة.",
     PLAYER_NOT_FOUND: "اللاعب غير موجود.",
     HOST_REMOVE_FORBIDDEN: "انقل الاستضافة قبل حذف المضيف.",
+    ROOM_NOT_FOUND:
+      "لم يتم العثور على الغرفة. إذا كان المضيف يرى الغرفة، فتأكد من تشغيل SQL migration وسياسات RLS في Supabase ثم أعد النشر.",
+    ROOM_STORAGE_NOT_READABLE:
+      "تم إنشاء الغرفة لكن Supabase لا يعيدها عند البحث. شغل SQL migration وسياسات RLS من جديد في Supabase.",
+    SUPABASE_ENV_MISSING:
+      "إعدادات Supabase غير موجودة في هذا النشر. أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY في Vercel ثم أعد النشر.",
+    ROOM_VERSION_CONFLICT: "تغيرت الغرفة للتو. أعد المحاولة.",
   };
   return messages[code] ?? "حدث خطأ.";
 }
