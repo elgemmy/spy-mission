@@ -15,6 +15,7 @@ import {
   getRoomProvider,
   joinRoomRecord,
   removePlayer,
+  renamePlayer,
   returnToLobby,
   RoomError,
   startNewGame,
@@ -71,6 +72,7 @@ export function App() {
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
     null,
   );
+  const [renameOpen, setRenameOpen] = useState(false);
 
   useEffect(() => {
     initTheme("default");
@@ -418,6 +420,20 @@ export function App() {
     }
   };
 
+  const renameSelf = async (name: string) => {
+    if (!room) {
+      return;
+    }
+    try {
+      await commit(
+        renamePlayer(room, playerId, name, new Date().toISOString()),
+      );
+      setRenameOpen(false);
+    } catch (caught) {
+      handleError(caught);
+    }
+  };
+
   const requestConfirm = (request: ConfirmRequest) => {
     setConfirmRequest(request);
   };
@@ -491,6 +507,15 @@ export function App() {
     });
   };
 
+  const confirmLeaveRoom = () => {
+    requestConfirm({
+      title: "الخروج من الغرفة؟",
+      body: "ستغادر هذه الشاشة وستحتاج للرابط أو رمز الغرفة للدخول مرة أخرى.",
+      confirmLabel: "خروج",
+      onConfirm: leaveRoom,
+    });
+  };
+
   const leaveRoom = () => {
     localStorageSafe.remove(ROOM_ID_KEY);
     setRoomId(null);
@@ -505,6 +530,10 @@ export function App() {
       <main className="cn-app">
         {room && view ? (
           <>
+            <PlayerBar
+              name={room.state.players[playerId]?.name ?? ""}
+              onRename={() => setRenameOpen(true)}
+            />
             {room.state.phase === "lobby" ? (
               <Lobby
                 room={room}
@@ -535,7 +564,7 @@ export function App() {
                 onRegenerate={confirmRegenerate}
               />
             )}
-            <Button variant="secondary" onClick={leaveRoom}>
+            <Button variant="secondary" onClick={confirmLeaveRoom}>
               الخروج من هذه الشاشة
             </Button>
           </>
@@ -559,7 +588,79 @@ export function App() {
             onConfirm={confirmPendingAction}
           />
         ) : null}
+        {renameOpen && room ? (
+          <RenameDialog
+            currentName={room.state.players[playerId]?.name ?? ""}
+            onCancel={() => setRenameOpen(false)}
+            onSubmit={renameSelf}
+          />
+        ) : null}
       </main>
+    </div>
+  );
+}
+
+function PlayerBar({ name, onRename }: { name: string; onRename: () => void }) {
+  return (
+    <section className="cn-player-bar" aria-label="بيانات اللاعب">
+      <span className="cn-player-bar__name">{name}</span>
+      <Button
+        className="cn-player-bar__button"
+        variant="secondary"
+        onClick={onRename}
+      >
+        تغيير الاسم
+      </Button>
+    </section>
+  );
+}
+
+function RenameDialog({
+  currentName,
+  onCancel,
+  onSubmit,
+}: {
+  currentName: string;
+  onCancel: () => void;
+  onSubmit: (name: string) => void;
+}) {
+  const [name, setName] = useState(currentName);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (trimmed.length > 0) {
+      onSubmit(trimmed);
+    }
+  };
+
+  return (
+    <div className="cn-dialog-backdrop" role="presentation">
+      <form
+        className="cn-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rename-title"
+        onSubmit={submit}
+      >
+        <h2 id="rename-title" className="text-ink m-0 text-lg font-bold">
+          تغيير الاسم
+        </h2>
+        <input
+          className="cn-field"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          aria-label="الاسم الجديد"
+        />
+        <div className="gap-cn-2 grid grid-cols-2">
+          <Button variant="secondary" onClick={onCancel}>
+            إلغاء
+          </Button>
+          <Button type="submit" disabled={name.trim().length === 0}>
+            حفظ
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -828,6 +929,7 @@ function errorMessage(code: string): string {
     ROOM_PRIVATE: "هذه الغرفة خاصة.",
     PLAYER_NOT_FOUND: "اللاعب غير موجود.",
     HOST_REMOVE_FORBIDDEN: "انقل الاستضافة قبل حذف المضيف.",
+    INVALID_NAME: "اكتب اسما صالحا.",
     ROOM_NOT_FOUND:
       "لم يتم العثور على الغرفة. إذا كان المضيف يرى الغرفة، فتأكد من تشغيل SQL migration وسياسات RLS في Supabase ثم أعد النشر.",
     ROOM_STORAGE_NOT_READABLE:

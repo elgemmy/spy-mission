@@ -91,10 +91,51 @@ button:disabled {
   box-shadow: var(--cn-shadow-bar);
 }
 
+.cn-board .cn-card.is-revealed {
+  opacity: 0.74;
+}
+
+.cn-board .cn-card.is-revealed .cn-card__face--back {
+  filter: saturate(0.82) contrast(0.96);
+}
+
+.cn-board .cn-card:not(.is-revealed) .cn-card__face {
+  filter: saturate(1.04);
+}
+
+.cn-board .cn-card[data-view="spymaster"]:not(.is-revealed) .cn-card__word {
+  color: color-mix(in srgb, var(--c-ink), var(--cn-ink-soft) 34%);
+}
+
 .cn-host-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--cn-space-2);
+}
+
+.cn-player-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-2);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-bar);
+  background: var(--cn-surface);
+  box-shadow: var(--cn-shadow-bar);
+  padding-block: var(--cn-space-2);
+  padding-inline: var(--cn-space-3);
+}
+
+.cn-player-bar__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--cn-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cn-player-bar__button {
+  flex: 0 0 auto;
 }
 
 .cn-topbar {
@@ -103,6 +144,24 @@ button:disabled {
   align-items: center;
   gap: 8px;
   padding: 14px 16px 10px;
+}
+
+.cn-winner-panel {
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-bar);
+  box-shadow: var(--cn-shadow-bar);
+}
+
+.cn-winner-panel[data-team="red"] {
+  background: var(--cn-red);
+  color: var(--cn-red-on);
+  border-color: var(--cn-red);
+}
+
+.cn-winner-panel[data-team="blue"] {
+  background: var(--cn-blue);
+  color: var(--cn-blue-on);
+  border-color: var(--cn-blue);
 }
 
 .cn-count-chip {
@@ -209,6 +268,99 @@ button:disabled {
   font-size: 22px;
   font-weight: 700;
   line-height: 1.25;
+}
+
+.cn-team-roster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-2);
+}
+
+.cn-team-roster__team {
+  min-width: 0;
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-sm);
+  box-shadow: var(--cn-shadow-bar);
+  padding: var(--cn-space-2);
+}
+
+.cn-team-roster__team[data-team="red"] {
+  background: var(--cn-red-tint);
+  border-color: var(--cn-red);
+  color: var(--cn-red-ink);
+}
+
+.cn-team-roster__team[data-team="blue"] {
+  background: var(--cn-blue-tint);
+  border-color: var(--cn-blue);
+  color: var(--cn-blue-ink);
+}
+
+.cn-team-roster__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-2);
+}
+
+.cn-team-roster__title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--cn-space-1);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cn-team-roster__title svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.cn-team-roster__count {
+  font-family: var(--cn-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cn-team-roster__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cn-space-1);
+  margin: var(--cn-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cn-team-roster__player {
+  display: grid;
+  min-height: 32px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cn-space-1);
+  border-radius: var(--cn-r-sm);
+  background: var(--cn-surface);
+  padding-block: var(--cn-space-1);
+  padding-inline: var(--cn-space-2);
+}
+
+.cn-team-roster__player[data-active="true"] {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.cn-team-roster__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--cn-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cn-team-roster__role {
+  color: var(--cn-ink-soft);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .cn-clue-toast {
@@ -421,6 +573,8 @@ button:disabled {
 .cn-player-chip {
   display: flex;
   min-height: 34px;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
@@ -433,13 +587,33 @@ button:disabled {
 
 .cn-player-name {
   display: flex;
-  min-width: 44px;
+  min-width: 0;
   min-height: 44px;
   flex: 1;
   align-items: center;
   color: var(--cn-ink);
   font: inherit;
+  overflow-wrap: anywhere;
   text-align: start;
+}
+
+.cn-player-actions {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-1);
+}
+
+.cn-player-action {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-sm);
+  background: var(--cn-surface);
+  color: var(--cn-ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .cn-room-code {

@@ -79,14 +79,18 @@
   background: var(--cn-surface);
   color: var(--cn-ink);
   border: 1px solid var(--cn-line);
-  box-shadow: var(--cn-shadow-tile), inset 0 -2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow:
+    var(--cn-shadow-tile),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .cn-card[data-view="spymaster"] .cn-card__face--front {
   background: var(--c-tint);
   color: var(--c-ink);
   border: 1.5px solid var(--c);
-  box-shadow: var(--cn-shadow-tile), inset 0 3px 0 var(--c);
+  box-shadow:
+    var(--cn-shadow-tile),
+    inset 0 3px 0 var(--c);
 }
 
 .cn-card__key {
@@ -159,6 +163,13 @@
 .cn-card--ar .cn-card__word {
   font-family: var(--cn-font-ar);
   font-size: 17px;
+}
+
+@media (max-width: 430px) {
+  .cn-card[dir="rtl"] .cn-card__word,
+  .cn-card--ar .cn-card__word {
+    font-size: 15px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

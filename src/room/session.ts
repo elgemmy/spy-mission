@@ -13,7 +13,8 @@ export type RoomErrorCode =
   | "NOT_HOST"
   | "ROOM_PRIVATE"
   | "PLAYER_NOT_FOUND"
-  | "HOST_REMOVE_FORBIDDEN";
+  | "HOST_REMOVE_FORBIDDEN"
+  | "INVALID_NAME";
 
 export class RoomError extends Error {
   readonly code: RoomErrorCode;
@@ -178,6 +179,39 @@ export function removePlayer(
       ...room,
       state: { ...room.state, players },
       ui: { ...room.ui, votes },
+    },
+    now,
+  );
+}
+
+export function renamePlayer(
+  room: RoomRecord,
+  playerId: string,
+  name: string,
+  now: string,
+): RoomRecord {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    throw new RoomError("INVALID_NAME");
+  }
+  const player = room.state.players[playerId];
+  if (!player) {
+    throw new RoomError("PLAYER_NOT_FOUND");
+  }
+  if (player.name === trimmed) {
+    return room;
+  }
+
+  return touch(
+    {
+      ...room,
+      state: {
+        ...room.state,
+        players: {
+          ...room.state.players,
+          [playerId]: { ...player, name: trimmed },
+        },
+      },
     },
     now,
   );

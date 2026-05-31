@@ -20,6 +20,7 @@ export {
   dispatchRoomAction,
   joinRoomRecord,
   removePlayer,
+  renamePlayer,
   returnToLobby,
   RoomError,
   startNewGame,

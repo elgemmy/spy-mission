@@ -2,7 +2,8 @@ import { Board } from "./Board";
 import { ClueBar } from "./ClueBar";
 import { TopBar } from "./TopBar";
 import { Button } from "../components/Button";
-import type { PlayerView } from "../../engine";
+import { GlyphIcon } from "../card/glyphs";
+import type { PlayerView, Role, Team } from "../../engine";
 import type { ClueLogEntry, GameBanner, RoomRecord } from "../../room";
 
 interface PlayScreenProps {
@@ -74,6 +75,8 @@ export function PlayScreen({
       />
 
       <ClueHistory entries={room.ui.clueLog} />
+
+      <TeamRoster view={view} />
 
       <ClueBar view={view} onGiveClue={onGiveClue} onEndTurn={onEndTurn} />
     </>
@@ -167,6 +170,49 @@ function ClueHistory({ entries }: { entries: ClueLogEntry[] }) {
       </ol>
     </section>
   );
+}
+
+function TeamRoster({ view }: { view: PlayerView }) {
+  return (
+    <section className="cn-team-roster" aria-label="قوائم الفرق">
+      <RosterTeam team="red" view={view} />
+      <RosterTeam team="blue" view={view} />
+    </section>
+  );
+}
+
+function RosterTeam({ team, view }: { team: Team; view: PlayerView }) {
+  const players = view.players.filter((player) => player.team === team);
+
+  return (
+    <article className="cn-team-roster__team" data-team={team}>
+      <header className="cn-team-roster__header">
+        <span className="cn-team-roster__title">
+          <GlyphIcon role={team} />
+          {teamLabel(team)}
+        </span>
+        <span className="cn-team-roster__count">{players.length}</span>
+      </header>
+      <ul className="cn-team-roster__list">
+        {players.map((player) => (
+          <li
+            key={player.id}
+            className="cn-team-roster__player"
+            data-active={String(player.id === view.me?.id)}
+          >
+            <span className="cn-team-roster__name">{player.name}</span>
+            <span className="cn-team-roster__role">
+              {roleLabel(player.role)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function roleLabel(role: Role): string {
+  return role === "spymaster" ? "قائد" : "لاعب";
 }
 
 function teamLabel(team: "red" | "blue"): string {

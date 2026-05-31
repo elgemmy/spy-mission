@@ -21,9 +21,9 @@ export function TopBar({
 }: TopBarProps) {
   if (winner) {
     return (
-      <div className="cn-card-panel p-cn-4 text-center">
-        <p className="text-ink-soft m-0 text-xs font-semibold">انتهت الجولة</p>
-        <p className="mt-cn-1 text-ink m-0 text-lg font-bold">
+      <div className="cn-winner-panel p-cn-4 text-center" data-team={winner}>
+        <p className="m-0 text-xs font-semibold">انتهت الجولة</p>
+        <p className="mt-cn-1 m-0 text-lg font-bold">
           فاز الفريق {TEAM_LABEL[winner]}
         </p>
       </div>

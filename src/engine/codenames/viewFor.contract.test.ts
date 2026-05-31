@@ -31,6 +31,29 @@ describe("codenames viewFor contract", () => {
     expect(operativeView.board[0]?.revealed).toBe(true);
   });
 
+  it("shows every card kind to everyone after the game ends", () => {
+    let state = startTestGame();
+    const assassinIndex = state.board.findIndex(
+      (card) => card.kind === "assassin",
+    );
+    const operativeId = state.turn === "red" ? "p-red-op" : "p-blue-op";
+    const spymasterId = state.turn === "red" ? "p-red-sm" : "p-blue-sm";
+
+    state = reducer(
+      state,
+      { type: "giveClue", word: "go", count: 0 },
+      spymasterId,
+    );
+    state = reducer(
+      state,
+      { type: "guess", cardIndex: assassinIndex },
+      operativeId,
+    );
+
+    const operativeView = viewFor(state, operativeId);
+    expect(operativeView.board.every((card) => card.kind !== null)).toBe(true);
+  });
+
   it("derives guessesRemaining", () => {
     let state = startTestGame();
     const team = state.turn;

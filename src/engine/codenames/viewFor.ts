@@ -7,7 +7,8 @@ import type { GameState, PlayerView, ViewCard } from "./types";
 
 function mapBoard(state: GameState, playerId: string): ViewCard[] {
   const me = state.players[playerId];
-  const showUnrevealedKinds = me?.role === "spymaster";
+  const showUnrevealedKinds =
+    me?.role === "spymaster" || state.phase === "ended";
 
   return state.board.map((card) => ({
     concept: card.concept,
@@ -40,8 +41,7 @@ function buildCan(state: GameState, playerId: string): PlayerView["can"] {
       me.role === "spymaster" &&
       me.team === state.turn,
     guess: !ended && guessCan,
-    endTurn:
-      !ended && guessCan && state.guessesMadeThisTurn >= 1,
+    endTurn: !ended && guessCan && state.guessesMadeThisTurn >= 1,
   };
 }
 

@@ -18,7 +18,9 @@ export function Board({
   onConfirm,
 }: BoardProps) {
   const cardView: CardView =
-    view.me?.role === "spymaster" ? "spymaster" : "operative";
+    view.me?.role === "spymaster" || view.phase === "ended"
+      ? "spymaster"
+      : "operative";
   const voteCounts = countVotes(votes);
 
   return (

@@ -6,6 +6,7 @@ import {
   createRoomRecord,
   dispatchRoomAction,
   joinRoomRecord,
+  renamePlayer,
   returnToLobby,
   startNewGame,
   voteCard,
@@ -106,6 +107,43 @@ describe("room session orchestration", () => {
     );
     expect(ambiguous.state.players.staleA?.name).toBe("Same");
     expect(ambiguous.state.players.staleB?.name).toBe("Same");
+  });
+
+  it("renames a joined player in lobby and active games", () => {
+    const lobby = createRoomRecord({
+      id: "room-rename",
+      code: "names",
+      hostId: "host",
+      hostName: "Before",
+      lang: "ar",
+      now: NOW,
+    });
+
+    const lobbyRenamed = renamePlayer(lobby, "host", "  After  ", LATER);
+    expect(lobbyRenamed.state.players.host?.name).toBe("After");
+
+    const active = roomFromState(startTestGame());
+    const activeRenamed = renamePlayer(active, "p-red-op", "مراوغ", LATER);
+    expect(activeRenamed.state.players["p-red-op"]?.name).toBe("مراوغ");
+    expect(activeRenamed.state.phase).toBe(active.state.phase);
+  });
+
+  it("rejects empty rename values and missing players", () => {
+    const room = createRoomRecord({
+      id: "room-rename-invalid",
+      code: "badnm",
+      hostId: "host",
+      hostName: "Host",
+      lang: "ar",
+      now: NOW,
+    });
+
+    expect(() => renamePlayer(room, "host", "   ", LATER)).toThrowError(
+      expect.objectContaining({ code: "INVALID_NAME" }),
+    );
+    expect(() => renamePlayer(room, "missing", "Name", LATER)).toThrowError(
+      expect.objectContaining({ code: "PLAYER_NOT_FOUND" }),
+    );
   });
 
   it("records an active operative vote without revealing", () => {

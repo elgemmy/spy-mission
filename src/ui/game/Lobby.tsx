@@ -280,17 +280,17 @@ function PlayerChip({
         {host ? " · مضيف" : ""}
       </span>
       {isHost && !host ? (
-        <div className="gap-cn-1 flex">
+        <div className="cn-player-actions">
           <button
             type="button"
-            className="border-line bg-surface px-cn-2 text-ink min-h-11 min-w-11 rounded-sm border text-xs"
+            className="cn-player-action"
             onClick={() => onTransferHost(id)}
           >
             نقل
           </button>
           <button
             type="button"
-            className="border-line bg-surface px-cn-2 text-ink min-h-11 min-w-11 rounded-sm border text-xs"
+            className="cn-player-action"
             onClick={() => onRemovePlayer(id)}
           >
             حذف
