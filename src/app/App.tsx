@@ -47,14 +47,19 @@ type OnboardingStep =
   | { type: "joinCode" }
   | { type: "joinName"; code: string; source: JoinSource };
 
+interface ConfirmRequest {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  onConfirm: () => void | Promise<void>;
+}
+
 const roomProvider = getRoomProvider();
 
 export function App() {
   const inviteCode = readInviteCode();
   const [playerId] = useState(() => loadOrCreatePlayerId());
-  const [roomId, setRoomId] = useState(() =>
-    inviteCode ? null : localStorageSafe.get(ROOM_ID_KEY),
-  );
+  const [roomId, setRoomId] = useState(() => localStorageSafe.get(ROOM_ID_KEY));
   const [room, setRoom] = useState<RoomRecord | null>(null);
   const [step, setStep] = useState<OnboardingStep>(() =>
     inviteCode
@@ -63,6 +68,9 @@ export function App() {
   );
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
+    null,
+  );
 
   useEffect(() => {
     initTheme("default");
@@ -78,28 +86,53 @@ export function App() {
     }
 
     let mounted = true;
+    const acceptRoom = (next: RoomRecord | null) => {
+      if (!next) {
+        localStorageSafe.remove(ROOM_ID_KEY);
+        setRoomId(null);
+        setRoom(null);
+        if (inviteCode) {
+          setStep({ type: "joinName", code: inviteCode, source: "link" });
+        }
+        return;
+      }
+
+      if (inviteCode && next.code !== inviteCode) {
+        localStorageSafe.remove(ROOM_ID_KEY);
+        setRoomId(null);
+        setRoom(null);
+        setStep({ type: "joinName", code: inviteCode, source: "link" });
+        return;
+      }
+
+      if (!next.state.players[playerId]) {
+        localStorageSafe.remove(ROOM_ID_KEY);
+        setRoomId(null);
+        setRoom(null);
+        setStep({ type: "joinName", code: next.code, source: "link" });
+        setError("تم حذف جلستك من الغرفة. أدخل اسمك للعودة.");
+        return;
+      }
+
+      setRoom(next);
+    };
+
     void roomProvider.load(roomId).then((loaded) => {
       if (!mounted) {
         return;
       }
-      setRoom(loaded);
-      if (!loaded) {
-        localStorageSafe.remove(ROOM_ID_KEY);
-      }
+      acceptRoom(loaded);
     });
 
     const unsubscribe = roomProvider.subscribe(roomId, (next) => {
-      if (!next) {
-        localStorageSafe.remove(ROOM_ID_KEY);
-      }
-      setRoom(next);
+      acceptRoom(next);
     });
 
     return () => {
       mounted = false;
       unsubscribe();
     };
-  }, [roomId]);
+  }, [inviteCode, playerId, roomId]);
 
   const view = useMemo(
     () => (room ? viewFor(room.state, playerId) : null),
@@ -126,6 +159,13 @@ export function App() {
       return;
     }
     if (caught instanceof Error) {
+      if (
+        caught.message.includes("Failed to fetch") ||
+        caught.message.includes("NetworkError")
+      ) {
+        setError(errorMessage("NETWORK_ERROR"));
+        return;
+      }
       setError(errorMessage(caught.message));
       return;
     }
@@ -282,18 +322,13 @@ export function App() {
     }
   };
 
-  const confirmSelected = async () => {
-    if (!room || selectedCardIndex === null) {
+  const confirmCard = async (cardIndex: number) => {
+    if (!room || room.ui.votes[playerId] !== cardIndex) {
       return;
     }
     try {
       await commit(
-        confirmGuess(
-          room,
-          playerId,
-          selectedCardIndex,
-          new Date().toISOString(),
-        ),
+        confirmGuess(room, playerId, cardIndex, new Date().toISOString()),
       );
     } catch (caught) {
       handleError(caught);
@@ -349,8 +384,12 @@ export function App() {
     if (!room || !isHost) {
       return;
     }
-    await roomProvider.delete(room.id);
-    leaveRoom();
+    try {
+      await roomProvider.delete(room.id);
+      leaveRoom();
+    } catch (caught) {
+      handleError(caught);
+    }
   };
 
   const changeHost = async (nextHostId: string) => {
@@ -379,6 +418,79 @@ export function App() {
     }
   };
 
+  const requestConfirm = (request: ConfirmRequest) => {
+    setConfirmRequest(request);
+  };
+
+  const confirmPendingAction = async () => {
+    if (!confirmRequest) {
+      return;
+    }
+    const action = confirmRequest.onConfirm;
+    setConfirmRequest(null);
+    try {
+      await action();
+    } catch (caught) {
+      handleError(caught);
+    }
+  };
+
+  const confirmStartGame = () => {
+    requestConfirm({
+      title: "بدء الجولة؟",
+      body: "سيتم تثبيت الفرق وفتح لوحة جديدة.",
+      confirmLabel: "بدء",
+      onConfirm: startGame,
+    });
+  };
+
+  const confirmRegenerate = () => {
+    requestConfirm({
+      title: "لوحة جديدة؟",
+      body: "سيتم استبدال اللوحة الحالية وتصفير التلميحات والتصويتات.",
+      confirmLabel: "تجديد",
+      onConfirm: startGame,
+    });
+  };
+
+  const confirmReturnToLobby = () => {
+    requestConfirm({
+      title: "العودة للردهة؟",
+      body: "ستنتهي الجولة الحالية وسيعود اللاعبون لاختيار الفرق.",
+      confirmLabel: "عودة",
+      onConfirm: backToLobby,
+    });
+  };
+
+  const confirmDeleteRoom = () => {
+    requestConfirm({
+      title: "حذف الغرفة؟",
+      body: "سيتم حذف الغرفة وإخراج اللاعبين منها.",
+      confirmLabel: "حذف",
+      onConfirm: deleteRoom,
+    });
+  };
+
+  const confirmChangeHost = (nextHostId: string) => {
+    const name = room?.state.players[nextHostId]?.name ?? "اللاعب";
+    requestConfirm({
+      title: "نقل الاستضافة؟",
+      body: `سيصبح ${name} مضيف الغرفة.`,
+      confirmLabel: "نقل",
+      onConfirm: () => changeHost(nextHostId),
+    });
+  };
+
+  const confirmKickPlayer = (targetPlayerId: string) => {
+    const name = room?.state.players[targetPlayerId]?.name ?? "اللاعب";
+    requestConfirm({
+      title: "حذف اللاعب؟",
+      body: `سيتم حذف ${name} من الغرفة.`,
+      confirmLabel: "حذف",
+      onConfirm: () => kickPlayer(targetPlayerId),
+    });
+  };
+
   const leaveRoom = () => {
     localStorageSafe.remove(ROOM_ID_KEY);
     setRoomId(null);
@@ -403,10 +515,10 @@ export function App() {
                 onSetLang={setLang}
                 onSetVisibility={setVisibility}
                 onAssignSelf={assignSelf}
-                onStartGame={startGame}
-                onDeleteRoom={deleteRoom}
-                onTransferHost={changeHost}
-                onRemovePlayer={kickPlayer}
+                onStartGame={confirmStartGame}
+                onDeleteRoom={confirmDeleteRoom}
+                onTransferHost={confirmChangeHost}
+                onRemovePlayer={confirmKickPlayer}
               />
             ) : (
               <PlayScreen
@@ -417,10 +529,10 @@ export function App() {
                 clueToast={clueToast}
                 onVote={vote}
                 onGiveClue={giveClue}
-                onConfirmGuess={confirmSelected}
+                onConfirmGuess={confirmCard}
                 onEndTurn={endTurn}
-                onReturnToLobby={backToLobby}
-                onRegenerate={startGame}
+                onReturnToLobby={confirmReturnToLobby}
+                onRegenerate={confirmRegenerate}
               />
             )}
             <Button variant="secondary" onClick={leaveRoom}>
@@ -440,7 +552,49 @@ export function App() {
             {error}
           </p>
         ) : null}
+        {confirmRequest ? (
+          <ConfirmDialog
+            request={confirmRequest}
+            onCancel={() => setConfirmRequest(null)}
+            onConfirm={confirmPendingAction}
+          />
+        ) : null}
       </main>
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  request,
+  onCancel,
+  onConfirm,
+}: {
+  request: ConfirmRequest;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="cn-dialog-backdrop" role="presentation">
+      <section
+        className="cn-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-body"
+      >
+        <h2 id="confirm-title" className="text-ink m-0 text-lg font-bold">
+          {request.title}
+        </h2>
+        <p id="confirm-body" className="text-ink-soft m-0 text-sm">
+          {request.body}
+        </p>
+        <div className="gap-cn-2 grid grid-cols-2">
+          <Button variant="secondary" onClick={onCancel}>
+            إلغاء
+          </Button>
+          <Button onClick={onConfirm}>{request.confirmLabel}</Button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -664,7 +818,7 @@ function errorMessage(code: string): string {
     ALREADY_JOINED: "أنت موجود في الغرفة.",
     CARD_ALREADY_REVEALED: "هذه البطاقة مكشوفة.",
     CARD_OUT_OF_RANGE: "البطاقة غير موجودة.",
-    INVALID_CLUE: "التلميح يجب أن يكون كلمة واحدة ورقما صحيحا.",
+    INVALID_CLUE: "التلميح لا يمكن أن يكون فارغا ويحتاج رقما صحيحا.",
     MUST_GUESS_ONCE: "يجب كشف بطاقة واحدة قبل إنهاء الدور.",
     LANG_LOCKED: "تغيير اللغة متاح في الردهة فقط.",
     ALREADY_STARTED: "الجولة بدأت بالفعل.",
@@ -681,6 +835,8 @@ function errorMessage(code: string): string {
     SUPABASE_ENV_MISSING:
       "إعدادات Supabase غير موجودة في هذا النشر. أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY في Vercel ثم أعد النشر.",
     ROOM_VERSION_CONFLICT: "تغيرت الغرفة للتو. أعد المحاولة.",
+    NETWORK_ERROR:
+      "تعذر الاتصال بالخادم. تحقق من اتصال الإنترنت ومن أن رابط Supabase ومفتاحه صحيحان في Vercel.",
   };
   return messages[code] ?? "حدث خطأ.";
 }

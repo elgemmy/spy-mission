@@ -4,10 +4,9 @@ export function otherTeam(team: Team): Team {
   return team === "red" ? "blue" : "red";
 }
 
-export function flipTurn(state: GameState): Pick<
-  GameState,
-  "turn" | "phase" | "clue" | "guessesMadeThisTurn"
-> {
+export function flipTurn(
+  state: GameState,
+): Pick<GameState, "turn" | "phase" | "clue" | "guessesMadeThisTurn"> {
   return {
     turn: otherTeam(state.turn),
     phase: "clue",
@@ -21,10 +20,15 @@ export function countRemaining(board: Card[], kind: CardKind): number {
 }
 
 export function allTeamCardsRevealed(board: Card[], team: Team): boolean {
-  return board.filter((card) => card.kind === team).every((card) => card.revealed);
+  return board
+    .filter((card) => card.kind === team)
+    .every((card) => card.revealed);
 }
 
-export function teamCounts(players: GameState["players"]): { red: number; blue: number } {
+export function teamCounts(players: GameState["players"]): {
+  red: number;
+  blue: number;
+} {
   let red = 0;
   let blue = 0;
   for (const player of Object.values(players)) {
@@ -47,10 +51,14 @@ export function hasRequiredRoster(players: GameState["players"]): boolean {
   let blueOperative = false;
 
   for (const player of Object.values(players)) {
-    if (player.team === "red" && player.role === "spymaster") redSpymaster = true;
-    if (player.team === "red" && player.role === "operative") redOperative = true;
-    if (player.team === "blue" && player.role === "spymaster") blueSpymaster = true;
-    if (player.team === "blue" && player.role === "operative") blueOperative = true;
+    if (player.team === "red" && player.role === "spymaster")
+      redSpymaster = true;
+    if (player.team === "red" && player.role === "operative")
+      redOperative = true;
+    if (player.team === "blue" && player.role === "spymaster")
+      blueSpymaster = true;
+    if (player.team === "blue" && player.role === "operative")
+      blueOperative = true;
   }
 
   return redSpymaster && redOperative && blueSpymaster && blueOperative;
@@ -59,7 +67,6 @@ export function hasRequiredRoster(players: GameState["players"]): boolean {
 export function isValidClue(word: string, count: number): boolean {
   const trimmed = word.trim();
   if (trimmed.length === 0) return false;
-  if (/\s/.test(trimmed)) return false;
   if (!Number.isInteger(count)) return false;
   if (count < 0 || count > 9) return false;
   return true;

@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "../lib/supabase/client";
 import type { RoomProvider, RoomRecord, Unsubscribe } from "./types";
+import { normalizeRoomUi } from "./uiState";
 
 /**
  * Supabase-backed room provider (kept out of the default path until backend
@@ -130,7 +131,7 @@ function rowToRoom(row: Record<string, unknown>): RoomRecord {
     hostId: String(row.host_id),
     visibility: row.visibility === "private" ? "private" : "public",
     state: row.state as RoomRecord["state"],
-    ui: row.ui as RoomRecord["ui"],
+    ui: normalizeRoomUi(row.ui as Partial<RoomRecord["ui"]> | null),
     version: Number(row.version ?? 0),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),

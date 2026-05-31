@@ -30,6 +30,14 @@
   outline-offset: 2px;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 .cn-board {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -52,7 +60,7 @@
   position: absolute;
   z-index: 2;
   inset-block-start: 4px;
-  inset-inline-end: 4px;
+  inset-inline-start: 4px;
   min-width: 20px;
   min-height: 20px;
   border-radius: var(--cn-r-chip);
@@ -63,6 +71,30 @@
   color: var(--cn-primary-on);
   font-family: var(--cn-font-mono);
   font-size: 11px;
+}
+
+.cn-board__confirm {
+  position: absolute;
+  z-index: 3;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  display: grid;
+  min-width: 28px;
+  min-height: 28px;
+  place-items: center;
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-chip);
+  background: var(--cn-primary);
+  color: var(--cn-primary-on);
+  font: inherit;
+  font-weight: 800;
+  box-shadow: var(--cn-shadow-bar);
+}
+
+.cn-host-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-2);
 }
 
 .cn-topbar {
@@ -172,11 +204,11 @@
 }
 
 .cn-clue-word {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-size: 22px;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .cn-clue-toast {
@@ -197,6 +229,48 @@
   animation: clue-pop 1600ms ease both;
 }
 
+.cn-game-banner-stack {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+  inset-block-start: 32%;
+  inset-inline: 24px;
+  display: grid;
+  place-items: center;
+}
+
+.cn-game-banner {
+  grid-area: 1 / 1;
+  width: 100%;
+  max-width: 420px;
+  border-radius: var(--cn-r-bar);
+  box-shadow: var(--cn-shadow-cta);
+  padding-block: 22px;
+  padding-inline: 22px;
+  text-align: center;
+  animation: game-banner-pop 1600ms ease both;
+}
+
+.cn-game-banner[data-sequence="after-assassin"] {
+  animation-delay: 1500ms;
+}
+
+.cn-game-banner[data-team="red"] {
+  background: var(--cn-red);
+  color: var(--cn-red-on);
+}
+
+.cn-game-banner[data-team="blue"] {
+  background: var(--cn-blue);
+  color: var(--cn-blue-on);
+}
+
+.cn-game-banner[data-type="assassin"] {
+  background: var(--cn-assassin);
+  color: var(--cn-assassin-on);
+  animation-name: assassin-banner-pop;
+}
+
 @keyframes clue-pop {
   0% {
     opacity: 0;
@@ -210,6 +284,38 @@
   100% {
     opacity: 0;
     transform: translateY(-10px) scale(0.98);
+  }
+}
+
+@keyframes game-banner-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.94);
+  }
+  16%,
+  82% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+}
+
+@keyframes assassin-banner-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  14%,
+  82% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.04);
   }
 }
 
@@ -344,8 +450,32 @@
   color: var(--cn-ink);
 }
 
+.cn-dialog-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--cn-bg), transparent 24%);
+  padding: var(--cn-space-4);
+}
+
+.cn-dialog {
+  display: flex;
+  width: 100%;
+  max-width: 420px;
+  flex-direction: column;
+  gap: var(--cn-space-4);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-bar);
+  background: var(--cn-surface);
+  box-shadow: var(--cn-shadow-cta);
+  padding: var(--cn-space-4);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .cn-clue-toast {
+  .cn-clue-toast,
+  .cn-game-banner {
     animation: none;
   }
 }

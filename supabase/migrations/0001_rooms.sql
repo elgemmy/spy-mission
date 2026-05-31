@@ -4,7 +4,7 @@ create table if not exists public.rooms (
   host_id text not null,
   visibility text not null check (visibility in ('public', 'private')),
   state jsonb not null,
-  ui jsonb not null default '{"votes": {}, "clueLog": []}'::jsonb,
+  ui jsonb not null default '{"votes": {}, "clueLog": [], "banners": []}'::jsonb,
   version integer not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -12,6 +12,18 @@ create table if not exists public.rooms (
 
 create index if not exists rooms_code_idx on public.rooms (code);
 create index if not exists rooms_updated_at_idx on public.rooms (updated_at);
+
+alter table public.rooms
+  alter column ui set default '{"votes": {}, "clueLog": [], "banners": []}'::jsonb;
+
+update public.rooms
+set ui = jsonb_set(
+  coalesce(ui, '{}'::jsonb),
+  '{banners}',
+  coalesce(ui->'banners', '[]'::jsonb),
+  true
+)
+where not (coalesce(ui, '{}'::jsonb) ? 'banners');
 
 alter table public.rooms enable row level security;
 

@@ -1,92 +1,3102 @@
 [
   {
-    "category": "nature",
-    "concepts": [
-      { "id": "nature-001", "ar": "نهر", "en": "river" },
-      { "id": "nature-002", "ar": "جبل", "en": "mountain" },
-      { "id": "nature-003", "ar": "غابة", "en": "forest" },
-      { "id": "nature-004", "ar": "بحر", "en": "sea" },
-      { "id": "nature-005", "ar": "قمر", "en": "moon" },
-      { "id": "nature-006", "ar": "شمس", "en": "sun" },
-      { "id": "nature-007", "ar": "نجمة", "en": "star" },
-      { "id": "nature-008", "ar": "نار", "en": "fire" },
-      { "id": "nature-009", "ar": "ثلج", "en": "snow" },
-      { "id": "nature-010", "ar": "ريح", "en": "wind" }
-    ]
-  },
-  {
-    "category": "places",
-    "concepts": [
-      { "id": "places-001", "ar": "بيت", "en": "house" },
-      { "id": "places-002", "ar": "سوق", "en": "market" },
-      { "id": "places-003", "ar": "مدرسة", "en": "school" },
-      { "id": "places-004", "ar": "مطار", "en": "airport" },
-      { "id": "places-005", "ar": "متحف", "en": "museum" },
-      { "id": "places-006", "ar": "قصر", "en": "palace" },
-      { "id": "places-007", "ar": "مكتبة", "en": "library" },
-      { "id": "places-008", "ar": "جزيرة", "en": "island" },
-      { "id": "places-009", "ar": "جسر", "en": "bridge" },
-      { "id": "places-010", "ar": "ميناء", "en": "harbor" }
-    ]
-  },
-  {
-    "category": "objects",
-    "concepts": [
-      { "id": "objects-001", "ar": "كتاب", "en": "book" },
-      { "id": "objects-002", "ar": "مفتاح", "en": "key" },
-      { "id": "objects-003", "ar": "ساعة", "en": "clock" },
-      { "id": "objects-004", "ar": "سيف", "en": "sword" },
-      { "id": "objects-005", "ar": "باب", "en": "door" },
-      { "id": "objects-006", "ar": "خاتم", "en": "ring" },
-      { "id": "objects-007", "ar": "مصباح", "en": "lamp" },
-      { "id": "objects-008", "ar": "كرسي", "en": "chair" },
-      { "id": "objects-009", "ar": "مرآة", "en": "mirror" },
-      { "id": "objects-010", "ar": "صندوق", "en": "box" }
-    ]
-  },
-  {
-    "category": "people",
-    "concepts": [
-      { "id": "people-001", "ar": "ملك", "en": "king" },
-      { "id": "people-002", "ar": "طبيب", "en": "doctor" },
-      { "id": "people-003", "ar": "رسام", "en": "painter" },
-      { "id": "people-004", "ar": "قائد", "en": "leader" },
-      { "id": "people-005", "ar": "بحار", "en": "sailor" },
-      { "id": "people-006", "ar": "حارس", "en": "guard" },
-      { "id": "people-007", "ar": "شاعر", "en": "poet" },
-      { "id": "people-008", "ar": "لاعب", "en": "player" },
-      { "id": "people-009", "ar": "معلم", "en": "teacher" },
-      { "id": "people-010", "ar": "ضيف", "en": "guest" }
-    ]
-  },
-  {
     "category": "animals",
     "concepts": [
-      { "id": "animals-001", "ar": "حصان", "en": "horse" },
-      { "id": "animals-002", "ar": "طائر", "en": "bird" },
-      { "id": "animals-003", "ar": "سمكة", "en": "fish" },
-      { "id": "animals-004", "ar": "أسد", "en": "lion" },
-      { "id": "animals-005", "ar": "نحلة", "en": "bee" },
-      { "id": "animals-006", "ar": "فراشة", "en": "butterfly" },
-      { "id": "animals-007", "ar": "جمل", "en": "camel" },
-      { "id": "animals-008", "ar": "ذئب", "en": "wolf" },
-      { "id": "animals-009", "ar": "نسر", "en": "eagle" },
-      { "id": "animals-010", "ar": "قطة", "en": "cat" }
+      {
+        "id": "animals-001",
+        "ar": "أسد",
+        "en": "lion"
+      },
+      {
+        "id": "animals-002",
+        "ar": "نمر",
+        "en": "tiger"
+      },
+      {
+        "id": "animals-003",
+        "ar": "فهد",
+        "en": "cheetah"
+      },
+      {
+        "id": "animals-004",
+        "ar": "ذئب",
+        "en": "wolf"
+      },
+      {
+        "id": "animals-005",
+        "ar": "ثعلب",
+        "en": "fox"
+      },
+      {
+        "id": "animals-006",
+        "ar": "دب",
+        "en": "bear"
+      },
+      {
+        "id": "animals-007",
+        "ar": "فيل",
+        "en": "elephant"
+      },
+      {
+        "id": "animals-008",
+        "ar": "زرافة",
+        "en": "giraffe"
+      },
+      {
+        "id": "animals-009",
+        "ar": "قرد",
+        "en": "monkey"
+      },
+      {
+        "id": "animals-010",
+        "ar": "حصان",
+        "en": "horse"
+      },
+      {
+        "id": "animals-011",
+        "ar": "حمار",
+        "en": "donkey"
+      },
+      {
+        "id": "animals-012",
+        "ar": "جمل",
+        "en": "camel"
+      },
+      {
+        "id": "animals-013",
+        "ar": "بقرة",
+        "en": "cow"
+      },
+      {
+        "id": "animals-014",
+        "ar": "غزال",
+        "en": "gazelle"
+      },
+      {
+        "id": "animals-015",
+        "ar": "أرنب",
+        "en": "rabbit"
+      },
+      {
+        "id": "animals-016",
+        "ar": "سنجاب",
+        "en": "squirrel"
+      },
+      {
+        "id": "animals-017",
+        "ar": "قنفذ",
+        "en": "hedgehog"
+      },
+      {
+        "id": "animals-018",
+        "ar": "كنغر",
+        "en": "kangaroo"
+      },
+      {
+        "id": "animals-019",
+        "ar": "باندا",
+        "en": "panda"
+      },
+      {
+        "id": "animals-020",
+        "ar": "كوالا",
+        "en": "koala"
+      },
+      {
+        "id": "animals-021",
+        "ar": "سلحفاة",
+        "en": "turtle"
+      },
+      {
+        "id": "animals-022",
+        "ar": "نسر",
+        "en": "eagle"
+      },
+      {
+        "id": "animals-023",
+        "ar": "صقر",
+        "en": "falcon"
+      },
+      {
+        "id": "animals-024",
+        "ar": "حمامة",
+        "en": "pigeon"
+      },
+      {
+        "id": "animals-025",
+        "ar": "ببغاء",
+        "en": "parrot"
+      },
+      {
+        "id": "animals-026",
+        "ar": "طاووس",
+        "en": "peacock"
+      },
+      {
+        "id": "animals-027",
+        "ar": "بطريق",
+        "en": "penguin"
+      },
+      {
+        "id": "animals-028",
+        "ar": "خفاش",
+        "en": "bat"
+      },
+      {
+        "id": "animals-029",
+        "ar": "قط",
+        "en": "cat"
+      },
+      {
+        "id": "animals-030",
+        "ar": "كلب",
+        "en": "dog"
+      },
+      {
+        "id": "animals-031",
+        "ar": "فأر",
+        "en": "mouse"
+      },
+      {
+        "id": "animals-032",
+        "ar": "ثعبان",
+        "en": "snake"
+      },
+      {
+        "id": "animals-033",
+        "ar": "طائر",
+        "en": "bird"
+      },
+      {
+        "id": "animals-034",
+        "ar": "سمكة",
+        "en": "fish"
+      },
+      {
+        "id": "animals-035",
+        "ar": "نحلة",
+        "en": "bee"
+      },
+      {
+        "id": "animals-036",
+        "ar": "فراشة",
+        "en": "butterfly"
+      },
+      {
+        "id": "animals-037",
+        "ar": "قطة",
+        "en": "cat"
+      }
     ]
   },
   {
     "category": "food",
     "concepts": [
-      { "id": "food-001", "ar": "تفاح", "en": "apple" },
-      { "id": "food-002", "ar": "خبز", "en": "bread" },
-      { "id": "food-003", "ar": "تمر", "en": "dates" },
-      { "id": "food-004", "ar": "عسل", "en": "honey" },
-      { "id": "food-005", "ar": "قهوة", "en": "coffee" },
-      { "id": "food-006", "ar": "رز", "en": "rice" },
-      { "id": "food-007", "ar": "ملح", "en": "salt" },
-      { "id": "food-008", "ar": "ليمون", "en": "lemon" },
-      { "id": "food-009", "ar": "حليب", "en": "milk" },
-      { "id": "food-010", "ar": "جبن", "en": "cheese" }
+      {
+        "id": "food-001",
+        "ar": "كشري",
+        "en": "koshari"
+      },
+      {
+        "id": "food-002",
+        "ar": "محشي",
+        "en": "stuffed vegetables"
+      },
+      {
+        "id": "food-003",
+        "ar": "ملوخية",
+        "en": "molokhia"
+      },
+      {
+        "id": "food-004",
+        "ar": "فتة",
+        "en": "fatteh"
+      },
+      {
+        "id": "food-005",
+        "ar": "كبسة",
+        "en": "kabsa"
+      },
+      {
+        "id": "food-006",
+        "ar": "مندي",
+        "en": "mandi"
+      },
+      {
+        "id": "food-007",
+        "ar": "برياني",
+        "en": "biryani"
+      },
+      {
+        "id": "food-008",
+        "ar": "كفتة",
+        "en": "kofta"
+      },
+      {
+        "id": "food-009",
+        "ar": "مشاوي",
+        "en": "grills"
+      },
+      {
+        "id": "food-010",
+        "ar": "لازانيا",
+        "en": "lasagna"
+      },
+      {
+        "id": "food-011",
+        "ar": "باستا",
+        "en": "pasta"
+      },
+      {
+        "id": "food-012",
+        "ar": "سوشي",
+        "en": "sushi"
+      },
+      {
+        "id": "food-013",
+        "ar": "فلافل",
+        "en": "falafel"
+      },
+      {
+        "id": "food-014",
+        "ar": "فول",
+        "en": "fava beans"
+      },
+      {
+        "id": "food-015",
+        "ar": "حمص",
+        "en": "hummus"
+      },
+      {
+        "id": "food-016",
+        "ar": "مسقعة",
+        "en": "moussaka"
+      },
+      {
+        "id": "food-017",
+        "ar": "ورق عنب",
+        "en": "stuffed grape leaves"
+      },
+      {
+        "id": "food-018",
+        "ar": "طاجن",
+        "en": "tagine"
+      },
+      {
+        "id": "food-019",
+        "ar": "كنافة",
+        "en": "kunafa"
+      },
+      {
+        "id": "food-020",
+        "ar": "بسبوسة",
+        "en": "basbousa"
+      },
+      {
+        "id": "food-021",
+        "ar": "قطايف",
+        "en": "qatayef"
+      },
+      {
+        "id": "food-022",
+        "ar": "أم علي",
+        "en": "om ali"
+      },
+      {
+        "id": "food-023",
+        "ar": "تشيز كيك",
+        "en": "cheesecake"
+      },
+      {
+        "id": "food-024",
+        "ar": "براونيز",
+        "en": "brownies"
+      },
+      {
+        "id": "food-025",
+        "ar": "آيس كريم",
+        "en": "ice cream"
+      },
+      {
+        "id": "food-026",
+        "ar": "مهلبية",
+        "en": "muhallabia"
+      },
+      {
+        "id": "food-027",
+        "ar": "بلح الشام",
+        "en": "balah el sham"
+      },
+      {
+        "id": "food-028",
+        "ar": "غريبة",
+        "en": "ghorayeba"
+      },
+      {
+        "id": "food-029",
+        "ar": "معمول",
+        "en": "maamoul"
+      },
+      {
+        "id": "food-030",
+        "ar": "وافل",
+        "en": "waffle"
+      },
+      {
+        "id": "food-031",
+        "ar": "بان كيك",
+        "en": "pancake"
+      },
+      {
+        "id": "food-032",
+        "ar": "بيتزا",
+        "en": "pizza"
+      },
+      {
+        "id": "food-033",
+        "ar": "برجر",
+        "en": "burger"
+      },
+      {
+        "id": "food-034",
+        "ar": "شاورما",
+        "en": "shawarma"
+      },
+      {
+        "id": "food-035",
+        "ar": "هوت دوج",
+        "en": "hot dog"
+      },
+      {
+        "id": "food-036",
+        "ar": "تاكو",
+        "en": "taco"
+      },
+      {
+        "id": "food-037",
+        "ar": "كريب",
+        "en": "crepe"
+      },
+      {
+        "id": "food-038",
+        "ar": "سندويتش",
+        "en": "sandwich"
+      },
+      {
+        "id": "food-039",
+        "ar": "ناجتس",
+        "en": "nuggets"
+      },
+      {
+        "id": "food-040",
+        "ar": "فرايز",
+        "en": "fries"
+      },
+      {
+        "id": "food-041",
+        "ar": "خبز",
+        "en": "bread"
+      },
+      {
+        "id": "food-042",
+        "ar": "تمر",
+        "en": "dates"
+      },
+      {
+        "id": "food-043",
+        "ar": "رز",
+        "en": "rice"
+      },
+      {
+        "id": "food-044",
+        "ar": "جبن",
+        "en": "cheese"
+      }
+    ]
+  },
+  {
+    "category": "countries_and_landmarks",
+    "concepts": [
+      {
+        "id": "countries-and-landmarks-001",
+        "ar": "مصر",
+        "en": "Egypt"
+      },
+      {
+        "id": "countries-and-landmarks-002",
+        "ar": "بلجيكا",
+        "en": "Belgium"
+      },
+      {
+        "id": "countries-and-landmarks-003",
+        "ar": "فرنسا",
+        "en": "France"
+      },
+      {
+        "id": "countries-and-landmarks-004",
+        "ar": "إيطاليا",
+        "en": "Italy"
+      },
+      {
+        "id": "countries-and-landmarks-005",
+        "ar": "إسبانيا",
+        "en": "Spain"
+      },
+      {
+        "id": "countries-and-landmarks-006",
+        "ar": "ألمانيا",
+        "en": "Germany"
+      },
+      {
+        "id": "countries-and-landmarks-007",
+        "ar": "هولندا",
+        "en": "Netherlands"
+      },
+      {
+        "id": "countries-and-landmarks-008",
+        "ar": "سويسرا",
+        "en": "Switzerland"
+      },
+      {
+        "id": "countries-and-landmarks-009",
+        "ar": "النمسا",
+        "en": "Austria"
+      },
+      {
+        "id": "countries-and-landmarks-010",
+        "ar": "تركيا",
+        "en": "Turkey"
+      },
+      {
+        "id": "countries-and-landmarks-011",
+        "ar": "اليونان",
+        "en": "Greece"
+      },
+      {
+        "id": "countries-and-landmarks-012",
+        "ar": "المغرب",
+        "en": "Morocco"
+      },
+      {
+        "id": "countries-and-landmarks-013",
+        "ar": "الإمارات",
+        "en": "United Arab Emirates"
+      },
+      {
+        "id": "countries-and-landmarks-014",
+        "ar": "السعودية",
+        "en": "Saudi Arabia"
+      },
+      {
+        "id": "countries-and-landmarks-015",
+        "ar": "اليابان",
+        "en": "Japan"
+      },
+      {
+        "id": "countries-and-landmarks-016",
+        "ar": "الصين",
+        "en": "China"
+      },
+      {
+        "id": "countries-and-landmarks-017",
+        "ar": "الهند",
+        "en": "India"
+      },
+      {
+        "id": "countries-and-landmarks-018",
+        "ar": "البرازيل",
+        "en": "Brazil"
+      },
+      {
+        "id": "countries-and-landmarks-019",
+        "ar": "كندا",
+        "en": "Canada"
+      },
+      {
+        "id": "countries-and-landmarks-020",
+        "ar": "أمريكا",
+        "en": "United States"
+      },
+      {
+        "id": "countries-and-landmarks-021",
+        "ar": "أستراليا",
+        "en": "Australia"
+      },
+      {
+        "id": "countries-and-landmarks-022",
+        "ar": "نيوزيلندا",
+        "en": "New Zealand"
+      },
+      {
+        "id": "countries-and-landmarks-023",
+        "ar": "النرويج",
+        "en": "Norway"
+      },
+      {
+        "id": "countries-and-landmarks-024",
+        "ar": "السويد",
+        "en": "Sweden"
+      },
+      {
+        "id": "countries-and-landmarks-025",
+        "ar": "فنلندا",
+        "en": "Finland"
+      },
+      {
+        "id": "countries-and-landmarks-026",
+        "ar": "أهرامات",
+        "en": "Pyramids"
+      },
+      {
+        "id": "countries-and-landmarks-027",
+        "ar": "أبوالهول",
+        "en": "Sphinx"
+      },
+      {
+        "id": "countries-and-landmarks-028",
+        "ar": "إيفل",
+        "en": "Eiffel Tower"
+      },
+      {
+        "id": "countries-and-landmarks-029",
+        "ar": "اللوفر",
+        "en": "Louvre"
+      },
+      {
+        "id": "countries-and-landmarks-030",
+        "ar": "ديزني لاند",
+        "en": "Disneyland"
+      },
+      {
+        "id": "countries-and-landmarks-031",
+        "ar": "بيزا",
+        "en": "Pisa"
+      },
+      {
+        "id": "countries-and-landmarks-032",
+        "ar": "الألب",
+        "en": "Alps"
+      },
+      {
+        "id": "countries-and-landmarks-033",
+        "ar": "نياجرا",
+        "en": "Niagara Falls"
+      },
+      {
+        "id": "countries-and-landmarks-034",
+        "ar": "تاج محل",
+        "en": "Taj Mahal"
+      },
+      {
+        "id": "countries-and-landmarks-035",
+        "ar": "خليفة",
+        "en": "Burj Khalifa"
+      },
+      {
+        "id": "countries-and-landmarks-036",
+        "ar": "مالديف",
+        "en": "Maldives"
+      },
+      {
+        "id": "countries-and-landmarks-037",
+        "ar": "بالي",
+        "en": "Bali"
+      }
+    ]
+  },
+  {
+    "category": "professions",
+    "concepts": [
+      {
+        "id": "professions-001",
+        "ar": "طبيب",
+        "en": "doctor"
+      },
+      {
+        "id": "professions-002",
+        "ar": "مهندس",
+        "en": "engineer"
+      },
+      {
+        "id": "professions-003",
+        "ar": "معلم",
+        "en": "teacher"
+      },
+      {
+        "id": "professions-004",
+        "ar": "محاسب",
+        "en": "accountant"
+      },
+      {
+        "id": "professions-005",
+        "ar": "مبرمج",
+        "en": "programmer"
+      },
+      {
+        "id": "professions-006",
+        "ar": "نجار",
+        "en": "carpenter"
+      },
+      {
+        "id": "professions-007",
+        "ar": "حداد",
+        "en": "blacksmith"
+      },
+      {
+        "id": "professions-008",
+        "ar": "سباك",
+        "en": "plumber"
+      },
+      {
+        "id": "professions-009",
+        "ar": "كهربائي",
+        "en": "electrician"
+      },
+      {
+        "id": "professions-010",
+        "ar": "ميكانيكي",
+        "en": "mechanic"
+      },
+      {
+        "id": "professions-011",
+        "ar": "سائق",
+        "en": "driver"
+      },
+      {
+        "id": "professions-012",
+        "ar": "طيار",
+        "en": "pilot"
+      },
+      {
+        "id": "professions-013",
+        "ar": "مزارع",
+        "en": "farmer"
+      },
+      {
+        "id": "professions-014",
+        "ar": "خباز",
+        "en": "baker"
+      },
+      {
+        "id": "professions-015",
+        "ar": "طباخ",
+        "en": "cook"
+      },
+      {
+        "id": "professions-016",
+        "ar": "جزار",
+        "en": "butcher"
+      },
+      {
+        "id": "professions-017",
+        "ar": "صياد",
+        "en": "fisherman"
+      },
+      {
+        "id": "professions-018",
+        "ar": "صيدلي",
+        "en": "pharmacist"
+      },
+      {
+        "id": "professions-019",
+        "ar": "ممرض",
+        "en": "nurse"
+      },
+      {
+        "id": "professions-020",
+        "ar": "شرطي",
+        "en": "police officer"
+      },
+      {
+        "id": "professions-021",
+        "ar": "محامي",
+        "en": "lawyer"
+      },
+      {
+        "id": "professions-022",
+        "ar": "قاضٍ",
+        "en": "judge"
+      },
+      {
+        "id": "professions-023",
+        "ar": "صحفي",
+        "en": "journalist"
+      },
+      {
+        "id": "professions-024",
+        "ar": "مصور",
+        "en": "photographer"
+      },
+      {
+        "id": "professions-025",
+        "ar": "رسام",
+        "en": "painter"
+      },
+      {
+        "id": "professions-026",
+        "ar": "مصمم",
+        "en": "designer"
+      },
+      {
+        "id": "professions-027",
+        "ar": "خياط",
+        "en": "tailor"
+      },
+      {
+        "id": "professions-028",
+        "ar": "حلاق",
+        "en": "barber"
+      },
+      {
+        "id": "professions-029",
+        "ar": "بائع",
+        "en": "seller"
+      },
+      {
+        "id": "professions-030",
+        "ar": "بناء",
+        "en": "builder"
+      },
+      {
+        "id": "professions-031",
+        "ar": "مترجم",
+        "en": "translator"
+      },
+      {
+        "id": "professions-032",
+        "ar": "مدرب",
+        "en": "coach"
+      },
+      {
+        "id": "professions-033",
+        "ar": "مرشد",
+        "en": "guide"
+      },
+      {
+        "id": "professions-034",
+        "ar": "تاجر",
+        "en": "merchant"
+      },
+      {
+        "id": "professions-035",
+        "ar": "كاشير",
+        "en": "cashier"
+      }
+    ]
+  },
+  {
+    "category": "famous_people",
+    "concepts": [
+      {
+        "id": "famous-people-001",
+        "ar": "صلاح",
+        "en": "Salah"
+      },
+      {
+        "id": "famous-people-002",
+        "ar": "زويل",
+        "en": "Zewail"
+      },
+      {
+        "id": "famous-people-003",
+        "ar": "فيروز",
+        "en": "Fairuz"
+      },
+      {
+        "id": "famous-people-004",
+        "ar": "ميسي",
+        "en": "Messi"
+      },
+      {
+        "id": "famous-people-005",
+        "ar": "رونالدو",
+        "en": "Ronaldo"
+      },
+      {
+        "id": "famous-people-006",
+        "ar": "ماسك",
+        "en": "Musk"
+      },
+      {
+        "id": "famous-people-007",
+        "ar": "جوبز",
+        "en": "Jobs"
+      },
+      {
+        "id": "famous-people-008",
+        "ar": "أينشتاين",
+        "en": "Einstein"
+      },
+      {
+        "id": "famous-people-009",
+        "ar": "نيوتن",
+        "en": "Newton"
+      },
+      {
+        "id": "famous-people-010",
+        "ar": "أرمسترونغ",
+        "en": "Armstrong"
+      },
+      {
+        "id": "famous-people-011",
+        "ar": "تشرشل",
+        "en": "Churchill"
+      },
+      {
+        "id": "famous-people-012",
+        "ar": "مانديلا",
+        "en": "Mandela"
+      },
+      {
+        "id": "famous-people-013",
+        "ar": "غاندي",
+        "en": "Gandhi"
+      },
+      {
+        "id": "famous-people-014",
+        "ar": "شكسبير",
+        "en": "Shakespeare"
+      },
+      {
+        "id": "famous-people-015",
+        "ar": "دافنشي",
+        "en": "Da Vinci"
+      },
+      {
+        "id": "famous-people-016",
+        "ar": "بيكاسو",
+        "en": "Picasso"
+      },
+      {
+        "id": "famous-people-017",
+        "ar": "فان جوخ",
+        "en": "Van Gogh"
+      }
+    ]
+  },
+  {
+    "category": "names",
+    "concepts": [
+      {
+        "id": "names-001",
+        "ar": "أحمد",
+        "en": "Ahmed"
+      },
+      {
+        "id": "names-002",
+        "ar": "محمد",
+        "en": "Mohamed"
+      },
+      {
+        "id": "names-003",
+        "ar": "محمود",
+        "en": "Mahmoud"
+      },
+      {
+        "id": "names-004",
+        "ar": "مصطفى",
+        "en": "Mostafa"
+      },
+      {
+        "id": "names-005",
+        "ar": "عمر",
+        "en": "Omar"
+      },
+      {
+        "id": "names-006",
+        "ar": "علي",
+        "en": "Ali"
+      },
+      {
+        "id": "names-007",
+        "ar": "يوسف",
+        "en": "Youssef"
+      },
+      {
+        "id": "names-008",
+        "ar": "ياسين",
+        "en": "Yassin"
+      },
+      {
+        "id": "names-009",
+        "ar": "آدم",
+        "en": "Adam"
+      },
+      {
+        "id": "names-010",
+        "ar": "نوح",
+        "en": "Noah"
+      },
+      {
+        "id": "names-011",
+        "ar": "إبراهيم",
+        "en": "Ibrahim"
+      },
+      {
+        "id": "names-012",
+        "ar": "إسماعيل",
+        "en": "Ismail"
+      },
+      {
+        "id": "names-013",
+        "ar": "عبدالله",
+        "en": "Abdullah"
+      },
+      {
+        "id": "names-014",
+        "ar": "كريم",
+        "en": "Karim"
+      },
+      {
+        "id": "names-015",
+        "ar": "زياد",
+        "en": "Ziad"
+      },
+      {
+        "id": "names-016",
+        "ar": "سيف",
+        "en": "Seif"
+      },
+      {
+        "id": "names-017",
+        "ar": "حمزة",
+        "en": "Hamza"
+      },
+      {
+        "id": "names-018",
+        "ar": "معاذ",
+        "en": "Moaz"
+      },
+      {
+        "id": "names-019",
+        "ar": "خالد",
+        "en": "Khaled"
+      },
+      {
+        "id": "names-020",
+        "ar": "طارق",
+        "en": "Tarek"
+      },
+      {
+        "id": "names-021",
+        "ar": "أنس",
+        "en": "Anas"
+      },
+      {
+        "id": "names-022",
+        "ar": "أدهم",
+        "en": "Adham"
+      },
+      {
+        "id": "names-023",
+        "ar": "مالك",
+        "en": "Malik"
+      },
+      {
+        "id": "names-024",
+        "ar": "زين",
+        "en": "Zain"
+      },
+      {
+        "id": "names-025",
+        "ar": "لؤي",
+        "en": "Loay"
+      },
+      {
+        "id": "names-026",
+        "ar": "ريان",
+        "en": "Rayan"
+      },
+      {
+        "id": "names-027",
+        "ar": "فارس",
+        "en": "Fares"
+      },
+      {
+        "id": "names-028",
+        "ar": "هاشم",
+        "en": "Hashem"
+      },
+      {
+        "id": "names-029",
+        "ar": "حسام",
+        "en": "Hossam"
+      },
+      {
+        "id": "names-030",
+        "ar": "موسى",
+        "en": "Moussa"
+      },
+      {
+        "id": "names-031",
+        "ar": "فاطمة",
+        "en": "Fatma"
+      },
+      {
+        "id": "names-032",
+        "ar": "مريم",
+        "en": "Mariam"
+      },
+      {
+        "id": "names-033",
+        "ar": "آية",
+        "en": "Aya"
+      },
+      {
+        "id": "names-034",
+        "ar": "أسماء",
+        "en": "Asmaa"
+      },
+      {
+        "id": "names-035",
+        "ar": "سارة",
+        "en": "Sara"
+      },
+      {
+        "id": "names-036",
+        "ar": "نور",
+        "en": "Nour"
+      },
+      {
+        "id": "names-037",
+        "ar": "ملك",
+        "en": "Malak"
+      },
+      {
+        "id": "names-038",
+        "ar": "جنى",
+        "en": "Jana"
+      },
+      {
+        "id": "names-039",
+        "ar": "ياسمين",
+        "en": "Yasmine"
+      },
+      {
+        "id": "names-040",
+        "ar": "سلمى",
+        "en": "Salma"
+      },
+      {
+        "id": "names-041",
+        "ar": "هنا",
+        "en": "Hana"
+      },
+      {
+        "id": "names-042",
+        "ar": "ريم",
+        "en": "Reem"
+      },
+      {
+        "id": "names-043",
+        "ar": "ليان",
+        "en": "Layan"
+      },
+      {
+        "id": "names-044",
+        "ar": "جود",
+        "en": "Joud"
+      },
+      {
+        "id": "names-045",
+        "ar": "تالا",
+        "en": "Tala"
+      },
+      {
+        "id": "names-046",
+        "ar": "لينا",
+        "en": "Lina"
+      },
+      {
+        "id": "names-047",
+        "ar": "رنا",
+        "en": "Rana"
+      },
+      {
+        "id": "names-048",
+        "ar": "فرح",
+        "en": "Farah"
+      },
+      {
+        "id": "names-049",
+        "ar": "بسملة",
+        "en": "Basmala"
+      },
+      {
+        "id": "names-050",
+        "ar": "حبيبة",
+        "en": "Habiba"
+      },
+      {
+        "id": "names-051",
+        "ar": "زينة",
+        "en": "Zeina"
+      },
+      {
+        "id": "names-052",
+        "ar": "لمار",
+        "en": "Lamar"
+      },
+      {
+        "id": "names-053",
+        "ar": "ريتاج",
+        "en": "Retaj"
+      },
+      {
+        "id": "names-054",
+        "ar": "كارما",
+        "en": "Karma"
+      },
+      {
+        "id": "names-055",
+        "ar": "روان",
+        "en": "Rawan"
+      },
+      {
+        "id": "names-056",
+        "ar": "شهد",
+        "en": "Shahd"
+      },
+      {
+        "id": "names-057",
+        "ar": "دينا",
+        "en": "Dina"
+      },
+      {
+        "id": "names-058",
+        "ar": "نادين",
+        "en": "Nadine"
+      },
+      {
+        "id": "names-059",
+        "ar": "إسراء",
+        "en": "Esraa"
+      },
+      {
+        "id": "names-060",
+        "ar": "دعاء",
+        "en": "Doaa"
+      }
+    ]
+  },
+  {
+    "category": "ingredients_vegetables_fruits",
+    "concepts": [
+      {
+        "id": "ingredients-vegetables-fruits-001",
+        "ar": "أرز",
+        "en": "rice"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-002",
+        "ar": "مكرونة",
+        "en": "pasta"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-003",
+        "ar": "دقيق",
+        "en": "flour"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-004",
+        "ar": "سكر",
+        "en": "sugar"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-005",
+        "ar": "ملح",
+        "en": "salt"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-006",
+        "ar": "كمون",
+        "en": "cumin"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-007",
+        "ar": "كركم",
+        "en": "turmeric"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-008",
+        "ar": "بابريكا",
+        "en": "paprika"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-009",
+        "ar": "قرفة",
+        "en": "cinnamon"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-010",
+        "ar": "زيت",
+        "en": "oil"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-011",
+        "ar": "سمن",
+        "en": "ghee"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-012",
+        "ar": "زبدة",
+        "en": "butter"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-013",
+        "ar": "جبنة",
+        "en": "cheese"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-014",
+        "ar": "زبادي",
+        "en": "yogurt"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-015",
+        "ar": "بيض",
+        "en": "eggs"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-016",
+        "ar": "دجاج",
+        "en": "chicken"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-017",
+        "ar": "لحم",
+        "en": "meat"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-018",
+        "ar": "سمك",
+        "en": "fish"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-019",
+        "ar": "بصل",
+        "en": "onion"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-020",
+        "ar": "شبت",
+        "en": "dill"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-021",
+        "ar": "خل",
+        "en": "vinegar"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-022",
+        "ar": "صلصة",
+        "en": "sauce"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-023",
+        "ar": "كاتشب",
+        "en": "ketchup"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-024",
+        "ar": "مايونيز",
+        "en": "mayonnaise"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-025",
+        "ar": "خردل",
+        "en": "mustard"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-026",
+        "ar": "عدس",
+        "en": "lentils"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-027",
+        "ar": "فاصوليا",
+        "en": "beans"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-028",
+        "ar": "بازلاء",
+        "en": "peas"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-029",
+        "ar": "ذرة",
+        "en": "corn"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-030",
+        "ar": "فطر",
+        "en": "mushroom"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-031",
+        "ar": "زيتون",
+        "en": "olives"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-032",
+        "ar": "مكسرات",
+        "en": "nuts"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-033",
+        "ar": "زبيب",
+        "en": "raisins"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-034",
+        "ar": "عسل",
+        "en": "honey"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-035",
+        "ar": "طماطم",
+        "en": "tomato"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-036",
+        "ar": "خيار",
+        "en": "cucumber"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-037",
+        "ar": "بطاطس",
+        "en": "potato"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-038",
+        "ar": "ثوم",
+        "en": "garlic"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-039",
+        "ar": "جزر",
+        "en": "carrot"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-040",
+        "ar": "فلفل",
+        "en": "pepper"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-041",
+        "ar": "باذنجان",
+        "en": "eggplant"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-042",
+        "ar": "كوسة",
+        "en": "zucchini"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-043",
+        "ar": "كرنب",
+        "en": "cabbage"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-044",
+        "ar": "خس",
+        "en": "lettuce"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-045",
+        "ar": "سبانخ",
+        "en": "spinach"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-046",
+        "ar": "بروكلي",
+        "en": "broccoli"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-047",
+        "ar": "قرنبيط",
+        "en": "cauliflower"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-048",
+        "ar": "بقدونس",
+        "en": "parsley"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-049",
+        "ar": "كزبرة",
+        "en": "coriander"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-050",
+        "ar": "نعناع",
+        "en": "mint"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-051",
+        "ar": "جرجير",
+        "en": "arugula"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-052",
+        "ar": "تفاح",
+        "en": "apple"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-053",
+        "ar": "موز",
+        "en": "banana"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-054",
+        "ar": "برتقال",
+        "en": "orange"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-055",
+        "ar": "يوسفي",
+        "en": "mandarin"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-056",
+        "ar": "ليمون",
+        "en": "lemon"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-057",
+        "ar": "عنب",
+        "en": "grapes"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-058",
+        "ar": "فراولة",
+        "en": "strawberry"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-059",
+        "ar": "مانجو",
+        "en": "mango"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-060",
+        "ar": "خوخ",
+        "en": "peach"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-061",
+        "ar": "كمثرى",
+        "en": "pear"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-062",
+        "ar": "كيوي",
+        "en": "kiwi"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-063",
+        "ar": "أناناس",
+        "en": "pineapple"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-064",
+        "ar": "بطيخ",
+        "en": "watermelon"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-065",
+        "ar": "شمام",
+        "en": "melon"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-066",
+        "ar": "رمان",
+        "en": "pomegranate"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-067",
+        "ar": "تين",
+        "en": "fig"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-068",
+        "ar": "جوافة",
+        "en": "guava"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-069",
+        "ar": "مشمش",
+        "en": "apricot"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-070",
+        "ar": "كرز",
+        "en": "cherry"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-071",
+        "ar": "توت",
+        "en": "berries"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-072",
+        "ar": "بلح",
+        "en": "dates"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-073",
+        "ar": "جوزهند",
+        "en": "coconut"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-074",
+        "ar": "أفوكادو",
+        "en": "avocado"
+      },
+      {
+        "id": "ingredients-vegetables-fruits-075",
+        "ar": "برقوق",
+        "en": "plum"
+      }
+    ]
+  },
+  {
+    "category": "capitals",
+    "concepts": [
+      {
+        "id": "capitals-001",
+        "ar": "القاهرة",
+        "en": "Cairo"
+      },
+      {
+        "id": "capitals-002",
+        "ar": "الرياض",
+        "en": "Riyadh"
+      },
+      {
+        "id": "capitals-003",
+        "ar": "أبوظبي",
+        "en": "Abu Dhabi"
+      },
+      {
+        "id": "capitals-004",
+        "ar": "دبي",
+        "en": "Dubai"
+      },
+      {
+        "id": "capitals-005",
+        "ar": "الدوحة",
+        "en": "Doha"
+      },
+      {
+        "id": "capitals-006",
+        "ar": "الكويت",
+        "en": "Kuwait City"
+      },
+      {
+        "id": "capitals-007",
+        "ar": "مسقط",
+        "en": "Muscat"
+      },
+      {
+        "id": "capitals-008",
+        "ar": "عمان",
+        "en": "Amman"
+      },
+      {
+        "id": "capitals-009",
+        "ar": "بيروت",
+        "en": "Beirut"
+      },
+      {
+        "id": "capitals-010",
+        "ar": "دمشق",
+        "en": "Damascus"
+      },
+      {
+        "id": "capitals-011",
+        "ar": "بغداد",
+        "en": "Baghdad"
+      },
+      {
+        "id": "capitals-012",
+        "ar": "القدس",
+        "en": "Jerusalem"
+      },
+      {
+        "id": "capitals-013",
+        "ar": "باريس",
+        "en": "Paris"
+      },
+      {
+        "id": "capitals-014",
+        "ar": "لندن",
+        "en": "London"
+      },
+      {
+        "id": "capitals-015",
+        "ar": "مدريد",
+        "en": "Madrid"
+      },
+      {
+        "id": "capitals-016",
+        "ar": "روما",
+        "en": "Rome"
+      },
+      {
+        "id": "capitals-017",
+        "ar": "برلين",
+        "en": "Berlin"
+      },
+      {
+        "id": "capitals-018",
+        "ar": "أمستردام",
+        "en": "Amsterdam"
+      },
+      {
+        "id": "capitals-019",
+        "ar": "بروكسل",
+        "en": "Brussels"
+      },
+      {
+        "id": "capitals-020",
+        "ar": "فيينا",
+        "en": "Vienna"
+      },
+      {
+        "id": "capitals-021",
+        "ar": "لشبونة",
+        "en": "Lisbon"
+      },
+      {
+        "id": "capitals-022",
+        "ar": "أثينا",
+        "en": "Athens"
+      },
+      {
+        "id": "capitals-023",
+        "ar": "أنقرة",
+        "en": "Ankara"
+      },
+      {
+        "id": "capitals-024",
+        "ar": "موسكو",
+        "en": "Moscow"
+      },
+      {
+        "id": "capitals-025",
+        "ar": "واشنطن",
+        "en": "Washington"
+      },
+      {
+        "id": "capitals-026",
+        "ar": "برازيليا",
+        "en": "Brasilia"
+      },
+      {
+        "id": "capitals-027",
+        "ar": "بكين",
+        "en": "Beijing"
+      },
+      {
+        "id": "capitals-028",
+        "ar": "طوكيو",
+        "en": "Tokyo"
+      },
+      {
+        "id": "capitals-029",
+        "ar": "سيول",
+        "en": "Seoul"
+      }
+    ]
+  },
+  {
+    "category": "tools_and_devices",
+    "concepts": [
+      {
+        "id": "tools-and-devices-001",
+        "ar": "مطرقة",
+        "en": "hammer"
+      },
+      {
+        "id": "tools-and-devices-002",
+        "ar": "مفك",
+        "en": "screwdriver"
+      },
+      {
+        "id": "tools-and-devices-003",
+        "ar": "كماشة",
+        "en": "pliers"
+      },
+      {
+        "id": "tools-and-devices-004",
+        "ar": "منشار",
+        "en": "saw"
+      },
+      {
+        "id": "tools-and-devices-005",
+        "ar": "مثقاب",
+        "en": "drill"
+      },
+      {
+        "id": "tools-and-devices-006",
+        "ar": "شاكوش",
+        "en": "hammer"
+      },
+      {
+        "id": "tools-and-devices-007",
+        "ar": "مسامير",
+        "en": "nails"
+      },
+      {
+        "id": "tools-and-devices-008",
+        "ar": "مقص",
+        "en": "scissors"
+      },
+      {
+        "id": "tools-and-devices-009",
+        "ar": "سكين",
+        "en": "knife"
+      },
+      {
+        "id": "tools-and-devices-010",
+        "ar": "فرشاة",
+        "en": "brush"
+      },
+      {
+        "id": "tools-and-devices-011",
+        "ar": "قلم",
+        "en": "pen"
+      },
+      {
+        "id": "tools-and-devices-012",
+        "ar": "ممحاة",
+        "en": "eraser"
+      },
+      {
+        "id": "tools-and-devices-013",
+        "ar": "مسطرة",
+        "en": "ruler"
+      },
+      {
+        "id": "tools-and-devices-014",
+        "ar": "دباسة",
+        "en": "stapler"
+      },
+      {
+        "id": "tools-and-devices-015",
+        "ar": "ورق",
+        "en": "paper"
+      },
+      {
+        "id": "tools-and-devices-016",
+        "ar": "دفتر",
+        "en": "notebook"
+      },
+      {
+        "id": "tools-and-devices-017",
+        "ar": "لوحة مفاتيح",
+        "en": "keyboard"
+      },
+      {
+        "id": "tools-and-devices-018",
+        "ar": "ماوس",
+        "en": "mouse"
+      },
+      {
+        "id": "tools-and-devices-019",
+        "ar": "مصباح",
+        "en": "lamp"
+      },
+      {
+        "id": "tools-and-devices-020",
+        "ar": "مكنسة",
+        "en": "broom"
+      },
+      {
+        "id": "tools-and-devices-021",
+        "ar": "حقيبة",
+        "en": "bag"
+      },
+      {
+        "id": "tools-and-devices-022",
+        "ar": "نظارة",
+        "en": "glasses"
+      },
+      {
+        "id": "tools-and-devices-023",
+        "ar": "شاحن",
+        "en": "charger"
+      },
+      {
+        "id": "tools-and-devices-024",
+        "ar": "ريموت",
+        "en": "remote control"
+      },
+      {
+        "id": "tools-and-devices-025",
+        "ar": "قفل",
+        "en": "lock"
+      },
+      {
+        "id": "tools-and-devices-026",
+        "ar": "مفتاح",
+        "en": "key"
+      },
+      {
+        "id": "tools-and-devices-027",
+        "ar": "حبل",
+        "en": "rope"
+      },
+      {
+        "id": "tools-and-devices-028",
+        "ar": "سلم",
+        "en": "ladder"
+      },
+      {
+        "id": "tools-and-devices-029",
+        "ar": "شبكه",
+        "en": "net"
+      },
+      {
+        "id": "tools-and-devices-030",
+        "ar": "هاتف",
+        "en": "phone"
+      },
+      {
+        "id": "tools-and-devices-031",
+        "ar": "لابتوب",
+        "en": "laptop"
+      },
+      {
+        "id": "tools-and-devices-032",
+        "ar": "تابلت",
+        "en": "tablet"
+      },
+      {
+        "id": "tools-and-devices-033",
+        "ar": "ساعة",
+        "en": "watch"
+      },
+      {
+        "id": "tools-and-devices-034",
+        "ar": "تلفاز",
+        "en": "television"
+      },
+      {
+        "id": "tools-and-devices-035",
+        "ar": "شاشة",
+        "en": "screen"
+      },
+      {
+        "id": "tools-and-devices-036",
+        "ar": "طابعة",
+        "en": "printer"
+      },
+      {
+        "id": "tools-and-devices-037",
+        "ar": "كاميرا",
+        "en": "camera"
+      },
+      {
+        "id": "tools-and-devices-038",
+        "ar": "سماعة",
+        "en": "headphones"
+      },
+      {
+        "id": "tools-and-devices-039",
+        "ar": "ميكروفون",
+        "en": "microphone"
+      },
+      {
+        "id": "tools-and-devices-040",
+        "ar": "راوتر",
+        "en": "router"
+      },
+      {
+        "id": "tools-and-devices-041",
+        "ar": "بلايستيشن",
+        "en": "PlayStation"
+      },
+      {
+        "id": "tools-and-devices-042",
+        "ar": "سويتش",
+        "en": "Switch"
+      },
+      {
+        "id": "tools-and-devices-043",
+        "ar": "جهاز عرض",
+        "en": "projector"
+      },
+      {
+        "id": "tools-and-devices-044",
+        "ar": "ثلاجة",
+        "en": "refrigerator"
+      },
+      {
+        "id": "tools-and-devices-045",
+        "ar": "غسالة",
+        "en": "washing machine"
+      },
+      {
+        "id": "tools-and-devices-046",
+        "ar": "ميكروويف",
+        "en": "microwave"
+      },
+      {
+        "id": "tools-and-devices-047",
+        "ar": "فرن",
+        "en": "oven"
+      },
+      {
+        "id": "tools-and-devices-048",
+        "ar": "مكيف",
+        "en": "air conditioner"
+      },
+      {
+        "id": "tools-and-devices-049",
+        "ar": "مروحة",
+        "en": "fan"
+      },
+      {
+        "id": "tools-and-devices-050",
+        "ar": "سخان",
+        "en": "heater"
+      },
+      {
+        "id": "tools-and-devices-051",
+        "ar": "ماكينة",
+        "en": "machine"
+      },
+      {
+        "id": "tools-and-devices-052",
+        "ar": "خلاط",
+        "en": "blender"
+      },
+      {
+        "id": "tools-and-devices-053",
+        "ar": "عصارة",
+        "en": "juicer"
+      }
+    ]
+  },
+  {
+    "category": "colors",
+    "concepts": [
+      {
+        "id": "colors-001",
+        "ar": "أحمر",
+        "en": "red"
+      },
+      {
+        "id": "colors-002",
+        "ar": "أزرق",
+        "en": "blue"
+      },
+      {
+        "id": "colors-003",
+        "ar": "أخضر",
+        "en": "green"
+      },
+      {
+        "id": "colors-004",
+        "ar": "أصفر",
+        "en": "yellow"
+      },
+      {
+        "id": "colors-005",
+        "ar": "برتقالي",
+        "en": "orange"
+      },
+      {
+        "id": "colors-006",
+        "ar": "بنفسجي",
+        "en": "purple"
+      },
+      {
+        "id": "colors-007",
+        "ar": "وردي",
+        "en": "pink"
+      },
+      {
+        "id": "colors-008",
+        "ar": "أسود",
+        "en": "black"
+      },
+      {
+        "id": "colors-009",
+        "ar": "أبيض",
+        "en": "white"
+      },
+      {
+        "id": "colors-010",
+        "ar": "رمادي",
+        "en": "gray"
+      },
+      {
+        "id": "colors-011",
+        "ar": "بني",
+        "en": "brown"
+      },
+      {
+        "id": "colors-012",
+        "ar": "كحلي",
+        "en": "navy"
+      },
+      {
+        "id": "colors-013",
+        "ar": "سماوي",
+        "en": "sky blue"
+      },
+      {
+        "id": "colors-014",
+        "ar": "فيروزي",
+        "en": "turquoise"
+      },
+      {
+        "id": "colors-015",
+        "ar": "ذهبي",
+        "en": "gold"
+      },
+      {
+        "id": "colors-016",
+        "ar": "فضي",
+        "en": "silver"
+      },
+      {
+        "id": "colors-017",
+        "ar": "بيج",
+        "en": "beige"
+      },
+      {
+        "id": "colors-018",
+        "ar": "زيتي",
+        "en": "olive"
+      },
+      {
+        "id": "colors-019",
+        "ar": "نبيتي",
+        "en": "burgundy"
+      },
+      {
+        "id": "colors-020",
+        "ar": "موف",
+        "en": "mauve"
+      },
+      {
+        "id": "colors-021",
+        "ar": "فوشيا",
+        "en": "fuchsia"
+      },
+      {
+        "id": "colors-022",
+        "ar": "خمري",
+        "en": "maroon"
+      },
+      {
+        "id": "colors-023",
+        "ar": "نحاسي",
+        "en": "copper"
+      },
+      {
+        "id": "colors-024",
+        "ar": "ليموني",
+        "en": "lemon yellow"
+      },
+      {
+        "id": "colors-025",
+        "ar": "عنابي",
+        "en": "burgundy"
+      }
+    ]
+  },
+  {
+    "category": "interests",
+    "concepts": [
+      {
+        "id": "interests-001",
+        "ar": "القراءة",
+        "en": "reading"
+      },
+      {
+        "id": "interests-002",
+        "ar": "الرياضة",
+        "en": "sports"
+      },
+      {
+        "id": "interests-003",
+        "ar": "السفر",
+        "en": "travel"
+      },
+      {
+        "id": "interests-004",
+        "ar": "التصوير",
+        "en": "photography"
+      },
+      {
+        "id": "interests-005",
+        "ar": "الرسم",
+        "en": "drawing"
+      },
+      {
+        "id": "interests-006",
+        "ar": "الطبخ",
+        "en": "cooking"
+      },
+      {
+        "id": "interests-007",
+        "ar": "الخَبز",
+        "en": "baking"
+      },
+      {
+        "id": "interests-008",
+        "ar": "الموسيقى",
+        "en": "music"
+      },
+      {
+        "id": "interests-009",
+        "ar": "الغناء",
+        "en": "singing"
+      },
+      {
+        "id": "interests-010",
+        "ar": "العزف",
+        "en": "playing music"
+      },
+      {
+        "id": "interests-011",
+        "ar": "الرقص",
+        "en": "dancing"
+      },
+      {
+        "id": "interests-012",
+        "ar": "التمثيل",
+        "en": "acting"
+      },
+      {
+        "id": "interests-013",
+        "ar": "الكتابة",
+        "en": "writing"
+      },
+      {
+        "id": "interests-014",
+        "ar": "الشعر",
+        "en": "poetry"
+      },
+      {
+        "id": "interests-015",
+        "ar": "التدوين",
+        "en": "blogging"
+      },
+      {
+        "id": "interests-016",
+        "ar": "البرمجة",
+        "en": "programming"
+      },
+      {
+        "id": "interests-017",
+        "ar": "التخييم",
+        "en": "camping"
+      },
+      {
+        "id": "interests-018",
+        "ar": "الصيد",
+        "en": "fishing"
+      },
+      {
+        "id": "interests-019",
+        "ar": "الأنمي",
+        "en": "anime"
+      }
+    ]
+  },
+  {
+    "category": "languages",
+    "concepts": [
+      {
+        "id": "languages-001",
+        "ar": "العربي",
+        "en": "Arabic"
+      },
+      {
+        "id": "languages-002",
+        "ar": "الإنجليزي",
+        "en": "English"
+      },
+      {
+        "id": "languages-003",
+        "ar": "الفرنسي",
+        "en": "French"
+      },
+      {
+        "id": "languages-004",
+        "ar": "الإسباني",
+        "en": "Spanish"
+      },
+      {
+        "id": "languages-005",
+        "ar": "الألماني",
+        "en": "German"
+      },
+      {
+        "id": "languages-006",
+        "ar": "الإيطالي",
+        "en": "Italian"
+      },
+      {
+        "id": "languages-007",
+        "ar": "البرتغالي",
+        "en": "Portuguese"
+      },
+      {
+        "id": "languages-008",
+        "ar": "الروسي",
+        "en": "Russian"
+      },
+      {
+        "id": "languages-009",
+        "ar": "الصيني",
+        "en": "Chinese"
+      },
+      {
+        "id": "languages-010",
+        "ar": "الياباني",
+        "en": "Japanese"
+      },
+      {
+        "id": "languages-011",
+        "ar": "الكوري",
+        "en": "Korean"
+      },
+      {
+        "id": "languages-012",
+        "ar": "التركي",
+        "en": "Turkish"
+      },
+      {
+        "id": "languages-013",
+        "ar": "الهولندي",
+        "en": "Dutch"
+      },
+      {
+        "id": "languages-014",
+        "ar": "السويدي",
+        "en": "Swedish"
+      },
+      {
+        "id": "languages-015",
+        "ar": "النرويجي",
+        "en": "Norwegian"
+      },
+      {
+        "id": "languages-016",
+        "ar": "الدنماركي",
+        "en": "Danish"
+      },
+      {
+        "id": "languages-017",
+        "ar": "الفنلندي",
+        "en": "Finnish"
+      },
+      {
+        "id": "languages-018",
+        "ar": "اليوناني",
+        "en": "Greek"
+      },
+      {
+        "id": "languages-019",
+        "ar": "البولندي",
+        "en": "Polish"
+      },
+      {
+        "id": "languages-020",
+        "ar": "التشيكي",
+        "en": "Czech"
+      },
+      {
+        "id": "languages-021",
+        "ar": "المجري",
+        "en": "Hungarian"
+      },
+      {
+        "id": "languages-022",
+        "ar": "الأوكراني",
+        "en": "Ukrainian"
+      },
+      {
+        "id": "languages-023",
+        "ar": "الروماني",
+        "en": "Romanian"
+      },
+      {
+        "id": "languages-024",
+        "ar": "الهندي",
+        "en": "Hindi"
+      },
+      {
+        "id": "languages-025",
+        "ar": "الفارسي",
+        "en": "Persian"
+      },
+      {
+        "id": "languages-026",
+        "ar": "العبري",
+        "en": "Hebrew"
+      },
+      {
+        "id": "languages-027",
+        "ar": "التايلاندي",
+        "en": "Thai"
+      },
+      {
+        "id": "languages-028",
+        "ar": "الإندونيسي",
+        "en": "Indonesian"
+      },
+      {
+        "id": "languages-029",
+        "ar": "الماليزي",
+        "en": "Malay"
+      },
+      {
+        "id": "languages-030",
+        "ar": "الأيرلندي",
+        "en": "Irish"
+      }
+    ]
+  },
+  {
+    "category": "sports",
+    "concepts": [
+      {
+        "id": "sports-001",
+        "ar": "كرة القدم",
+        "en": "football"
+      },
+      {
+        "id": "sports-002",
+        "ar": "السلة",
+        "en": "basketball"
+      },
+      {
+        "id": "sports-003",
+        "ar": "التنس",
+        "en": "tennis"
+      },
+      {
+        "id": "sports-004",
+        "ar": "السباحة",
+        "en": "swimming"
+      },
+      {
+        "id": "sports-005",
+        "ar": "الجري",
+        "en": "running"
+      },
+      {
+        "id": "sports-006",
+        "ar": "الملاكمة",
+        "en": "boxing"
+      },
+      {
+        "id": "sports-007",
+        "ar": "الكاراتيه",
+        "en": "karate"
+      },
+      {
+        "id": "sports-008",
+        "ar": "الجودو",
+        "en": "judo"
+      },
+      {
+        "id": "sports-009",
+        "ar": "الشطرنج",
+        "en": "chess"
+      },
+      {
+        "id": "sports-010",
+        "ar": "الرماية",
+        "en": "shooting"
+      },
+      {
+        "id": "sports-011",
+        "ar": "التجديف",
+        "en": "rowing"
+      },
+      {
+        "id": "sports-012",
+        "ar": "الجمباز",
+        "en": "gymnastics"
+      },
+      {
+        "id": "sports-013",
+        "ar": "الإسكواش",
+        "en": "squash"
+      }
+    ]
+  },
+  {
+    "category": "places",
+    "concepts": [
+      {
+        "id": "places-001",
+        "ar": "مستشفى",
+        "en": "hospital"
+      },
+      {
+        "id": "places-002",
+        "ar": "مدرسة",
+        "en": "school"
+      },
+      {
+        "id": "places-003",
+        "ar": "جامعة",
+        "en": "university"
+      },
+      {
+        "id": "places-004",
+        "ar": "مسجد",
+        "en": "mosque"
+      },
+      {
+        "id": "places-005",
+        "ar": "كنيسة",
+        "en": "church"
+      },
+      {
+        "id": "places-006",
+        "ar": "مطار",
+        "en": "airport"
+      },
+      {
+        "id": "places-007",
+        "ar": "محطة",
+        "en": "station"
+      },
+      {
+        "id": "places-008",
+        "ar": "مكتبة",
+        "en": "library"
+      },
+      {
+        "id": "places-009",
+        "ar": "متحف",
+        "en": "museum"
+      },
+      {
+        "id": "places-010",
+        "ar": "حديقة",
+        "en": "park"
+      },
+      {
+        "id": "places-011",
+        "ar": "بيت",
+        "en": "house"
+      },
+      {
+        "id": "places-012",
+        "ar": "سوق",
+        "en": "market"
+      },
+      {
+        "id": "places-013",
+        "ar": "قصر",
+        "en": "palace"
+      },
+      {
+        "id": "places-014",
+        "ar": "جزيرة",
+        "en": "island"
+      },
+      {
+        "id": "places-015",
+        "ar": "جسر",
+        "en": "bridge"
+      },
+      {
+        "id": "places-016",
+        "ar": "ميناء",
+        "en": "harbor"
+      }
+    ]
+  },
+  {
+    "category": "cartoon_characters",
+    "concepts": [
+      {
+        "id": "cartoon-characters-001",
+        "ar": "سبونجبوب",
+        "en": "SpongeBob"
+      },
+      {
+        "id": "cartoon-characters-002",
+        "ar": "توم",
+        "en": "Tom"
+      },
+      {
+        "id": "cartoon-characters-003",
+        "ar": "جيري",
+        "en": "Jerry"
+      },
+      {
+        "id": "cartoon-characters-004",
+        "ar": "ميكي",
+        "en": "Mickey"
+      },
+      {
+        "id": "cartoon-characters-005",
+        "ar": "بطوط",
+        "en": "Donald Duck"
+      },
+      {
+        "id": "cartoon-characters-006",
+        "ar": "سندباد",
+        "en": "Sinbad"
+      },
+      {
+        "id": "cartoon-characters-007",
+        "ar": "غامبول",
+        "en": "Gumball"
+      },
+      {
+        "id": "cartoon-characters-008",
+        "ar": "بن تن",
+        "en": "Ben 10"
+      },
+      {
+        "id": "cartoon-characters-009",
+        "ar": "ماريو",
+        "en": "Mario"
+      }
+    ]
+  },
+  {
+    "category": "plants",
+    "concepts": [
+      {
+        "id": "plants-001",
+        "ar": "البوتس",
+        "en": "pothos"
+      },
+      {
+        "id": "plants-002",
+        "ar": "المونستيرا",
+        "en": "monstera"
+      },
+      {
+        "id": "plants-003",
+        "ar": "الريحان",
+        "en": "basil"
+      },
+      {
+        "id": "plants-004",
+        "ar": "اللافندر",
+        "en": "lavender"
+      },
+      {
+        "id": "plants-005",
+        "ar": "إكليل الجبل",
+        "en": "rosemary"
+      },
+      {
+        "id": "plants-006",
+        "ar": "الورد",
+        "en": "rose"
+      },
+      {
+        "id": "plants-007",
+        "ar": "الجرانيوم",
+        "en": "geranium"
+      },
+      {
+        "id": "plants-008",
+        "ar": "الألوفيرا",
+        "en": "aloe vera"
+      },
+      {
+        "id": "plants-009",
+        "ar": "بابونج",
+        "en": "chamomile"
+      }
+    ]
+  },
+  {
+    "category": "fish_and_seafood",
+    "concepts": [
+      {
+        "id": "fish-and-seafood-001",
+        "ar": "بلطي",
+        "en": "tilapia"
+      },
+      {
+        "id": "fish-and-seafood-002",
+        "ar": "بوري",
+        "en": "mullet"
+      },
+      {
+        "id": "fish-and-seafood-003",
+        "ar": "سلمون",
+        "en": "salmon"
+      },
+      {
+        "id": "fish-and-seafood-004",
+        "ar": "تونة",
+        "en": "tuna"
+      },
+      {
+        "id": "fish-and-seafood-005",
+        "ar": "ماكريل",
+        "en": "mackerel"
+      },
+      {
+        "id": "fish-and-seafood-006",
+        "ar": "دنيس",
+        "en": "sea bream"
+      },
+      {
+        "id": "fish-and-seafood-007",
+        "ar": "قاروص",
+        "en": "sea bass"
+      },
+      {
+        "id": "fish-and-seafood-008",
+        "ar": "الهامور",
+        "en": "grouper"
+      },
+      {
+        "id": "fish-and-seafood-009",
+        "ar": "مرجان",
+        "en": "red porgy"
+      },
+      {
+        "id": "fish-and-seafood-010",
+        "ar": "كابوريا",
+        "en": "crab"
+      },
+      {
+        "id": "fish-and-seafood-011",
+        "ar": "إستاكوزا",
+        "en": "lobster"
+      },
+      {
+        "id": "fish-and-seafood-012",
+        "ar": "جمبري",
+        "en": "shrimp"
+      },
+      {
+        "id": "fish-and-seafood-013",
+        "ar": "سردين",
+        "en": "sardine"
+      },
+      {
+        "id": "fish-and-seafood-014",
+        "ar": "وقار",
+        "en": "grouper"
+      },
+      {
+        "id": "fish-and-seafood-015",
+        "ar": "شعور",
+        "en": "emperor fish"
+      },
+      {
+        "id": "fish-and-seafood-016",
+        "ar": "بياض",
+        "en": "bayad fish"
+      },
+      {
+        "id": "fish-and-seafood-017",
+        "ar": "بربوني",
+        "en": "red mullet"
+      },
+      {
+        "id": "fish-and-seafood-018",
+        "ar": "سبيط",
+        "en": "cuttlefish"
+      },
+      {
+        "id": "fish-and-seafood-019",
+        "ar": "أخطبوط",
+        "en": "octopus"
+      },
+      {
+        "id": "fish-and-seafood-020",
+        "ar": "جندوفلي",
+        "en": "clams"
+      },
+      {
+        "id": "fish-and-seafood-021",
+        "ar": "كافيار",
+        "en": "caviar"
+      },
+      {
+        "id": "fish-and-seafood-022",
+        "ar": "لوت",
+        "en": "meagre fish"
+      },
+      {
+        "id": "fish-and-seafood-023",
+        "ar": "أنشوجة",
+        "en": "anchovy"
+      },
+      {
+        "id": "fish-and-seafood-024",
+        "ar": "غازي",
+        "en": "ghazi fish"
+      },
+      {
+        "id": "fish-and-seafood-025",
+        "ar": "شخرم",
+        "en": "shakhram fish"
+      },
+      {
+        "id": "fish-and-seafood-026",
+        "ar": "بطارخ",
+        "en": "roe"
+      },
+      {
+        "id": "fish-and-seafood-027",
+        "ar": "طوبار",
+        "en": "tobar fish"
+      },
+      {
+        "id": "fish-and-seafood-028",
+        "ar": "كليماري",
+        "en": "calamari"
+      },
+      {
+        "id": "fish-and-seafood-029",
+        "ar": "حوت",
+        "en": "whale"
+      },
+      {
+        "id": "fish-and-seafood-030",
+        "ar": "دلفين",
+        "en": "dolphin"
+      },
+      {
+        "id": "fish-and-seafood-031",
+        "ar": "قرش",
+        "en": "shark"
+      }
+    ]
+  },
+  {
+    "category": "objects",
+    "concepts": [
+      {
+        "id": "objects-001",
+        "ar": "رصاص",
+        "en": "lead"
+      },
+      {
+        "id": "objects-002",
+        "ar": "برج",
+        "en": "tower"
+      },
+      {
+        "id": "objects-003",
+        "ar": "جدار",
+        "en": "wall"
+      },
+      {
+        "id": "objects-004",
+        "ar": "كتاب",
+        "en": "book"
+      },
+      {
+        "id": "objects-005",
+        "ar": "سور",
+        "en": "fence"
+      },
+      {
+        "id": "objects-006",
+        "ar": "نفق",
+        "en": "tunnel"
+      },
+      {
+        "id": "objects-007",
+        "ar": "نهر",
+        "en": "river"
+      },
+      {
+        "id": "objects-008",
+        "ar": "بحر",
+        "en": "sea"
+      },
+      {
+        "id": "objects-009",
+        "ar": "نحاس",
+        "en": "copper"
+      },
+      {
+        "id": "objects-010",
+        "ar": "حديد",
+        "en": "iron"
+      },
+      {
+        "id": "objects-011",
+        "ar": "باب",
+        "en": "door"
+      },
+      {
+        "id": "objects-012",
+        "ar": "خاتم",
+        "en": "ring"
+      },
+      {
+        "id": "objects-013",
+        "ar": "كرسي",
+        "en": "chair"
+      },
+      {
+        "id": "objects-014",
+        "ar": "مرآة",
+        "en": "mirror"
+      },
+      {
+        "id": "objects-015",
+        "ar": "صندوق",
+        "en": "box"
+      }
+    ]
+  },
+  {
+    "category": "body_parts",
+    "concepts": [
+      {
+        "id": "body-parts-001",
+        "ar": "عين",
+        "en": "eye"
+      },
+      {
+        "id": "body-parts-002",
+        "ar": "بطن",
+        "en": "belly"
+      },
+      {
+        "id": "body-parts-003",
+        "ar": "ساق",
+        "en": "leg"
+      },
+      {
+        "id": "body-parts-004",
+        "ar": "ذراع",
+        "en": "arm"
+      },
+      {
+        "id": "body-parts-005",
+        "ar": "اذن",
+        "en": "ear"
+      },
+      {
+        "id": "body-parts-006",
+        "ar": "فم",
+        "en": "mouth"
+      },
+      {
+        "id": "body-parts-007",
+        "ar": "رأس",
+        "en": "head"
+      },
+      {
+        "id": "body-parts-008",
+        "ar": "ظهر",
+        "en": "back"
+      },
+      {
+        "id": "body-parts-009",
+        "ar": "انف",
+        "en": "nose"
+      },
+      {
+        "id": "body-parts-010",
+        "ar": "قلب",
+        "en": "heart"
+      },
+      {
+        "id": "body-parts-011",
+        "ar": "كلية",
+        "en": "kidney"
+      },
+      {
+        "id": "body-parts-012",
+        "ar": "كبد",
+        "en": "liver"
+      },
+      {
+        "id": "body-parts-013",
+        "ar": "مرارة",
+        "en": "gallbladder"
+      },
+      {
+        "id": "body-parts-014",
+        "ar": "طحال",
+        "en": "spleen"
+      }
+    ]
+  },
+  {
+    "category": "drinks",
+    "concepts": [
+      {
+        "id": "drinks-001",
+        "ar": "ماء",
+        "en": "water"
+      },
+      {
+        "id": "drinks-002",
+        "ar": "عصير",
+        "en": "juice"
+      },
+      {
+        "id": "drinks-003",
+        "ar": "شاي",
+        "en": "tea"
+      },
+      {
+        "id": "drinks-004",
+        "ar": "قهوة",
+        "en": "coffee"
+      },
+      {
+        "id": "drinks-005",
+        "ar": "كركديه",
+        "en": "hibiscus"
+      },
+      {
+        "id": "drinks-006",
+        "ar": "يانسون",
+        "en": "anise"
+      },
+      {
+        "id": "drinks-007",
+        "ar": "نسكافيه",
+        "en": "Nescafe"
+      },
+      {
+        "id": "drinks-008",
+        "ar": "حليب",
+        "en": "milk"
+      }
+    ]
+  },
+  {
+    "category": "vehicles",
+    "concepts": [
+      {
+        "id": "vehicles-001",
+        "ar": "مركب",
+        "en": "boat"
+      },
+      {
+        "id": "vehicles-002",
+        "ar": "عربة",
+        "en": "cart"
+      },
+      {
+        "id": "vehicles-003",
+        "ar": "طائرة",
+        "en": "airplane"
+      },
+      {
+        "id": "vehicles-004",
+        "ar": "دراجة",
+        "en": "bicycle"
+      },
+      {
+        "id": "vehicles-005",
+        "ar": "موتوسيكل",
+        "en": "motorcycle"
+      },
+      {
+        "id": "vehicles-006",
+        "ar": "غواصة",
+        "en": "submarine"
+      },
+      {
+        "id": "vehicles-007",
+        "ar": "قطار",
+        "en": "train"
+      }
+    ]
+  },
+  {
+    "category": "nature",
+    "concepts": [
+      {
+        "id": "nature-001",
+        "ar": "جبل",
+        "en": "mountain"
+      },
+      {
+        "id": "nature-002",
+        "ar": "غابة",
+        "en": "forest"
+      },
+      {
+        "id": "nature-003",
+        "ar": "قمر",
+        "en": "moon"
+      },
+      {
+        "id": "nature-004",
+        "ar": "شمس",
+        "en": "sun"
+      },
+      {
+        "id": "nature-005",
+        "ar": "نجمة",
+        "en": "star"
+      },
+      {
+        "id": "nature-006",
+        "ar": "نار",
+        "en": "fire"
+      },
+      {
+        "id": "nature-007",
+        "ar": "ثلج",
+        "en": "snow"
+      },
+      {
+        "id": "nature-008",
+        "ar": "ريح",
+        "en": "wind"
+      }
+    ]
+  },
+  {
+    "category": "people",
+    "concepts": [
+      {
+        "id": "people-001",
+        "ar": "قائد",
+        "en": "leader"
+      },
+      {
+        "id": "people-002",
+        "ar": "بحار",
+        "en": "sailor"
+      },
+      {
+        "id": "people-003",
+        "ar": "حارس",
+        "en": "guard"
+      },
+      {
+        "id": "people-004",
+        "ar": "شاعر",
+        "en": "poet"
+      },
+      {
+        "id": "people-005",
+        "ar": "لاعب",
+        "en": "player"
+      },
+      {
+        "id": "people-006",
+        "ar": "ضيف",
+        "en": "guest"
+      }
     ]
   }
 ]

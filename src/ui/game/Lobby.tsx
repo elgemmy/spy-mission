@@ -183,8 +183,14 @@ function TeamCard({
 }) {
   const isHost = room.hostId === playerId;
   const players = view.players.filter((player) => player.team === team);
-  const spymaster = players.find((player) => player.role === "spymaster");
+  const spymasters = players.filter((player) => player.role === "spymaster");
   const operatives = players.filter((player) => player.role === "operative");
+  const showSpymasterButton =
+    view.can.assignSelf &&
+    !(view.me?.team === team && view.me.role === "spymaster");
+  const showOperativeButton =
+    view.can.assignSelf &&
+    !(view.me?.team === team && view.me.role === "operative");
 
   return (
     <article className="cn-team-card" data-team={team}>
@@ -200,8 +206,9 @@ function TeamCard({
 
       <div className="bg-surface-2 p-cn-2 rounded-sm">
         <p className="text-ink-soft m-0 text-xs font-semibold">SPYMASTER</p>
-        {spymaster ? (
+        {spymasters.map((spymaster) => (
           <PlayerChip
+            key={spymaster.id}
             id={spymaster.id}
             name={spymaster.name}
             active={spymaster.id === playerId}
@@ -210,16 +217,16 @@ function TeamCard({
             onTransferHost={onTransferHost}
             onRemovePlayer={onRemovePlayer}
           />
-        ) : (
+        ))}
+        {showSpymasterButton ? (
           <Button
             className="mt-cn-2 w-full"
             variant="secondary"
-            disabled={!view.can.assignSelf}
             onClick={() => onAssignSelf(team, "spymaster")}
           >
             انضم كقائد
           </Button>
-        )}
+        ) : null}
       </div>
 
       <div className="gap-cn-2 flex flex-col">
@@ -235,13 +242,14 @@ function TeamCard({
             onRemovePlayer={onRemovePlayer}
           />
         ))}
-        <Button
-          variant="secondary"
-          disabled={!view.can.assignSelf}
-          onClick={() => onAssignSelf(team, "operative")}
-        >
-          انضم كلاعب
-        </Button>
+        {showOperativeButton ? (
+          <Button
+            variant="secondary"
+            onClick={() => onAssignSelf(team, "operative")}
+          >
+            انضم كلاعب
+          </Button>
+        ) : null}
       </div>
     </article>
   );

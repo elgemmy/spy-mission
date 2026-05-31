@@ -4,19 +4,11 @@ import type { PlayerView } from "../../engine";
 
 interface ClueBarProps {
   view: PlayerView;
-  selectedCardIndex: number | null;
   onGiveClue: (word: string, count: number) => void;
-  onConfirmGuess: () => void;
   onEndTurn: () => void;
 }
 
-export function ClueBar({
-  view,
-  selectedCardIndex,
-  onGiveClue,
-  onConfirmGuess,
-  onEndTurn,
-}: ClueBarProps) {
+export function ClueBar({ view, onGiveClue, onEndTurn }: ClueBarProps) {
   const disabled = !view.can.giveClue && !view.can.guess && !view.clue;
 
   return (
@@ -28,12 +20,7 @@ export function ClueBar({
       {view.me?.role === "spymaster" ? (
         <SpymasterClueForm view={view} onGiveClue={onGiveClue} />
       ) : (
-        <OperativeCluePanel
-          view={view}
-          selectedCardIndex={selectedCardIndex}
-          onConfirmGuess={onConfirmGuess}
-          onEndTurn={onEndTurn}
-        />
+        <OperativeCluePanel view={view} onEndTurn={onEndTurn} />
       )}
     </section>
   );
@@ -72,7 +59,7 @@ function SpymasterClueForm({
           value={word}
           onChange={(event) => setWord(event.target.value)}
           disabled={!view.can.giveClue}
-          placeholder="التلميح"
+          placeholder="نص التلميح"
           aria-label="التلميح"
         />
         <select
@@ -104,13 +91,9 @@ function SpymasterClueForm({
 
 function OperativeCluePanel({
   view,
-  selectedCardIndex,
-  onConfirmGuess,
   onEndTurn,
 }: {
   view: PlayerView;
-  selectedCardIndex: number | null;
-  onConfirmGuess: () => void;
   onEndTurn: () => void;
 }) {
   return (
@@ -126,14 +109,7 @@ function OperativeCluePanel({
           {formatGuesses(view.guessesRemaining)}
         </span>
       </div>
-      <div className="gap-cn-2 grid grid-cols-2">
-        <Button
-          variant="secondary"
-          disabled={!view.can.guess || selectedCardIndex === null}
-          onClick={onConfirmGuess}
-        >
-          تأكيد البطاقة
-        </Button>
+      <div className="gap-cn-2 flex flex-col">
         <Button
           variant="secondary"
           disabled={!view.can.endTurn}

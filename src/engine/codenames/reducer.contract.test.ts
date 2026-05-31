@@ -28,7 +28,9 @@ describe("codenames reducer contract", () => {
     expect(() =>
       reducer(playing, { type: "setLang", lang: "en" }, "p-red-sm"),
     ).toThrowError(
-      expect.objectContaining({ code: "LANG_LOCKED" } satisfies Partial<IllegalMove>),
+      expect.objectContaining({
+        code: "LANG_LOCKED",
+      } satisfies Partial<IllegalMove>),
     );
   });
 
@@ -46,8 +48,24 @@ describe("codenames reducer contract", () => {
     expect(() =>
       reducer(withClue, { type: "guess", cardIndex: 0 }, spymasterId),
     ).toThrowError(
-      expect.objectContaining({ code: "WRONG_ROLE" } satisfies Partial<IllegalMove>),
+      expect.objectContaining({
+        code: "WRONG_ROLE",
+      } satisfies Partial<IllegalMove>),
     );
+  });
+
+  it("allows clue text with multiple words", () => {
+    const state = startTestGame();
+    const spymasterId = state.turn === "red" ? "p-red-sm" : "p-blue-sm";
+
+    const withClue = reducer(
+      state,
+      { type: "giveClue", word: "two word clue", count: 1 },
+      spymasterId,
+    );
+
+    expect(withClue.clue?.word).toBe("two word clue");
+    expect(withClue.phase).toBe("guess");
   });
 
   it("requires at least one guess before endTurn", () => {
@@ -80,7 +98,9 @@ describe("codenames reducer contract", () => {
         "p-red-sm",
       ),
     ).toThrowError(
-      expect.objectContaining({ code: "BAD_DEAL" } satisfies Partial<IllegalMove>),
+      expect.objectContaining({
+        code: "BAD_DEAL",
+      } satisfies Partial<IllegalMove>),
     );
   });
 });

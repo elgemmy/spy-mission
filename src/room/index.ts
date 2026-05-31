@@ -1,6 +1,7 @@
 export type {
   ClueLogEntry,
   CreateRoomInput,
+  GameBanner,
   RoomProvider,
   RoomRecord,
   RoomUiState,

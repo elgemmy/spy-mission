@@ -9,9 +9,15 @@ export interface ClueLogEntry {
   clue: Clue;
 }
 
+export type GameBanner =
+  | { id: string; type: "turn"; team: "red" | "blue" }
+  | { id: string; type: "win"; team: "red" | "blue" }
+  | { id: string; type: "assassin"; losingTeam: "red" | "blue" };
+
 export interface RoomUiState {
   votes: Record<string, number | null>;
   clueLog: ClueLogEntry[];
+  banners: GameBanner[];
 }
 
 export interface RoomRecord {

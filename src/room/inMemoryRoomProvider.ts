@@ -1,4 +1,5 @@
 import type { RoomProvider, RoomRecord, Unsubscribe } from "./types";
+import { normalizeRoomRecord } from "./uiState";
 
 type Listener = (room: RoomRecord | null) => void;
 
@@ -14,10 +15,11 @@ export class InMemoryRoomProvider implements RoomProvider {
   }
 
   async create(room: RoomRecord): Promise<void> {
-    this.rooms.set(room.id, room);
-    this.codes.set(room.code, room.id);
+    const normalized = normalizeRoomRecord(room);
+    this.rooms.set(normalized.id, normalized);
+    this.codes.set(normalized.code, normalized.id);
     this.persist();
-    this.notify(room);
+    this.notify(normalized);
   }
 
   async delete(roomId: string): Promise<void> {
@@ -45,10 +47,11 @@ export class InMemoryRoomProvider implements RoomProvider {
 
   async save(room: RoomRecord, _expectedVersion?: number): Promise<void> {
     void _expectedVersion;
-    this.rooms.set(room.id, room);
-    this.codes.set(room.code, room.id);
+    const normalized = normalizeRoomRecord(room);
+    this.rooms.set(normalized.id, normalized);
+    this.codes.set(normalized.code, normalized.id);
     this.persist();
-    this.notify(room);
+    this.notify(normalized);
   }
 
   subscribe(
@@ -99,8 +102,9 @@ export class InMemoryRoomProvider implements RoomProvider {
     try {
       const rooms = JSON.parse(raw) as RoomRecord[];
       for (const room of rooms) {
-        this.rooms.set(room.id, room);
-        this.codes.set(room.code, room.id);
+        const normalized = normalizeRoomRecord(room);
+        this.rooms.set(normalized.id, normalized);
+        this.codes.set(normalized.code, normalized.id);
       }
     } catch {
       writeStorage(STORAGE_KEY, "[]");

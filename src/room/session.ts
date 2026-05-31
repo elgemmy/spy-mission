@@ -3,6 +3,7 @@ import { initialState, reducer } from "../engine/codenames";
 import type { Action, Concept, GameState, Lang } from "../engine";
 import type {
   CreateRoomInput,
+  GameBanner,
   RoomRecord,
   RoomUiState,
   RoomVisibility,
@@ -58,6 +59,14 @@ export function joinRoomRecord(
   if (room.visibility === "private" && !options.allowPrivate) {
     throw new RoomError("ROOM_PRIVATE");
   }
+
+  if (room.state.phase !== "lobby") {
+    const reclaimed = reclaimPlayerByName(room, playerId, name, now);
+    if (reclaimed) {
+      return reclaimed;
+    }
+  }
+
   return withState(
     room,
     reducer(room.state, { type: "joinRoom", name }, playerId),
@@ -91,6 +100,20 @@ export function dispatchRoomAction(
 
   if (action.type === "endTurn" || action.type === "startGame") {
     ui = { ...ui, votes: {} };
+  }
+
+  if (
+    action.type === "endTurn" &&
+    state.phase === "clue" &&
+    state.turn !== room.state.turn
+  ) {
+    ui = {
+      ...ui,
+      banners: [
+        ...(ui.banners ?? []),
+        turnBanner(state.turn, room.version + 1),
+      ],
+    };
   }
 
   return touch({ ...room, state, ui }, now);
@@ -203,12 +226,25 @@ export function confirmGuess(
     return room;
   }
 
+  const actingTeam = room.state.players[playerId]?.team;
   const state = reducer(room.state, { type: "guess", cardIndex }, playerId);
+  let banners = room.ui.banners ?? [];
+
+  if (target?.kind === "assassin" && actingTeam) {
+    banners = [...banners, assassinBanner(actingTeam, room.version + 1)];
+  }
+
+  if (state.phase === "ended" && state.winner) {
+    banners = [...banners, winBanner(state.winner, room.version + 2)];
+  } else if (state.turn !== room.state.turn) {
+    banners = [...banners, turnBanner(state.turn, room.version + 1)];
+  }
+
   return touch(
     {
       ...room,
       state,
-      ui: { ...room.ui, votes: {} },
+      ui: { ...room.ui, votes: {}, banners },
     },
     now,
   );
@@ -244,7 +280,10 @@ export function startNewGame(
     {
       ...room,
       state,
-      ui: emptyUi(),
+      ui: {
+        ...emptyUi(),
+        banners: [turnBanner(state.turn, room.version + 1)],
+      },
     },
     now,
   );
@@ -283,7 +322,67 @@ function assertHost(room: RoomRecord, playerId: string): void {
 }
 
 function emptyUi(): RoomUiState {
-  return { votes: {}, clueLog: [] };
+  return { votes: {}, clueLog: [], banners: [] };
+}
+
+function reclaimPlayerByName(
+  room: RoomRecord,
+  playerId: string,
+  name: string,
+  now: string,
+): RoomRecord | null {
+  const normalized = normalizeName(name);
+  const matches = Object.entries(room.state.players).filter(
+    ([id, player]) =>
+      id !== playerId && normalizeName(player.name) === normalized,
+  );
+  if (matches.length !== 1) {
+    return null;
+  }
+
+  const [oldPlayerId, player] = matches[0];
+  const players = { ...room.state.players };
+  delete players[oldPlayerId];
+  players[playerId] = { ...player, name: name.trim() };
+
+  const votes = { ...room.ui.votes };
+  if (oldPlayerId in votes) {
+    votes[playerId] = votes[oldPlayerId] ?? null;
+    delete votes[oldPlayerId];
+  }
+
+  return touch(
+    {
+      ...room,
+      hostId: room.hostId === oldPlayerId ? playerId : room.hostId,
+      state: { ...room.state, players },
+      ui: { ...room.ui, votes },
+    },
+    now,
+  );
+}
+
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+function turnBanner(team: "red" | "blue", version: number): GameBanner {
+  return { id: `${version}-turn-${team}`, type: "turn", team };
+}
+
+function winBanner(team: "red" | "blue", version: number): GameBanner {
+  return { id: `${version}-win-${team}`, type: "win", team };
+}
+
+function assassinBanner(
+  losingTeam: "red" | "blue",
+  version: number,
+): GameBanner {
+  return {
+    id: `${version}-assassin-${losingTeam}`,
+    type: "assassin",
+    losingTeam,
+  };
 }
 
 function lobbyStateFrom(room: RoomRecord): GameState {

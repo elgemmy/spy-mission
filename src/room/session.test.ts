@@ -4,6 +4,7 @@ import { makeConcepts, startTestGame } from "../engine/codenames/testFixtures";
 import {
   confirmGuess,
   createRoomRecord,
+  dispatchRoomAction,
   joinRoomRecord,
   returnToLobby,
   startNewGame,
@@ -54,6 +55,57 @@ describe("room session orchestration", () => {
       allowPrivate: true,
     });
     expect(joined.state.players["link-guest"]?.name).toBe("Guest");
+  });
+
+  it("reclaims a stale same-name player on reconnect", () => {
+    const active = roomFromState(startTestGame());
+    const staleHost = active.state.players["p-red-sm"];
+
+    const reclaimed = joinRoomRecord(active, "new-host", staleHost.name, LATER);
+
+    expect(reclaimed.hostId).toBe("new-host");
+    expect(reclaimed.state.players["p-red-sm"]).toBeUndefined();
+    expect(reclaimed.state.players["new-host"]).toEqual(staleHost);
+  });
+
+  it("does not replace same-name players during normal lobby joins", () => {
+    const created = createRoomRecord({
+      id: "room-same-name",
+      code: "same",
+      hostId: "host",
+      hostName: "Same",
+      lang: "ar",
+      now: NOW,
+    });
+
+    const joined = joinRoomRecord(created, "guest", "Same", LATER);
+
+    expect(joined.state.players.host?.name).toBe("Same");
+    expect(joined.state.players.guest?.name).toBe("Same");
+    expect(joined.hostId).toBe("host");
+  });
+
+  it("does not reclaim active-game names when the match is ambiguous", () => {
+    const active = roomFromState(startTestGame());
+    const ambiguous: RoomRecord = {
+      ...active,
+      state: {
+        ...active.state,
+        players: {
+          ...active.state.players,
+          staleA: { name: "Same", team: "red", role: "operative" },
+          staleB: { name: "Same", team: "blue", role: "operative" },
+        },
+      },
+    };
+
+    expect(() => joinRoomRecord(ambiguous, "new", "Same", LATER)).toThrowError(
+      expect.objectContaining({
+        code: "WRONG_PHASE",
+      } satisfies Partial<IllegalMove>),
+    );
+    expect(ambiguous.state.players.staleA?.name).toBe("Same");
+    expect(ambiguous.state.players.staleB?.name).toBe("Same");
   });
 
   it("records an active operative vote without revealing", () => {
@@ -152,6 +204,66 @@ describe("room session orchestration", () => {
 
     expect(confirmed.state.turn).not.toBe(room.state.turn);
     expect(confirmed.ui.votes).toEqual({});
+    expect(confirmed.ui.banners.at(-1)).toEqual({
+      id: `3-turn-${confirmed.state.turn}`,
+      type: "turn",
+      team: confirmed.state.turn,
+    });
+  });
+
+  it("adds assassin and winner banners when the black card is revealed", () => {
+    const state = giveActiveClue(startTestGame());
+    const assassinIndex = state.board.findIndex(
+      (card) => card.kind === "assassin",
+    );
+    const operativeId = activeOperativeId(state);
+
+    const confirmed = confirmGuess(
+      roomFromState(state),
+      operativeId,
+      assassinIndex,
+      LATER,
+    );
+
+    expect(confirmed.ui.banners).toEqual([
+      {
+        id: `2-assassin-${state.turn}`,
+        type: "assassin",
+        losingTeam: state.turn,
+      },
+      {
+        id: `3-win-${confirmed.state.winner}`,
+        type: "win",
+        team: confirmed.state.winner,
+      },
+    ]);
+  });
+
+  it("adds a turn banner when players manually end a turn", () => {
+    const state = giveActiveClue(startTestGame());
+    const ownCardIndex = state.board.findIndex(
+      (card) => card.kind === state.turn,
+    );
+    const operativeId = activeOperativeId(state);
+    const guessed = confirmGuess(
+      roomFromState(state),
+      operativeId,
+      ownCardIndex,
+      LATER,
+    );
+
+    const ended = dispatchRoomAction(
+      guessed,
+      { type: "endTurn" },
+      operativeId,
+      LATER,
+    );
+
+    expect(ended.ui.banners.at(-1)).toEqual({
+      id: `3-turn-${ended.state.turn}`,
+      type: "turn",
+      team: ended.state.turn,
+    });
   });
 
   it("starts a fresh replay without an engine replay action", () => {
@@ -175,6 +287,11 @@ describe("room session orchestration", () => {
     expect(replay.state.board.every((card) => !card.revealed)).toBe(true);
     expect(replay.state.players).toEqual(ended.state.players);
     expect(replay.ui.votes).toEqual({});
+    expect(replay.ui.banners.at(-1)).toEqual({
+      id: `3-turn-${replay.state.turn}`,
+      type: "turn",
+      team: replay.state.turn,
+    });
   });
 
   it("returns to lobby with roster and settings preserved", () => {
@@ -195,7 +312,7 @@ function roomFromState(state: GameState): RoomRecord {
     hostId: "p-red-sm",
     visibility: "public",
     state,
-    ui: { votes: {}, clueLog: [] },
+    ui: { votes: {}, clueLog: [], banners: [] },
     version: 1,
     createdAt: NOW,
     updatedAt: NOW,

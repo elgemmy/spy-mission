@@ -7,9 +7,16 @@ interface BoardProps {
   votes: Record<string, number | null>;
   selectedCardIndex: number | null;
   onVote: (cardIndex: number) => void;
+  onConfirm: (cardIndex: number) => void;
 }
 
-export function Board({ view, votes, selectedCardIndex, onVote }: BoardProps) {
+export function Board({
+  view,
+  votes,
+  selectedCardIndex,
+  onVote,
+  onConfirm,
+}: BoardProps) {
   const cardView: CardView =
     view.me?.role === "spymaster" ? "spymaster" : "operative";
   const voteCounts = countVotes(votes);
@@ -29,6 +36,16 @@ export function Board({ view, votes, selectedCardIndex, onVote }: BoardProps) {
           >
             {voteCount > 0 ? (
               <span className="cn-board__vote">{voteCount}</span>
+            ) : null}
+            {selectedCardIndex === index && view.can.guess && !card.revealed ? (
+              <button
+                type="button"
+                className="cn-board__confirm"
+                aria-label="كشف البطاقة"
+                onClick={() => onConfirm(index)}
+              >
+                ✓
+              </button>
             ) : null}
             <WordCard
               word={card.concept[view.lang]}
