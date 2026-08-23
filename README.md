@@ -24,13 +24,10 @@ cp .env.example .env.local
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Local design preview does not require Supabase.
 
-When these variables are present, the app uses the Supabase room provider so
-Vercel deployments can share rooms across devices. Without them it falls back to
-the local in-memory provider.
-
-Apply the SQL in `supabase/migrations/0001_rooms.sql` before testing a deployed
-multiplayer room. The current anonymous policies are for MVP playtesting only;
-move hidden-state reads behind RPC/RLS-safe views before serious public play.
+The app currently keeps rooms in memory even when these variables are present.
+The Supabase provider remains disabled until a backend authorization boundary
+can return player-specific views without exposing hidden game state. Apply all
+files in `supabase/migrations/` to revoke legacy anonymous room access.
 
 ## Scripts
 

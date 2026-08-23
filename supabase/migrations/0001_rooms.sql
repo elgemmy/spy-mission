@@ -32,28 +32,7 @@ drop policy if exists "rooms anon insert" on public.rooms;
 drop policy if exists "rooms anon update" on public.rooms;
 drop policy if exists "rooms anon delete" on public.rooms;
 
-create policy "rooms anon select"
-  on public.rooms for select
-  to anon
-  using (true);
-
-create policy "rooms anon insert"
-  on public.rooms for insert
-  to anon
-  with check (true);
-
-create policy "rooms anon update"
-  on public.rooms for update
-  to anon
-  using (true)
-  with check (true);
-
-create policy "rooms anon delete"
-  on public.rooms for delete
-  to anon
-  using (true);
-
-grant select, insert, update, delete on public.rooms to anon;
+revoke all privileges on public.rooms from anon;
 
 do $$
 begin
@@ -69,4 +48,4 @@ begin
 end $$;
 
 comment on table public.rooms is
-  'Codenames room envelope. Current anon policies are for MVP playtesting only; move hidden-state reads behind RPC/RLS-safe views before serious public play.';
+  'Codenames room envelope. Direct anonymous access is disabled because state contains secret card identities.';
