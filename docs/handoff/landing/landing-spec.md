@@ -317,3 +317,39 @@ Inline hex here only.
 7. Install button: with no captured prompt, click → `window.location.assign`
    called with `playUrl({ install: true })`; with a captured prompt, `prompt()`
    is called and no navigation happens; hidden when standalone.
+
+---
+
+## Implementation deviations (recorded at build time)
+
+Everything above is implemented as written except for the following, each of
+which is a repo-rule or bug-avoidance concession rather than a design change.
+
+1. **File layout.** `Screens.tsx` keeps the section shell + `PhoneFrame` +
+   `StatusMini`; `LobbyPreview` and `BoardPreview` live in their own files next
+   to it (they are ~180 and ~90 lines). A small `hostLabel.ts` holds
+   `useHostLabel()` (`playHostLabel(window.location.host)`, `window`-safe), and
+   the three static step-03 tiles are data, so they sit in
+   `data/demoBoard.ts` as `STEP_TILES` alongside `ROW`/`ROT`.
+2. **Lobby language re-initialisation.** The spec's "re-initialised when page
+   `lang` changes" is done by re-keying `<LobbyPreview key={lang}>` from
+   `Screens`, not by an effect: the repo's
+   `react-hooks/set-state-in-effect` lint rule rejects `setState` inside an
+   effect body. `HoverRow`, `MiniBoard` and `BoardPreview` are re-keyed the
+   same way.
+3. **44 px hit areas.** The nav language buttons keep the specified 38 px
+   visual pill; the 44 px target comes from `min-width: 44px` plus a
+   `::before` overlay with `inset-block: -3px` (the enclosing pill is exactly
+   44 px tall). The lobby copy button, the segmented control and the
+   mini-board reset button additionally carry `min-height: 44px` on top of the
+   padding the spec lists.
+4. **Page root overflow.** `.cn-lp` uses `overflow-x: clip`, not `hidden`:
+   `hidden` would turn the root into a scroll container and break the sticky
+   nav. It contains the hero tilt at narrow widths.
+5. **Extra breakpoint rules.** Beyond the 940 / 760 / 520 grid changes, the
+   ≤ 760 and ≤ 520 blocks step the h1 (47/52 → 38/40 → 32/34) and the closing
+   h2 down and reduce section inline padding from 24 px to 16 px, so the page
+   does not scroll horizontally at 360 px.
+6. **Feature glyph colours.** `GlyphIcon` takes only `role`/`className`, so the
+   four colour-blindness glyphs are coloured by small utility classes
+   (`.cn-lp-ink-red` … `.cn-lp-solid-blue`) rather than a `color` prop.

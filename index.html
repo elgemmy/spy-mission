@@ -23,8 +23,59 @@
       rel="stylesheet"
     />
     <title>Spymaster Mission — One clue. 25 words. Two teams.</title>
+    <!-- Boot splash: runs before the stylesheet exists, so raw hex here only. -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 99;
+        display: grid;
+        place-items: center;
+        background: #f1e8da;
+        transition: opacity 0.35s ease;
+      }
+      #boot.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #boot .boot-mark {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        width: 46px;
+        height: 46px;
+        animation: bootpulse 1.1s ease-in-out infinite alternate;
+      }
+      #boot .boot-mark span {
+        border-radius: 7px;
+      }
+      @keyframes bootpulse {
+        from {
+          opacity: 0.45;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot .boot-mark {
+          animation: none;
+        }
+        #boot {
+          transition: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" aria-hidden="true">
+      <div class="boot-mark">
+        <span style="background: #c8553d"></span>
+        <span style="background: #2f7e8c"></span>
+        <span style="background: #cba968"></span>
+        <span style="background: #2b2622"></span>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/landing/main.tsx"></script>
   </body>
