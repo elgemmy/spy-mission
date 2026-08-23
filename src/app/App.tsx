@@ -32,6 +32,7 @@ import {
   createRoomId,
   createSeed,
 } from "../room/ids";
+import { absolutePlayUrl, readPlayParams } from "../config/routes";
 import { GlyphDefs } from "../ui/card";
 import { Button } from "../ui/components/Button";
 import { Lobby, PlayScreen } from "../ui/game";
@@ -58,15 +59,17 @@ interface ConfirmRequest {
 const roomProvider = getRoomProvider();
 
 export function App() {
-  const inviteCode = readInviteCode();
+  const playParams = readPlayParams(window.location.search);
+  const inviteCode = playParams.room;
   const [playerId] = useState(() => loadOrCreatePlayerId());
   const [roomId, setRoomId] = useState(() => localStorageSafe.get(ROOM_ID_KEY));
   const [room, setRoom] = useState<RoomRecord | null>(null);
-  const [step, setStep] = useState<OnboardingStep>(() =>
-    inviteCode
-      ? { type: "joinName", code: inviteCode, source: "link" }
-      : { type: "landing" },
-  );
+  const [step, setStep] = useState<OnboardingStep>(() => {
+    if (inviteCode) {
+      return { type: "joinName", code: inviteCode, source: "link" };
+    }
+    return playParams.create ? { type: "createName" } : { type: "landing" };
+  });
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
@@ -370,7 +373,7 @@ export function App() {
     if (!room) {
       return;
     }
-    const url = `${window.location.origin}${window.location.pathname}?room=${room.code}`;
+    const url = absolutePlayUrl(window.location.origin, { room: room.code });
     if ("clipboard" in navigator) {
       try {
         await navigator.clipboard.writeText(url);
@@ -895,15 +898,6 @@ const localStorageSafe = {
     }
   },
 };
-
-function readInviteCode(): string | null {
-  try {
-    const code = new URLSearchParams(window.location.search).get("room");
-    return code?.trim().toUpperCase() || null;
-  } catch {
-    return null;
-  }
-}
 
 function loadOrCreatePlayerId(): string {
   const existing = localStorageSafe.get(PLAYER_ID_KEY);

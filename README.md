@@ -4,8 +4,9 @@ Mobile-first Arabic-first Codenames web app. Design system: **Warm Sand** (`docs
 
 ## Stack
 
-- React + Vite + TypeScript
+- React + Vite + TypeScript, multi-page build (landing at `/`, game at `/play/`)
 - Tailwind CSS v4 (`@theme` maps `--cn-*` tokens)
+- `vite-plugin-pwa` — installable PWA scoped to `/play/`
 - Supabase (client placeholder; Phase 4)
 - Pure game engine in `src/engine`
 
@@ -14,6 +15,69 @@ Mobile-first Arabic-first Codenames web app. Design system: **Warm Sand** (`docs
 ```bash
 npm install
 npm run dev
+```
+
+Then open <http://localhost:5173/> for the landing page and
+<http://localhost:5173/play/> for the game.
+
+## Routes & PWA
+
+Two HTML entries, one origin — see
+[`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md).
+
+| URL      | Entry HTML        | Entry module           | Purpose                      |
+| -------- | ----------------- | ---------------------- | ---------------------------- |
+| `/`      | `index.html`      | `src/landing/main.tsx` | Marketing landing            |
+| `/play/` | `play/index.html` | `src/main.tsx`         | The game (`src/app/App.tsx`) |
+
+### Deep-link params
+
+Every `/play/` URL is produced by `src/config/routes.ts` (`playUrl`,
+`absolutePlayUrl`, `readPlayParams`). Never hardcode `/play/` in a component.
+
+| Param     | Values                           | Behaviour                                        |
+| --------- | -------------------------------- | ------------------------------------------------ |
+| `room`    | room code (trimmed, upper-cased) | Invite link — jumps to "enter your name" to join |
+| `create`  | `1` / `true` / bare              | Jumps straight to the create-room name step      |
+| `install` | `1` / `true` / bare              | Opens the install sheet                          |
+
+Example: `/play/?room=ABC12&create=1&install=1` (params are emitted in that
+stable order).
+
+### PWA
+
+Only the game is installable. `manifest.webmanifest` uses `id`, `start_url`
+and `scope` of `/play/`; the service worker ships at `/sw.js` but is registered
+by `src/main.tsx` (`virtual:pwa-register`) with `scope: "/play/"`. The landing
+page never registers a service worker, so it is never cached or installed —
+but it does carry `<link rel="manifest">`, so a browser install started from
+the landing page installs the **game**. Workbox precache excludes the root
+`index.html` and `assets/landing-*`; `navigateFallback` is `/play/index.html`,
+allow-listed to `^/play(/|$)`.
+
+`src/lib/pwa/installPrompt.ts` captures `beforeinstallprompt` at module load
+and exposes `useInstallPrompt()`.
+
+### Hosting (`vercel.json`)
+
+- Rewrites `/play` and `/play/:path*` → `/play/index.html` (Vercel serves real
+  static files such as `/assets/*` before rewrites, so they are unaffected).
+- Redirects legacy invite links `/?room=CODE` → `/play/?room=CODE` (temporary).
+- Serves `/sw.js` and `/manifest.webmanifest` with `Cache-Control: no-cache`.
+
+Any static host can replicate these rules.
+
+### Build output
+
+`npm run build` emits:
+
+```
+dist/index.html            landing
+dist/play/index.html       game
+dist/assets/landing-*.js   landing entry
+dist/assets/play-*.js      game entry
+dist/manifest.webmanifest  scope /play/
+dist/sw.js                 service worker
 ```
 
 ## Environment variables
@@ -68,16 +132,19 @@ For any UI work, follow **`docs/handoff/*` first**. Do not mix legacy planning t
 
 ## Module boundaries
 
-| Path                 | Responsibility                |
-| -------------------- | ----------------------------- |
-| `src/engine/`        | Pure rules                    |
-| `src/room/`          | `RoomProvider`                |
-| `src/ui/card/`       | Word tile (`WordCard`)        |
-| `src/ui/components/` | Shared chrome controls        |
-| `src/app/`           | App shell                     |
-| `src/styles/`        | Tokens + Tailwind bridge      |
-| `docs/handoff/`      | Canonical design specs        |
-| `docs/planning/`     | Engine, architecture, roadmap |
+| Path                   | Responsibility                |
+| ---------------------- | ----------------------------- |
+| `src/engine/`          | Pure rules                    |
+| `src/landing/`         | Marketing landing (`/`)       |
+| `src/config/routes.ts` | Canonical `/play/` URLs       |
+| `src/lib/pwa/`         | Install prompt primitives     |
+| `src/room/`            | `RoomProvider`                |
+| `src/ui/card/`         | Word tile (`WordCard`)        |
+| `src/ui/components/`   | Shared chrome controls        |
+| `src/app/`             | App shell                     |
+| `src/styles/`          | Tokens + Tailwind bridge      |
+| `docs/handoff/`        | Canonical design specs        |
+| `docs/planning/`       | Engine, architecture, roadmap |
 
 ## Doc precedence
 

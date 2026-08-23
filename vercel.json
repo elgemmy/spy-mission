@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    { "source": "/play", "destination": "/play/index.html" },
+    { "source": "/play/:path*", "destination": "/play/index.html" }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "query", "key": "room", "value": "(?<code>.*)" }],
+      "destination": "/play/?room=:code",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}
