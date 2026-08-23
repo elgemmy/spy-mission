@@ -61,13 +61,6 @@ export function joinRoomRecord(
     throw new RoomError("ROOM_PRIVATE");
   }
 
-  if (room.state.phase !== "lobby") {
-    const reclaimed = reclaimPlayerByName(room, playerId, name, now);
-    if (reclaimed) {
-      return reclaimed;
-    }
-  }
-
   return withState(
     room,
     reducer(room.state, { type: "joinRoom", name }, playerId),
@@ -357,47 +350,6 @@ function assertHost(room: RoomRecord, playerId: string): void {
 
 function emptyUi(): RoomUiState {
   return { votes: {}, clueLog: [], banners: [] };
-}
-
-function reclaimPlayerByName(
-  room: RoomRecord,
-  playerId: string,
-  name: string,
-  now: string,
-): RoomRecord | null {
-  const normalized = normalizeName(name);
-  const matches = Object.entries(room.state.players).filter(
-    ([id, player]) =>
-      id !== playerId && normalizeName(player.name) === normalized,
-  );
-  if (matches.length !== 1) {
-    return null;
-  }
-
-  const [oldPlayerId, player] = matches[0];
-  const players = { ...room.state.players };
-  delete players[oldPlayerId];
-  players[playerId] = { ...player, name: name.trim() };
-
-  const votes = { ...room.ui.votes };
-  if (oldPlayerId in votes) {
-    votes[playerId] = votes[oldPlayerId] ?? null;
-    delete votes[oldPlayerId];
-  }
-
-  return touch(
-    {
-      ...room,
-      hostId: room.hostId === oldPlayerId ? playerId : room.hostId,
-      state: { ...room.state, players },
-      ui: { ...room.ui, votes },
-    },
-    now,
-  );
-}
-
-function normalizeName(name: string): string {
-  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
 function turnBanner(team: "red" | "blue", version: number): GameBanner {

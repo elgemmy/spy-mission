@@ -58,15 +58,20 @@ describe("room session orchestration", () => {
     expect(joined.state.players["link-guest"]?.name).toBe("Guest");
   });
 
-  it("reclaims a stale same-name player on reconnect", () => {
+  it("rejects active-room joins without reclaiming a same-name player", () => {
     const active = roomFromState(startTestGame());
     const staleHost = active.state.players["p-red-sm"];
 
-    const reclaimed = joinRoomRecord(active, "new-host", staleHost.name, LATER);
-
-    expect(reclaimed.hostId).toBe("new-host");
-    expect(reclaimed.state.players["p-red-sm"]).toBeUndefined();
-    expect(reclaimed.state.players["new-host"]).toEqual(staleHost);
+    expect(() =>
+      joinRoomRecord(active, "new-host", staleHost.name, LATER),
+    ).toThrowError(
+      expect.objectContaining({
+        code: "WRONG_PHASE",
+      } satisfies Partial<IllegalMove>),
+    );
+    expect(active.hostId).toBe("p-red-sm");
+    expect(active.state.players["p-red-sm"]).toEqual(staleHost);
+    expect(active.state.players["new-host"]).toBeUndefined();
   });
 
   it("does not replace same-name players during normal lobby joins", () => {
