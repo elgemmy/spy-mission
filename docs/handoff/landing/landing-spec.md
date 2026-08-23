@@ -3,7 +3,7 @@
 Source of truth: `Spymaster Mission Landing.html` + `cn-landing.jsx` +
 `cn-components.jsx` + `cn-lobby.jsx` in this folder. This document translates
 the prototype into repo conventions. Where this doc and the prototype disagree
-on a *visual* value, the prototype wins; where they disagree on *engineering*
+on a _visual_ value, the prototype wins; where they disagree on _engineering_
 (tokens, a11y, routing), this doc wins.
 
 Global rules (from `AGENTS.md`): `--cn-*` tokens only (no raw hex/rgb in
@@ -56,9 +56,9 @@ Buttons:
   `color: var(--cn-red-on)`, weight 700, `border-radius: var(--cn-r-bar)`,
   `box-shadow: 0 6px 18px color-mix(in srgb, var(--cn-red) 35%, transparent)`,
   hover `translateY(-2px)` + `0 10px 24px … 42%`, `transition: transform .18s
-  var(--cn-flip-ease), box-shadow .18s`, `min-height: 44px`.
+var(--cn-flip-ease), box-shadow .18s`, `min-height: 44px`.
 - `.cn-lp-btn--secondary` — `background: var(--cn-surface)`, `color:
-  var(--cn-ink)`, `border: 1px solid var(--cn-line)`, same radius/hover/min-height.
+var(--cn-ink)`, `border: 1px solid var(--cn-line)`, same radius/hover/min-height.
 - Focus: `outline: 2px solid var(--cn-ink); outline-offset: 2px` on
   `:focus-visible`.
 
@@ -79,12 +79,12 @@ transparent)`, `backdrop-filter: blur(10px)` (+ `-webkit-`), `border-block-end:
    `-.01em` (always Latin).
 3. `margin-inline-start: auto` group, gap 10:
    - Language toggle — `role="group" aria-label`; pill: `background:
-     var(--cn-surface)`, `border: 1px solid var(--cn-line)`, radius 999,
+var(--cn-surface)`, `border: 1px solid var(--cn-line)`, radius 999,
      padding 3. Two `<button aria-pressed>`: "عربي" (Cairo) / "EN" (Rubik),
-     13 / 700, padding `5px 12px`, radius 999, `min-height: 38px` *and* a
+     13 / 700, padding `5px 12px`, radius 999, `min-height: 38px` _and_ a
      44 px hit area (`min-width: 44px`). Active: `background: var(--cn-red)`,
      `color: var(--cn-red-on)`; idle: `color: var(--cn-ink-soft)`. `transition:
-     all .18s`.
+all .18s`.
    - `.cn-lp-btn--primary` (nav size) → `playUrl({ create: true })`, text `STR.play`.
 
 ---
@@ -156,7 +156,7 @@ var(--cn-surface)`, border line, radius 18, padding `20px 20px 18px`.
 - Visual (height 74, centered):
   1. Code chip `dir="ltr"` — mono 25 / 500, letter-spacing `.06em`,
      `color: var(--cn-ink)`, `background: var(--cn-surface-2)`, `border: 1.5px
-     dashed var(--cn-neutral)`, radius 12, padding `10px 18px`, text `QMR-72K`.
+dashed var(--cn-neutral)`, radius 12, padding `10px 18px`, text `QMR-72K`.
   2. Clue pill — flex, center, gap 10, `background: var(--cn-surface-2)`,
      border line, `border-radius: var(--cn-r-bar)`, padding `10px 16px`:
      `EyeMark 18` ink · `STR.clue` 12 / 700 ink-soft · `STR.clueWord` 19 / 700 ·
@@ -195,7 +195,7 @@ between, padding `9px 20px 2px`; "9:41" mono 13 / 500; right: "●●●" 11 px 
 battery (18×9, `border: 1px solid var(--cn-ink)`, radius 2, inner 70 % fill).
 Caption 13 / 700 ink-soft.
 
-**LobbyPreview** (`cn-lobby.jsx › Lobby`) — `dir` by its *own* `lng` state
+**LobbyPreview** (`cn-lobby.jsx › Lobby`) — `dir` by its _own_ `lng` state
 (initialised from page `lang`, re-initialised when page `lang` changes). Column,
 gap 16, padding `18px 16px calc(18px + env(safe-area-inset-bottom))`.
 
@@ -210,23 +210,23 @@ gap 16, padding `18px 16px calc(18px + env(safe-area-inset-bottom))`.
    `background: var(--cn-surface-2)`, border line, radius 999, padding
    `9px 15px`, 15 px icon; on click: `navigator.clipboard?.writeText('QMR-72K')`
    (swallow errors), show "تم النسخ" / "Copied" with check icon, `color:
-   var(--cn-blue-ink)`, `background: var(--cn-blue-tint)`, `border-color:
-   var(--cn-blue)` for 1.6 s. Helper 12 ink-soft, margin-block-start 10, lh 1.4.
+var(--cn-blue-ink)`, `background: var(--cn-blue-tint)`, `border-color:
+var(--cn-blue)` for 1.6 s. Helper 12 ink-soft, margin-block-start 10, lh 1.4.
 3. Board language — label (11 / 700 `.06em` ink-soft, "لغة اللوح" / "BOARD
    LANGUAGE") + **segmented control (interactive)**: `background:
-   var(--cn-surface-2)`, border line, radius 999, padding 3, gap 3; buttons
+var(--cn-surface-2)`, border line, radius 999, padding 3, gap 3; buttons
    `aria-pressed`, flex 1, 13 / 700, padding `8px 0`, radius 999, min-height 44;
    on: surface + ink + `box-shadow: 0 1px 4px color-mix(in srgb, var(--cn-ink)
-   12%, transparent)`; off: ink-soft. Options "العربية" / "English". Changes `lng`.
+12%, transparent)`; off: ink-soft. Options "العربية" / "English". Changes `lng`.
 4. Teams — flex, gap 10. `TeamCard` (red: "الفريق الأحمر"/"Red team",
-   spymaster "سارة"/"Sara", operatives "خالد"/"Khaled" *(you)*, "ريم"/"Reem";
+   spymaster "سارة"/"Sara", operatives "خالد"/"Khaled" _(you)_, "ريم"/"Reem";
    blue: "الفريق الأزرق"/"Blue team", "عمر"/"Omar", "نورا"/"Noura",
    "يوسف"/"Yousef"): `flex: 1; min-width: 0`, `background: var(--cn-{role}-tint)`,
    `border: 1.5px solid var(--cn-{role})`, radius 16, padding 12, column gap 9.
    - Header: `GlyphIcon` 18 `var(--cn-{role})` · title 14 / 700 `-ink` · count
      (1 + operatives) mono 13 / 500 `-ink` opacity .8 at inline-end.
    - Spymaster slot: flex, gap 8, padding `8px 10px`, surface, `border: 1.5px
-     solid var(--cn-{role})`, radius 10: `EyeMark 17` `-ink`; name 13 / 700
+solid var(--cn-{role})`, radius 10: `EyeMark 17` `-ink`; name 13 / 700
      ellipsis; label 10 / 700 `-ink` ("سيّد التجسس" / "SPYMASTER", EN
      letter-spacing `.03em`).
    - Operative chips (column, gap 6): flex, gap 8, padding `7px 10px`, surface,
@@ -251,12 +251,12 @@ initialised from `LAYOUT[i].r`.
   (`8 − revealed blue`). `CountChip`: flex, gap 7, padding `6px 12px 6px 10px`,
   `border-radius: var(--cn-r-chip)`; active: `background: var(--cn-{role})`,
   `color: var(--cn-{role}-on)`, `box-shadow: 0 2px 8px color-mix(in srgb,
-  var(--cn-{role}) 45%, transparent)`; idle: `-tint` / `-ink`; `GlyphIcon` 16;
+var(--cn-{role}) 45%, transparent)`; idle: `-tint` / `-ink`; `GlyphIcon` 16;
   number mono 18 / 500 tabular.
 - Grid `repeat(5, 1fr)`, gap 6, padding `6px 12px 12px`, 25 × `WordCard`
   (operative, `lang`, revealed from state, click reveals, revealed → `disabled`).
 - Clue bar — `margin-block-start: auto`, padding `12px 14px calc(12px +
-  env(safe-area-inset-bottom))`; inner: surface, border line, radius bar,
+env(safe-area-inset-bottom))`; inner: surface, border line, radius bar,
   padding `12px 14px`, flex, between, gap 12, `box-shadow: var(--cn-shadow-bar)`:
   left (flex, baseline, gap 8, `min-width: 0`): `STR.clue` 12 / 600 ink-soft ·
   `STR.clueWord` 22 / 700 · "3" mono 18 / 500 `var(--cn-red-ink)` on
@@ -353,3 +353,15 @@ which is a repo-rule or bug-avoidance concession rather than a design change.
 6. **Feature glyph colours.** `GlyphIcon` takes only `role`/`className`, so the
    four colour-blindness glyphs are coloured by small utility classes
    (`.cn-lp-ink-red` … `.cn-lp-solid-blue`) rather than a `color` prop.
+7. **Two more ≤ 520 px adjustments.** Alongside the breakpoint rules in (5),
+   the ≤ 520 px block also sets `.cn-lp-wordmark` to `font-size: 15px` (down
+   from 17 px) and zeroes `.cn-lp-footer__legal`'s `margin-inline-start` (down
+   from `auto`) so the footer legal line wraps under the credit line instead
+   of fighting it for space at narrow widths.
+
+### Known accessibility trade-off
+
+`--cn-ink-soft` (`#7d7263`) measures 3.88:1 against `--cn-bg` and 4.12:1
+against `--cn-surface-2` — both below the WCAG AA 4.5:1 threshold for small
+text. It is kept as specified for design fidelity with the prototype; a
+token-level change is a design-owner decision, not an implementation one.

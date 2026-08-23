@@ -1,15 +1,13 @@
 {
-  "rewrites": [
-    { "source": "/play", "destination": "/play/index.html" },
-    { "source": "/play/:path*", "destination": "/play/index.html" }
-  ],
+  "rewrites": [{ "source": "/play/:path*", "destination": "/play/index.html" }],
   "redirects": [
     {
       "source": "/",
       "has": [{ "type": "query", "key": "room", "value": "(?<code>.*)" }],
       "destination": "/play/?room=:code",
       "permanent": false
-    }
+    },
+    { "source": "/play", "destination": "/play/", "permanent": true }
   ],
   "headers": [
     {

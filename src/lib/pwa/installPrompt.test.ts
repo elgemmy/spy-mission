@@ -102,6 +102,41 @@ describe("useInstallPrompt", () => {
     expect(result.current.canPrompt).toBe(false);
   });
 
+  it("does not clobber a newer event captured while a stale prompt settles", async () => {
+    const { result } = renderHook(() => useInstallPrompt());
+    let resolveUserChoice!: (value: {
+      outcome: Outcome;
+      platform: string;
+    }) => void;
+    const pendingChoice = new Promise<{ outcome: Outcome; platform: string }>(
+      (resolve) => {
+        resolveUserChoice = resolve;
+      },
+    );
+    const eventA = makeBeforeInstallPromptEvent();
+    eventA.userChoice = pendingChoice;
+    act(() => {
+      window.dispatchEvent(eventA);
+    });
+
+    let promptPromise: Promise<string> | undefined;
+    act(() => {
+      promptPromise = result.current.prompt();
+    });
+
+    // A newer event replaces the stale one while A's prompt is still pending.
+    const eventB = fireBeforeInstallPrompt("accepted");
+
+    await act(async () => {
+      resolveUserChoice({ outcome: "accepted", platform: "web" });
+      await promptPromise;
+    });
+
+    // B must be preserved, not cleared by A's stale finally.
+    expect(result.current.canPrompt).toBe(true);
+    expect(eventB.prompt).not.toHaveBeenCalled();
+  });
+
   it("reports display mode and platform", () => {
     const { result } = renderHook(() => useInstallPrompt());
     expect(result.current.isStandalone).toBe(false);

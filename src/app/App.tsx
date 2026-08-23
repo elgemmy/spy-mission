@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { sampleConceptsForBoard } from "../content/words/sampler";
 import {
   isIllegalMove,
@@ -35,6 +35,7 @@ import {
 import { absolutePlayUrl, readPlayParams } from "../config/routes";
 import { useInstallPrompt } from "../lib/pwa/installPrompt";
 import { useServiceWorkerStatus } from "../lib/pwa/serviceWorker";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { GlyphDefs } from "../ui/card";
 import { Button } from "../ui/components/Button";
 import { InstallSheet } from "../ui/components/InstallSheet";
@@ -653,6 +654,8 @@ function RenameDialog({
   onSubmit: (name: string) => void;
 }) {
   const [name, setName] = useState(currentName);
+  const dialogRef = useRef<HTMLFormElement>(null);
+  useFocusTrap(dialogRef);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -665,6 +668,7 @@ function RenameDialog({
   return (
     <div className="cn-dialog-backdrop" role="presentation">
       <form
+        ref={dialogRef}
         className="cn-dialog"
         role="dialog"
         aria-modal="true"
@@ -702,9 +706,13 @@ function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  useFocusTrap(dialogRef);
+
   return (
     <div className="cn-dialog-backdrop" role="presentation">
       <section
+        ref={dialogRef}
         className="cn-dialog"
         role="alertdialog"
         aria-modal="true"

@@ -42,7 +42,8 @@ Every `/play/` URL is produced by `src/config/routes.ts` (`playUrl`,
 | `install` | `1` / `true` / bare              | Opens the install sheet                          |
 
 Example: `/play/?room=ABC12&create=1&install=1` (params are emitted in that
-stable order).
+stable order). When both `room` and `create` are present, `room` wins and
+`create` is ignored — the invite flow takes precedence.
 
 ### PWA
 
@@ -78,8 +79,10 @@ worker only ever controls `/play/` — it never controls `/`.
 
 ### Hosting (`vercel.json`)
 
-- Rewrites `/play` and `/play/:path*` → `/play/index.html` (Vercel serves real
+- Rewrites `/play/:path*` → `/play/index.html` (Vercel serves real
   static files such as `/assets/*` before rewrites, so they are unaffected).
+- Redirects a hand-typed `/play` → `/play/` (permanent), so it lands inside
+  the PWA scope.
 - Redirects legacy invite links `/?room=CODE` → `/play/?room=CODE` (temporary).
 - Serves `/sw.js` and `/manifest.webmanifest` with `Cache-Control: no-cache`.
 

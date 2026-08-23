@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "../../lib/useFocusTrap";
 import { useInstallPrompt } from "../../lib/pwa/installPrompt";
 import { Button } from "./Button";
 
@@ -15,6 +16,8 @@ export function InstallSheet({ onClose }: InstallSheetProps) {
   const [dismissedHint, setDismissedHint] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<Element | null>(null);
+
+  useFocusTrap(dialogRef);
 
   useEffect(() => {
     openerRef.current = document.activeElement;

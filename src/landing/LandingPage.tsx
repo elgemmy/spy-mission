@@ -21,12 +21,14 @@ export function LandingPage() {
     <div className="cn-lp" data-lang={lang} dir={dir}>
       <GlyphDefs />
       <Nav lang={lang} onLangChange={setLang} t={t} />
-      <Hero lang={lang} t={t} hostLabel={hostLabel} />
-      <HoverRow key={lang} lang={lang} />
-      <HowToPlay lang={lang} t={t} />
-      <Features t={t} />
-      <Screens lang={lang} t={t} />
-      <ClosingCta t={t} hostLabel={hostLabel} />
+      <main>
+        <Hero lang={lang} t={t} hostLabel={hostLabel} />
+        <HoverRow key={lang} lang={lang} />
+        <HowToPlay lang={lang} t={t} />
+        <Features t={t} />
+        <Screens lang={lang} t={t} />
+        <ClosingCta t={t} hostLabel={hostLabel} />
+      </main>
       <Footer t={t} hostLabel={hostLabel} />
     </div>
   );

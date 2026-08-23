@@ -76,8 +76,12 @@ export async function promptInstall(): Promise<InstallOutcome> {
   } catch {
     return "unavailable";
   } finally {
-    // A deferred event can only be used once.
-    setDeferredEvent(null);
+    // A deferred event can only be used once — but only clear it if it's
+    // still the one we prompted. A newer `beforeinstallprompt` may have
+    // replaced it while this prompt was pending.
+    if (deferredEvent === event) {
+      setDeferredEvent(null);
+    }
   }
 }
 
