@@ -70,8 +70,11 @@ Replace `src/styles/tokens.css` (handoff canonical). Update `src/styles/globals.
 
 ## Room sync
 
-- Default provider: `inMemoryRoomProvider`.
-- Supabase provider is Phase 4; do not wire as default until backend exists.
+- With Supabase environment variables present, room access goes through the
+  authenticated `/api/rooms` server boundary. Never restore direct browser
+  CRUD on `public.rooms` or return raw `GameState` to clients.
+- Without Supabase environment variables, local design preview uses the
+  browser-persisted local provider and is not cross-device multiplayer.
 
 ## Tests
 

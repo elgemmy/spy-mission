@@ -34,18 +34,5 @@ drop policy if exists "rooms anon delete" on public.rooms;
 
 revoke all privileges on public.rooms from anon;
 
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'rooms'
-  ) then
-    alter publication supabase_realtime add table public.rooms;
-  end if;
-end $$;
-
 comment on table public.rooms is
   'Codenames room envelope. Direct anonymous access is disabled because state contains secret card identities.';

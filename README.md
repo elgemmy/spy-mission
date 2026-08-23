@@ -22,12 +22,45 @@ npm run dev
 cp .env.example .env.local
 ```
 
-Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Local design preview does not require Supabase.
+Local design preview does not require Supabase. Shared multiplayer requires:
 
-The app currently keeps rooms in memory even when these variables are present.
-The Supabase provider remains disabled until a backend authorization boundary
-can return player-specific views without exposing hidden game state. Apply all
-files in `supabase/migrations/` to revoke legacy anonymous room access.
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the browser build.
+- `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as server-only Vercel Function
+  variables. A legacy `SUPABASE_SERVICE_ROLE_KEY` also works. Never prefix
+  either secret with `VITE_`.
+- Anonymous Sign-Ins enabled under Supabase **Authentication → Providers**.
+- Every file in `supabase/migrations/` applied, including
+  `0003_secure_multiplayer.sql`.
+
+When configured, the browser authenticates each guest with Supabase Auth and
+calls `/api/rooms`. The Vercel Function is the only component allowed to read
+complete room state. It validates each action with the game engine and returns
+a role-filtered snapshot, so operatives never receive unrevealed card kinds.
+Supabase Realtime broadcasts only a private `room_changed` signal to registered
+room members; clients then fetch their own authorized view.
+
+The local provider is used only when Supabase variables are absent. It is useful
+for UI development but is not shared between devices.
+
+### Production setup
+
+1. Apply the migrations to each Supabase project.
+2. Enable Anonymous Sign-Ins in Supabase Auth.
+3. In Realtime Settings, disable public channel access so only private channels
+   are accepted.
+4. Add the four variables above to the matching Vercel environment. Keep
+   preview deployments on a separate Supabase project from production.
+5. Configure a Vercel Firewall rate limit for `POST /api/rooms`, especially the
+   create and join traffic, and place the Function near the Supabase region.
+6. Deploy, then create a room on one device and join it from another using the
+   room link or code. Refresh both devices and confirm they remain in sync.
+
+Use `vercel dev` for local end-to-end multiplayer testing because plain
+`npm run dev` serves the Vite frontend but not the `/api/rooms` function.
+
+`public.rooms` intentionally has RLS enabled with no browser policies. Do not
+resolve the Security Advisor's “RLS Enabled No Policy” information item by
+adding client policies; direct room-table access must remain denied.
 
 ## Scripts
 

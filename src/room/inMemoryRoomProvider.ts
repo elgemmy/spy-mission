@@ -1,11 +1,11 @@
-import type { RoomProvider, RoomRecord, Unsubscribe } from "./types";
+import type { RoomRecord, RoomStorage, Unsubscribe } from "./types";
 import { normalizeRoomRecord } from "./uiState";
 
 type Listener = (room: RoomRecord | null) => void;
 
 const STORAGE_KEY = "codenames.localRooms.v1";
 
-export class InMemoryRoomProvider implements RoomProvider {
+export class InMemoryRoomProvider implements RoomStorage {
   private readonly rooms = new Map<string, RoomRecord>();
   private readonly codes = new Map<string, string>();
   private readonly listeners = new Map<string, Set<Listener>>();

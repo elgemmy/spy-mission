@@ -4,10 +4,10 @@ import { TopBar } from "./TopBar";
 import { Button } from "../components/Button";
 import { GlyphIcon } from "../card/glyphs";
 import type { PlayerView, Role, Team } from "../../engine";
-import type { ClueLogEntry, GameBanner, RoomRecord } from "../../room";
+import type { ClueLogEntry, GameBanner, RoomSnapshot } from "../../room";
 
 interface PlayScreenProps {
-  room: RoomRecord;
+  room: RoomSnapshot;
   view: PlayerView;
   selectedCardIndex: number | null;
   isHost: boolean;
