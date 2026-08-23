@@ -50,7 +50,9 @@ export function Lobby({
             <span />
           </div>
           <div>
-            <h1 className="text-ink m-0 text-lg font-bold">كودنيمز</h1>
+            <h1 className="text-ink font-ui m-0 text-lg font-bold">
+              Spymaster Mission
+            </h1>
             <p className="text-ink-soft m-0 text-xs font-semibold">
               {view.players.length} في الغرفة
             </p>

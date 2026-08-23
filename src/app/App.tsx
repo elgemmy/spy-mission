@@ -33,8 +33,12 @@ import {
   createSeed,
 } from "../room/ids";
 import { absolutePlayUrl, readPlayParams } from "../config/routes";
+import { useInstallPrompt } from "../lib/pwa/installPrompt";
+import { useServiceWorkerStatus } from "../lib/pwa/serviceWorker";
 import { GlyphDefs } from "../ui/card";
 import { Button } from "../ui/components/Button";
+import { InstallSheet } from "../ui/components/InstallSheet";
+import { UpdateToast } from "../ui/components/UpdateToast";
 import { Lobby, PlayScreen } from "../ui/game";
 import "../ui/game/Game.css";
 import { initTheme } from "./theme";
@@ -76,9 +80,25 @@ export function App() {
     null,
   );
   const [renameOpen, setRenameOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(() => playParams.install);
+  const { needRefresh } = useServiceWorkerStatus();
 
   useEffect(() => {
     initTheme("default");
+  }, []);
+
+  useEffect(() => {
+    if (!readPlayParams(window.location.search).install) {
+      return;
+    }
+    // Strip `install` so a refresh doesn't reopen the sheet, keeping other params.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("install");
+    window.history.replaceState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }, []);
 
   useEffect(() => {
@@ -577,6 +597,7 @@ export function App() {
             onStep={setStep}
             onCreateRoom={createRoom}
             onJoinRoom={joinRoom}
+            onInstall={() => setInstallOpen(true)}
           />
         )}
         {error ? (
@@ -598,6 +619,10 @@ export function App() {
             onSubmit={renameSelf}
           />
         ) : null}
+        {installOpen ? (
+          <InstallSheet onClose={() => setInstallOpen(false)} />
+        ) : null}
+        {needRefresh ? <UpdateToast /> : null}
       </main>
     </div>
   );
@@ -708,11 +733,13 @@ function Onboarding({
   onStep,
   onCreateRoom,
   onJoinRoom,
+  onInstall,
 }: {
   step: OnboardingStep;
   onStep: (step: OnboardingStep) => void;
   onCreateRoom: (name: string) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
+  onInstall: () => void;
 }) {
   if (step.type === "createName") {
     return (
@@ -755,6 +782,7 @@ function Onboarding({
     <Landing
       onCreate={() => onStep({ type: "createName" })}
       onJoin={() => onStep({ type: "joinCode" })}
+      onInstall={onInstall}
     />
   );
 }
@@ -762,16 +790,26 @@ function Onboarding({
 function Landing({
   onCreate,
   onJoin,
+  onInstall,
 }: {
   onCreate: () => void;
   onJoin: () => void;
+  onInstall: () => void;
 }) {
+  const { isStandalone } = useInstallPrompt();
+
   return (
     <>
       <header className="cn-landing-hero">
-        <img className="cn-landing-logo" src="/pwa-icon.svg" alt="كودنيمز" />
-        <h1 className="text-ink m-0 text-xl font-bold">كودنيمز</h1>
-        <p className="text-ink-soft m-0 text-sm">لعبة كلمات عربية أولا</p>
+        <img
+          className="cn-landing-logo"
+          src="/pwa-icon.svg"
+          alt="Spymaster Mission"
+        />
+        <h1 className="text-ink font-ui m-0 text-xl font-bold">
+          Spymaster Mission
+        </h1>
+        <p className="text-ink-soft m-0 text-sm">لعبة كلمات وجواسيس للعائلة</p>
       </header>
 
       <div className="gap-cn-3 flex flex-col">
@@ -779,6 +817,11 @@ function Landing({
         <Button variant="secondary" onClick={onJoin}>
           الانضمام برمز
         </Button>
+        {isStandalone ? null : (
+          <Button variant="secondary" onClick={onInstall}>
+            تثبيت التطبيق
+          </Button>
+        )}
       </div>
     </>
   );

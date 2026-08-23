@@ -55,8 +55,26 @@ the landing page installs the **game**. Workbox precache excludes the root
 `index.html` and `assets/landing-*`; `navigateFallback` is `/play/index.html`,
 allow-listed to `^/play(/|$)`.
 
-`src/lib/pwa/installPrompt.ts` captures `beforeinstallprompt` at module load
-and exposes `useInstallPrompt()`.
+**Install flow.** `src/lib/pwa/installPrompt.ts` captures `beforeinstallprompt`
+at module load and exposes `useInstallPrompt()` (`canPrompt`, `prompt`,
+`isStandalone`, `platform`). The game's onboarding screen shows a "تثبيت
+التطبيق" button when not already installed; the landing page's own Install
+CTA either triggers the native prompt directly or, when the browser can't
+(iOS, Firefox), navigates to `playUrl({ install: true })` — `/play/?install=1`
+— which opens `InstallSheet` (`src/ui/components/InstallSheet.tsx`) on arrival
+and then strips the `install` param via `history.replaceState` so a refresh
+doesn't reopen it. `InstallSheet` shows the native prompt button when
+available, or platform-specific instructions (iOS Share sheet, Android
+browser menu, desktop address-bar icon) otherwise.
+
+**Update flow.** `vite.config.ts` sets `registerType: "prompt"` — a waiting
+service worker never force-reloads the page mid-game. `src/main.tsx` wires
+`registerSW`'s `onNeedRefresh`/`onOfflineReady` callbacks into the small store
+in `src/lib/pwa/serviceWorker.ts` (`useServiceWorkerStatus`, `applyUpdate`,
+`dismissRefresh`); when an update is waiting, `App` renders `UpdateToast`
+(`src/ui/components/UpdateToast.tsx`), a non-modal `role="status"` toast with
+"تحديث" (applies the update) and "لاحقًا" (dismiss) actions. The service
+worker only ever controls `/play/` — it never controls `/`.
 
 ### Hosting (`vercel.json`)
 

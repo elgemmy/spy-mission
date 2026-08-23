@@ -14,7 +14,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       // The service worker lives at `/sw.js` but only controls the game.
       scope: "/play/",
       // The game registers the SW itself via `virtual:pwa-register`, so the
