@@ -647,6 +647,24 @@ button:disabled {
   padding: var(--cn-space-4);
 }
 
+.cn-update-toast {
+  position: fixed;
+  z-index: 25;
+  inset-inline: 16px;
+  inset-block-end: calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  max-width: 420px;
+  flex-direction: column;
+  gap: var(--cn-space-2);
+  margin-inline: auto;
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-r-bar);
+  background: var(--cn-surface);
+  box-shadow: var(--cn-shadow-cta);
+  padding-block: var(--cn-space-3);
+  padding-inline: var(--cn-space-3);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cn-clue-toast,
   .cn-game-banner {

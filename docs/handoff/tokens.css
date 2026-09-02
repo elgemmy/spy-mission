@@ -63,6 +63,10 @@
   --cn-shadow-tile: 0 2px 3px rgba(60, 45, 30, 0.10);  /* resting tile  */
   --cn-shadow-bar:  0 4px 16px rgba(60, 45, 30, 0.06); /* floating bars  */
   --cn-shadow-cta:  0 6px 18px rgba(43, 38, 34, 0.22); /* primary button */
+  /* Landing-only (see landing/landing-spec.md) */
+  --cn-shadow-float: 0 24px 55px rgba(60, 45, 30, 0.14); /* hero mini-board */
+  --cn-shadow-phone: 0 26px 60px rgba(50, 38, 24, 0.22); /* phone frame    */
+  --cn-phone-frame:  #28241f;                            /* phone bezel    */
 
   /* ---- Motion ----------------------------------------------- */
   --cn-flip-dur:    190ms;

@@ -8,8 +8,13 @@ import {
   type RoomSnapshot,
   type RoomVisibility,
 } from "../room";
+import { absolutePlayUrl, readPlayParams } from "../config/routes";
+import { useInstallPrompt } from "../lib/pwa/installPrompt";
+import { useServiceWorkerStatus } from "../lib/pwa/serviceWorker";
 import { GlyphDefs } from "../ui/card";
 import { Button } from "../ui/components/Button";
+import { InstallSheet } from "../ui/components/InstallSheet";
+import { UpdateToast } from "../ui/components/UpdateToast";
 import { Lobby, PlayScreen } from "../ui/game";
 import "../ui/game/Game.css";
 import { initTheme } from "./theme";
@@ -33,24 +38,41 @@ interface ConfirmRequest {
 const roomProvider = getRoomProvider();
 
 export function App() {
-  const inviteCode = readInviteCode();
+  const playParams = readPlayParams(window.location.search);
+  const inviteCode = playParams.room;
   const inviteToken = readInviteToken();
   const [roomId, setRoomId] = useState(() => localStorageSafe.get(ROOM_ID_KEY));
   const [room, setRoom] = useState<RoomSnapshot | null>(null);
-  const [step, setStep] = useState<OnboardingStep>(() =>
-    inviteCode
-      ? { type: "joinName", code: inviteCode, source: "link" }
-      : { type: "landing" },
-  );
+  const [step, setStep] = useState<OnboardingStep>(() => {
+    if (inviteCode) {
+      return { type: "joinName", code: inviteCode, source: "link" };
+    }
+    return playParams.create ? { type: "createName" } : { type: "landing" };
+  });
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
     null,
   );
   const [renameOpen, setRenameOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(() => playParams.install);
+  const { needRefresh } = useServiceWorkerStatus();
 
   useEffect(() => {
     initTheme("default");
+  }, []);
+
+  useEffect(() => {
+    if (!readPlayParams(window.location.search).install) {
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("install");
+    window.history.replaceState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   }, []);
 
   useEffect(() => {
@@ -275,10 +297,8 @@ export function App() {
     }
     try {
       const invitation = new URL(
-        window.location.pathname,
-        window.location.origin,
+        absolutePlayUrl(window.location.origin, { room: room.code }),
       );
-      invitation.searchParams.set("room", room.code);
       if (room.visibility === "private") {
         const token = await roomProvider.ensureInvite(room.id, room.version);
         invitation.hash = new URLSearchParams({ invite: token }).toString();
@@ -487,6 +507,7 @@ export function App() {
             onStep={setStep}
             onCreateRoom={createRoom}
             onJoinRoom={joinRoom}
+            onInstall={() => setInstallOpen(true)}
           />
         )}
         {error ? (
@@ -511,6 +532,10 @@ export function App() {
             onSubmit={renameSelf}
           />
         ) : null}
+        {installOpen ? (
+          <InstallSheet onClose={() => setInstallOpen(false)} />
+        ) : null}
+        {needRefresh ? <UpdateToast /> : null}
       </main>
     </div>
   );
@@ -621,11 +646,13 @@ function Onboarding({
   onStep,
   onCreateRoom,
   onJoinRoom,
+  onInstall,
 }: {
   step: OnboardingStep;
   onStep: (step: OnboardingStep) => void;
   onCreateRoom: (name: string) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
+  onInstall: () => void;
 }) {
   if (step.type === "createName") {
     return (
@@ -668,6 +695,7 @@ function Onboarding({
     <Landing
       onCreate={() => onStep({ type: "createName" })}
       onJoin={() => onStep({ type: "joinCode" })}
+      onInstall={onInstall}
     />
   );
 }
@@ -675,10 +703,14 @@ function Onboarding({
 function Landing({
   onCreate,
   onJoin,
+  onInstall,
 }: {
   onCreate: () => void;
   onJoin: () => void;
+  onInstall: () => void;
 }) {
+  const { isStandalone } = useInstallPrompt();
+
   return (
     <>
       <header className="cn-landing-hero">
@@ -692,6 +724,11 @@ function Landing({
         <Button variant="secondary" onClick={onJoin}>
           الانضمام برمز
         </Button>
+        {isStandalone ? null : (
+          <Button variant="secondary" onClick={onInstall}>
+            تثبيت التطبيق
+          </Button>
+        )}
       </div>
     </>
   );
@@ -811,15 +848,6 @@ const localStorageSafe = {
     }
   },
 };
-
-function readInviteCode(): string | null {
-  try {
-    const code = new URLSearchParams(window.location.search).get("room");
-    return code?.trim().toUpperCase() || null;
-  } catch {
-    return null;
-  }
-}
 
 function readInviteToken(): string | null {
   try {
