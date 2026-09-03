@@ -83,7 +83,9 @@ left) → disabled (other team's turn, 55% opacity).
    label, code in DM-Mono **34px** (`dir=ltr`, letter-spacing .06em), Copy
    button (→ "Copied" turns blue-tint), share helper line.
 3. **Board-language** — label + segmented control `[العربية | English]`.
-   This is the only language control; it sets the board language for the room.
+   This sets the room-shared board language separately from the per-browser
+   interface language. Both support English and Arabic; the interface choice
+   persists, and new rooms default the board to English.
 4. **Teams** — two `TeamCard`s side by side. Each: faction header + count,
    a highlighted **Mission Lead slot** (eye mark + `MISSION LEAD`), Field Agent
    chips, and a dashed `Join as Field Agent` button. The eye identifies the

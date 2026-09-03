@@ -12,9 +12,7 @@ supported.
 
 Please report vulnerabilities **privately**. Do not open a public issue.
 
-Use GitHub’s private vulnerability reporting:
-
-[Open a private security advisory](https://github.com/elgemmy/awesome-codenames/security/advisories/new).
+Use GitHub’s **Security → Report a vulnerability** flow.
 
 Include enough detail to reproduce the issue. Do **not** attach production
 secrets, API keys, service-role credentials, or private invite tokens.
