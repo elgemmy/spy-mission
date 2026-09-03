@@ -9,7 +9,7 @@ competition submission.
 Before the WebMCP competition work, this repository already shipped:
 
 - A pure, deterministic game engine (`src/engine`) with contract tests
-- A curated bilingual English/Arabic concept pack
+- A bilingual English/Arabic concept pack (English-list lineage unresolved)
 - Mobile-first play: create/join room, roles, clues, guesses, replay
 - Shared multiplayer over Supabase, later hardened so browsers do not write
   raw room rows

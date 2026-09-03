@@ -24,6 +24,11 @@ Obsolete claims in the body below — **not current**:
   is still Arabic-first)
 - Open decisions that the engine contract and room lifecycle contract already
   closed
+- The Word list workflow’s “Source a curated English noun list (English
+  Codenames word lists are abundant)” line — not a provenance statement for
+  `src/content/words/codenames.json`. English-list lineage is unresolved.
+- The design-system companion cited in Tech stack — that planning file was
+  removed; live tokens are `docs/handoff/tokens.css` / `src/styles/tokens.css`
 
 ---
 

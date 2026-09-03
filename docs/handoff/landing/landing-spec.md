@@ -365,11 +365,11 @@ which is a repo-rule or bug-avoidance concession rather than a design change.
    from 17 px) and zeroes `.cn-lp-footer__legal`'s `margin-inline-start` (down
    from `auto`) so the footer legal line wraps under the credit line instead
    of fighting it for space at narrow widths.
-8. **Release integration identity.** The source prototype's proposed
-   "Spymaster Mission" wordmark is retained in the reference files only. The
-   shipped landing, game shell, document metadata and PWA manifest keep the
-   existing "Codenames Hub" identity because product rebranding is outside
-   this integration gate.
+8. **Release integration identity.** Browser prototypes that once lived under
+   `docs/handoff/landing/` were removed. The public product name is **Spy
+   Mission**. Runtime and PWA chrome in this checkout may still show an
+   earlier working name until the bilingual surface branch lands; do not
+   treat historical prototype names as the public identity.
 
 ### Known accessibility trade-off
 

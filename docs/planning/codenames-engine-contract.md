@@ -162,7 +162,7 @@ export class IllegalMove extends Error {
 ```
 
 ```ts
-// engine/codenames/index.ts  (signatures only; bodies are Codex's job)
+// engine/codenames/index.ts  (signatures only; bodies are out of scope here)
 
 import type { GameModule } from "../contract";
 import type { GameState, Action, PlayerView, Lang } from "./types";
@@ -304,7 +304,7 @@ Public fields (identical for everyone): `roomId`, `lang`, `phase`, `turn`,
 `players` (id, name, team, role for each).
 
 `redRemaining` / `blueRemaining`: count of that team's cards with
-`revealed === false`. Public in Codenames (the top bar shows both).
+`revealed === false`. Public in this game (the top bar shows both).
 
 `guessesRemaining`: `null` unless `phase === "guess"`. In guess phase:
 `"unlimited"` if `clue.count === 0`, else `clue.count + 1 - guessesMadeThisTurn`.

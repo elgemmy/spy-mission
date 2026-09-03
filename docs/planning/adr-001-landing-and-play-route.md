@@ -12,10 +12,11 @@ Netlify.
 ## Context
 
 Until now the game shell lived at the site root. The product now ships a public
-landing page (design source: Claude Design project `Awesome Codenames` →
-`Spymaster Mission Landing.html`, mirrored under `docs/handoff/landing/`).
-The integration retains the existing Codenames Hub product identity; the
-reference artifact's proposed name is not adopted here. Requirements:
+landing page (design source: a Claude Design project whose HTML prototype was
+once mirrored under `docs/handoff/landing/` and is no longer in the tree).
+This ADR did not adopt the prototype’s “Spymaster Mission” label. The public
+product name is now **Spy Mission**; “Codenames Hub” in this file is the
+identity that existed when the route split shipped. Requirements:
 
 1. The base domain is reserved for the landing page.
 2. The game moves to a route on the same origin: **`/play/`**.
