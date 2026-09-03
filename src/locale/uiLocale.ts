@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useMemo } from "react";
 
 export type UiLocale = "en" | "ar";
 
@@ -52,37 +44,7 @@ export interface UseUiLocaleResult {
   setLocale: (next: UiLocale) => void;
 }
 
-const UiLocaleContext = createContext<UseUiLocaleResult | null>(null);
-
-function useUiLocaleState(): UseUiLocaleResult {
-  const [locale, setLocaleState] = useState<UiLocale>(readStoredUiLocale);
-
-  useEffect(() => {
-    persistUiLocale(locale);
-  }, [locale]);
-
-  const setLocale = useCallback((next: UiLocale) => {
-    setLocaleState(next);
-  }, []);
-
-  return {
-    locale,
-    dir: dirFor(locale),
-    isArabic: locale === "ar",
-    setLocale,
-  };
-}
-
-/**
- * Shared UI locale for landing and `/play/`. Persisted per browser under
- * `sm-lang`. Independent of a room's board language.
- */
-export function UiLocaleProvider({ children }: { children: ReactNode }) {
-  const value = useUiLocaleState();
-  return (
-    <UiLocaleContext.Provider value={value}>{children}</UiLocaleContext.Provider>
-  );
-}
+export const UiLocaleContext = createContext<UseUiLocaleResult | null>(null);
 
 export function useUiLocale(): UseUiLocaleResult {
   const context = useContext(UiLocaleContext);

@@ -1,16 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  type ReactNode,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+import { UiLocaleProvider } from "./UiLocaleProvider";
 import {
   DEFAULT_UI_LOCALE,
   UI_LOCALE_STORAGE_KEY,
-  UiLocaleProvider,
   dirFor,
   readStoredUiLocale,
   useUiLocale,

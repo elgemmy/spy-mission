@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { GlyphDefs } from "../ui/card/glyphs";
-import { UiLocaleProvider } from "../locale/uiLocale";
+import { UiLocaleProvider } from "../locale/UiLocaleProvider";
 import { PRODUCT_NAME } from "../locale/messages";
 import "./Landing.css";
 import { useHostLabel } from "./hostLabel";

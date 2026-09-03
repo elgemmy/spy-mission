@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MESSAGES } from "../../locale/messages";
-import { UiLocaleProvider } from "../../locale/uiLocale";
+import { UiLocaleProvider } from "../../locale/UiLocaleProvider";
 import { InstallSheet } from "./InstallSheet";
 
 const IOS_UA =

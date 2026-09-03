@@ -1,7 +1,7 @@
+export { UiLocaleProvider } from "./UiLocaleProvider";
 export {
   DEFAULT_UI_LOCALE,
   UI_LOCALE_STORAGE_KEY,
-  UiLocaleProvider,
   applyDocumentLocale,
   dirFor,
   isUiLocale,

@@ -1243,9 +1243,14 @@
   padding: 22px 24px;
 }
 
+.cn-lp-footer__sep,
 .cn-lp-footer__credit {
   font-size: 13px;
   color: var(--cn-ink-soft);
+}
+
+.cn-lp-footer__sep {
+  padding-inline-end: 0.35em;
 }
 
 .cn-lp-footer__legal {

@@ -1,13 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  type ReactNode,
-} from "vitest";
-import { UiLocaleProvider } from "../locale/uiLocale";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+import { UiLocaleProvider } from "../locale/UiLocaleProvider";
 import { LANG_STORAGE_KEY, readStoredLang, useLang } from "./useLang";
 
 function wrapper({ children }: { children: ReactNode }) {

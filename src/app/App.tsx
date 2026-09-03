@@ -19,7 +19,8 @@ import { absolutePlayUrl, playUrl, readPlayParams } from "../config/routes";
 import { useInstallPrompt } from "../lib/pwa/installPrompt";
 import { useServiceWorkerStatus } from "../lib/pwa/serviceWorker";
 import type { PlayMessages } from "../locale/messages";
-import { UiLocaleProvider, useUiLocale } from "../locale/uiLocale";
+import { UiLocaleProvider } from "../locale/UiLocaleProvider";
+import { useUiLocale } from "../locale/uiLocale";
 import { useMessages } from "../locale/useMessages";
 import { GlyphDefs } from "../ui/card";
 import { AppDialog } from "../ui/components/AppDialog";
@@ -65,7 +66,9 @@ function AppShell() {
   const { locale, dir } = useUiLocale();
   const t = useMessages().play;
   const messagesRef = useRef(t);
-  messagesRef.current = t;
+  useEffect(() => {
+    messagesRef.current = t;
+  }, [t]);
   const [initialPlayParams] = useState(() =>
     readPlayParams(window.location.search),
   );
