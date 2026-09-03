@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryRoomProvider } from "./inMemoryRoomProvider";
 import { createRoomRecord } from "./session";
-import type { RoomRecord } from "./types";
+import type { RoomRecord, SharedRoomRecord } from "./types";
 
 describe("InMemoryRoomProvider", () => {
   it("does not persist local rooms across provider instances", async () => {
@@ -21,7 +21,7 @@ describe("InMemoryRoomProvider", () => {
     const provider = new InMemoryRoomProvider();
     await provider.create(room);
 
-    const changes: Array<RoomRecord | null> = [];
+    const changes: Array<SharedRoomRecord | null> = [];
     provider.subscribe(room.id, (next) => changes.push(next));
 
     await provider.delete(room.id);

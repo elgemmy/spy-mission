@@ -1,10 +1,10 @@
-import type { RoomRecord, RoomUiState } from "./types.js";
+import type { RoomUiState, SharedRoomRecord } from "./types.js";
 
-export function normalizeRoomRecord(room: RoomRecord): RoomRecord {
+export function normalizeRoomRecord<T extends SharedRoomRecord>(room: T): T {
   return {
     ...room,
     ui: normalizeRoomUi(room.ui),
-  };
+  } as T;
 }
 
 export function normalizeRoomUi(ui: Partial<RoomUiState> | null): RoomUiState {

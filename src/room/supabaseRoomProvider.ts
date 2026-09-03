@@ -1,12 +1,17 @@
 import { getSupabaseClient } from "../lib/supabase/client";
 import type {
   CreateSharedRoomInput,
+  CreateClassicRoomInput,
+  CreatePartnerRoomInput,
+  ClaimPartnerSeatInput,
   JoinSharedRoomInput,
   ResumeRoomResult,
   RoomCommand,
+  RoomSnapshot,
   RoomMutationResult,
   RoomProvider,
-  RoomSnapshot,
+  SharedRoomSnapshot,
+  PartnerRoomSnapshot,
   Unsubscribe,
 } from "./types";
 
@@ -30,7 +35,9 @@ export class SupabaseRoomProvider implements RoomProvider {
     removeLegacyInviteEntries();
   }
 
-  async create(input: CreateSharedRoomInput): Promise<RoomSnapshot> {
+  async create(input: CreatePartnerRoomInput): Promise<PartnerRoomSnapshot>;
+  async create(input: CreateClassicRoomInput): Promise<RoomSnapshot>;
+  async create(input: CreateSharedRoomInput): Promise<SharedRoomSnapshot> {
     return this.rememberInvite(await this.call({ op: "create", ...input }));
   }
 
@@ -58,8 +65,24 @@ export class SupabaseRoomProvider implements RoomProvider {
     return this.rememberInvite(room);
   }
 
-  async load(roomId: string): Promise<RoomSnapshot | null> {
-    const room = await this.call<RoomSnapshot | null>({ op: "get", roomId });
+  async claimPartnerSeat(
+    input: ClaimPartnerSeatInput,
+  ): Promise<PartnerRoomSnapshot> {
+    const room = await this.call<PartnerRoomSnapshot>({
+      op: "claimPartnerSeat",
+      ...input,
+    });
+    if (room.visibility === "private" && input.inviteToken) {
+      writeLocal(inviteKey(room.code), input.inviteToken);
+    }
+    return this.rememberInvite(room) as PartnerRoomSnapshot;
+  }
+
+  async load(roomId: string): Promise<SharedRoomSnapshot | null> {
+    const room = await this.call<SharedRoomSnapshot | null>({
+      op: "get",
+      roomId,
+    });
     return room ? this.withCachedInvite(room) : null;
   }
 
@@ -95,7 +118,7 @@ export class SupabaseRoomProvider implements RoomProvider {
 
   subscribe(
     roomId: string,
-    onChange: (room: RoomSnapshot | null) => void,
+    onChange: (room: SharedRoomSnapshot | null) => void,
   ): Unsubscribe {
     let stopped = false;
     let loading = false;
@@ -234,15 +257,15 @@ export class SupabaseRoomProvider implements RoomProvider {
   private async loadForSubscription(
     roomId: string,
     signal: AbortSignal,
-  ): Promise<RoomSnapshot | null> {
-    const room = await this.call<RoomSnapshot | null>(
+  ): Promise<SharedRoomSnapshot | null> {
+    const room = await this.call<SharedRoomSnapshot | null>(
       { op: "get", roomId },
       signal,
     );
     return room ? this.withCachedInvite(room) : null;
   }
 
-  private rememberInvite(room: RoomSnapshot): RoomSnapshot {
+  private rememberInvite<T extends SharedRoomSnapshot>(room: T): T {
     this.roomCodes.set(room.id, room.code);
     if (room.inviteToken) {
       writeLocal(inviteKey(room.code), room.inviteToken);
@@ -250,14 +273,16 @@ export class SupabaseRoomProvider implements RoomProvider {
     return this.withCachedInvite(room);
   }
 
-  private withCachedInvite(room: RoomSnapshot): RoomSnapshot {
+  private withCachedInvite<T extends SharedRoomSnapshot>(room: T): T {
     this.roomCodes.set(room.id, room.code);
     const inviteToken = readLocal(inviteKey(room.code)) ?? null;
-    return inviteToken ? { ...room, inviteToken } : room;
+    return (inviteToken ? { ...room, inviteToken } : room) as T;
   }
 }
 
-function isRoomSnapshot(value: RoomMutationResult): value is RoomSnapshot {
+function isRoomSnapshot(
+  value: RoomMutationResult,
+): value is SharedRoomSnapshot {
   return "id" in value;
 }
 

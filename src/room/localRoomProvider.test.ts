@@ -38,6 +38,9 @@ describe("LocalRoomProvider lifecycle preview", () => {
     await expect(guest.load(created.id)).resolves.toBeNull();
 
     const hostView = await host.load(created.id);
+    if (hostView?.mode === "partner") {
+      throw new Error("CLASSIC_ROOM_EXPECTED");
+    }
     expect(
       hostView?.view.players.some(
         (player) => player.id === "local-guest-leave",
@@ -58,7 +61,7 @@ describe("LocalRoomProvider lifecycle preview", () => {
       type: "banPlayer",
       targetPlayerId: "local-guest-ban",
     });
-    if (!("id" in afterBan)) {
+    if (!("id" in afterBan) || afterBan.mode === "partner") {
       throw new Error("ROOM_SNAPSHOT_EXPECTED");
     }
     expect(
@@ -120,6 +123,9 @@ function asSnapshot(
 ): RoomSnapshot {
   if (!("id" in result)) {
     throw new Error("ROOM_SNAPSHOT_EXPECTED");
+  }
+  if (result.mode === "partner") {
+    throw new Error("CLASSIC_ROOM_EXPECTED");
   }
   return result;
 }
