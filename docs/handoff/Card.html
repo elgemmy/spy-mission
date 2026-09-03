@@ -33,7 +33,7 @@
   <h1>Card — reference component</h1>
   <p class="sub">Tap any tile to flip it. Markup is identical across roles; only <code>data-role</code> / <code>data-view</code> change.</p>
 
-  <!-- a live operative board row: tap to reveal -->
+  <!-- a live Field Agent board row: tap to reveal -->
   <div class="grid" id="demo"></div>
 
   <div class="legend" id="legend"></div>
@@ -73,18 +73,18 @@
 
   // legend: the six canonical states
   const legend = [
-    ['قطار','neutral','operative', false, 'مغلقة · لاعب'],
-    ['بحر','blue','spymaster', false, 'مفتاح · سيّد'],
+    ['قطار','neutral','operative', false, 'مغلقة · عميل ميداني'],
+    ['بحر','blue','spymaster', false, 'مفتاح · قائد مهمة'],
     ['نار','red','operative', true, 'عميل أحمر'],
     ['قمر','blue','operative', true, 'عميل أزرق'],
     ['باب','neutral','operative', true, 'مارّ'],
-    ['سيف','assassin','operative', true, 'القاتل'],
+    ['سيف','assassin','operative', true, 'الفخ'],
   ];
   document.getElementById('legend').innerHTML = legend.map(([w, r, v, rev, cap]) =>
     `<figure>${cardHTML(w, r, v).replace('cn-card ', 'cn-card ' + (rev ? 'is-revealed ' : ''))}<figcaption>${cap}</figcaption></figure>`
   ).join('');
 
-  // interaction: tap to flip (operative reveal)
+  // interaction: tap to flip (Field Agent reveal)
   document.addEventListener('click', e => {
     const card = e.target.closest('#demo .cn-card');
     if (card) card.classList.toggle('is-revealed');

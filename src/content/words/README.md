@@ -1,7 +1,7 @@
 # Word pack
 
-The shipped board content lives in [`codenames.json`](codenames.json).
-That filename is a historical identifier.
+The shipped board content lives in the [JSON word-pack file](codenames.json)
+in this directory.
 
 Spy Mission is an independent word-association game project.
 
@@ -85,10 +85,10 @@ rendered English label as:
 Arabic inspection used NFC + trim + whitespace collapse only (no letter-shape
 folding). Under that rule, Arabic labels are unique.
 
-The engine’s clue check is structural (`trim`, non-empty, count 0–9). It does
-not reject a clue that matches a board label. Semantic “must not say a word on
-the board” is a house rule. The hidden other-language label does not count as
-on the board ([engine contract](../../../docs/planning/codenames-engine-contract.md)).
+The engine’s Signal check is structural (`trim`, non-empty, count 0–9). It does
+not reject a Signal that matches a board label. Semantic “must not say a word
+on the board” is a house rule. The hidden other-language label does not count
+as on the board ([engine contract](../../../docs/planning/engine-contract.md)).
 
 ## Duplicate rendered English labels
 

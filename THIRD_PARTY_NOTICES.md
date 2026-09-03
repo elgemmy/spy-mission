@@ -2,9 +2,7 @@
 
 Copyright (c) 2026 Ahmed Gamal (elgemmy)
 
-Spy Mission is an independent word-association game project. It is not
-affiliated with, endorsed by, or associated with another publisher’s
-commercial product.
+Spy Mission is an independent word-association game project.
 
 This file lists third-party software and hosted typefaces used by the
 repository. First-party assets and unresolved provenance are recorded in
@@ -37,7 +35,7 @@ vendored in this repository. Each is published under the SIL Open Font License
 | ---------------------------------------------------- | -------------------------------- | ----------- |
 | [Rubik](https://fonts.google.com/specimen/Rubik)     | UI chrome and Latin board words  | SIL OFL 1.1 |
 | [Cairo](https://fonts.google.com/specimen/Cairo)     | Arabic board words and Arabic UI | SIL OFL 1.1 |
-| [DM Mono](https://fonts.google.com/specimen/DM+Mono) | Room codes, counts, clue numbers | SIL OFL 1.1 |
+| [DM Mono](https://fonts.google.com/specimen/DM+Mono) | Room codes, counts, Signal numbers | SIL OFL 1.1 |
 
 ## Development tooling
 

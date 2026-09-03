@@ -1,17 +1,14 @@
 # Landing page — component spec (Warm Sand)
 
-This document is the remaining landing design spec. Browser prototypes that
-used to sit beside it were removed from the public tree.
+This document is the canonical landing design spec for **Spy Mission**.
 
-Public product name: **Spy Mission**. “Spymaster Mission” in older copy is a
-working title from the design pass.
+English is the default interface language. Arabic is selectable and persisted.
+Interface language and board language are independent; new rooms default board
+language to English.
 
 Where this spec and live `src/landing/` disagree on engineering (tokens, a11y,
 routing), the repository conventions win. Visual values below still describe
 the intended Warm Sand landing.
-
-Names such as `cn-landing.jsx` in section headings below are historical
-mapping labels from the removed prototypes, not files that still ship.
 
 Global rules (from `AGENTS.md`): `--cn-*` tokens only (no raw hex/rgb in
 TSX/CSS; the only exception is the boot splash in `index.html` which runs
@@ -27,7 +24,7 @@ LandingPage.tsx        composition of the sections below
 Landing.css            all landing CSS, classes prefixed `cn-lp-`
 strings.ts             STR.ar / STR.en (typed, identical key sets)
 useLang.ts             'ar' | 'en' state, localStorage "sm-lang", html lang/dir
-data/demoBoard.ts      LAYOUT, WORDS_AR, WORDS_EN, ROW, ROT (from cn-components/cn-landing)
+data/demoBoard.ts      LAYOUT, WORDS_AR, WORDS_EN, ROW, ROT
 sections/Nav.tsx       Hero.tsx  HoverRow.tsx  HowToPlay.tsx  Features.tsx
 sections/Screens.tsx   (PhoneFrame, LobbyPreview, BoardPreview)
 sections/ClosingCta.tsx Footer.tsx
@@ -36,10 +33,10 @@ sections/ClosingCta.tsx Footer.tsx
 Shared primitives (new, reusable by the game):
 
 - `src/ui/components/Mark.tsx` — 2×2 wordmark, `size` prop; cells red/blue/
-  neutral/assassin, gap `size*0.11`, radius `size*0.16` (inline `style` for the
+  neutral/Trap, gap `size*0.11`, radius `size*0.16` (inline `style` for the
   two derived numbers is acceptable; colours via tokens).
-- `src/ui/components/EyeMark.tsx` — spymaster eye (path + pupil from
-  `cn-lobby.jsx`), `size`, `color` (default `currentColor`), `aria-hidden`.
+- `src/ui/components/EyeMark.tsx` — Mission Lead eye mark, `size`, `color`
+  (default `currentColor`), `aria-hidden`.
 
 Routing: every link into the game uses `playUrl()` from `src/config/routes.ts`.
 "Create a room" CTAs → `playUrl({ create: true })`. Host label/mono links →
@@ -82,7 +79,7 @@ transparent)`, `backdrop-filter: blur(10px)` (+ `-webkit-`), `border-block-end:
 `13px 24px`.
 
 1. `Mark size=30`
-2. Wordmark "Spymaster Mission" — `var(--cn-font-ui)` 17 / 700, letter-spacing
+2. Wordmark "Spy Mission" — `var(--cn-font-ui)` 17 / 700, letter-spacing
    `-.01em` (always Latin).
 3. `margin-inline-start: auto` group, gap 10:
    - Language toggle — `role="group" aria-label`; pill: `background:
@@ -164,7 +161,7 @@ var(--cn-surface)`, border line, radius 18, padding `20px 20px 18px`.
   1. Code chip `dir="ltr"` — mono 25 / 500, letter-spacing `.06em`,
      `color: var(--cn-ink)`, `background: var(--cn-surface-2)`, `border: 1.5px
 dashed var(--cn-neutral)`, radius 12, padding `10px 18px`, text `QMR-72K`.
-  2. Clue pill — flex, center, gap 10, `background: var(--cn-surface-2)`,
+  2. Signal pill — flex, center, gap 10, `background: var(--cn-surface-2)`,
      border line, `border-radius: var(--cn-r-bar)`, padding `10px 16px`:
      `EyeMark 18` ink · `STR.clue` 12 / 700 ink-soft · `STR.clueWord` 19 / 700 ·
      count "3" mono 15 / 500 `var(--cn-red-ink)` on `var(--cn-red-tint)`,
@@ -172,7 +169,7 @@ dashed var(--cn-neutral)`, radius 12, padding `10px 18px`, text `QMR-72K`.
   3. Three static 66 px `WordCard`s, no flip transition (`className` that sets
      `transition: none` on `.cn-card__inner`), not interactive (`disabled`,
      `tabIndex={-1}`, `aria-hidden`): `باب/DOOR` neutral hidden · `نار/FIRE`
-     red revealed · `سيف/SWORD` assassin revealed.
+     red revealed · `سيف/SWORD` Trap revealed.
 - `<h3>` 18 / 700, margin `12px 0 6px`; `<p>` 14.5, lh 1.6, ink-soft.
 
 ## Features (`.cn-lp-wrap`, padding `64px 24px 0`)
@@ -202,12 +199,12 @@ between, padding `9px 20px 2px`; "9:41" mono 13 / 500; right: "●●●" 11 px 
 battery (18×9, `border: 1px solid var(--cn-ink)`, radius 2, inner 70 % fill).
 Caption 13 / 700 ink-soft.
 
-**LobbyPreview** (`cn-lobby.jsx › Lobby`) — `dir` by its _own_ `lng` state
+**LobbyPreview** — `dir` by its _own_ `lng` state
 (initialised from page `lang`, re-initialised when page `lang` changes). Column,
 gap 16, padding `18px 16px calc(18px + env(safe-area-inset-bottom))`.
 
-1. Header — `Mark 32`; title 18 / 700 `STR.lobby.title` ("اسم الرمز" /
-   "Codename"), subtitle 12 / 500 ink-soft ("غرفة العائلة" / "Family room");
+1. Header — `Mark 32`; title 18 / 700 `STR.lobby.title` ("سباي ميشن" /
+   "Spy Mission"), subtitle 12 / 500 ink-soft ("غرفة العائلة" / "Family room");
    presence pill at inline-end: 12 / 600 ink-soft, surface, border line, radius
    999, padding `6px 11px`, 7 px dot `var(--cn-blue)`, text "٥ متصلون" / "5 online".
 2. Room-code card — surface, border line, radius bar, padding `16px 16px 14px`,
@@ -226,28 +223,29 @@ var(--cn-surface-2)`, border line, radius 999, padding 3, gap 3; buttons
    on: surface + ink + `box-shadow: 0 1px 4px color-mix(in srgb, var(--cn-ink)
 12%, transparent)`; off: ink-soft. Options "العربية" / "English". Changes `lng`.
 4. Teams — flex, gap 10. `TeamCard` (red: "الفريق الأحمر"/"Red team",
-   spymaster "سارة"/"Sara", operatives "خالد"/"Khaled" _(you)_, "ريم"/"Reem";
+   Mission Lead "سارة"/"Sara", Field Agents "خالد"/"Khaled" _(you)_, "ريم"/"Reem";
    blue: "الفريق الأزرق"/"Blue team", "عمر"/"Omar", "نورا"/"Noura",
    "يوسف"/"Yousef"): `flex: 1; min-width: 0`, `background: var(--cn-{role}-tint)`,
    `border: 1.5px solid var(--cn-{role})`, radius 16, padding 12, column gap 9.
    - Header: `GlyphIcon` 18 `var(--cn-{role})` · title 14 / 700 `-ink` · count
-     (1 + operatives) mono 13 / 500 `-ink` opacity .8 at inline-end.
-   - Spymaster slot: flex, gap 8, padding `8px 10px`, surface, `border: 1.5px
+     (1 + Field Agents) mono 13 / 500 `-ink` opacity .8 at inline-end.
+   - Mission Lead slot: flex, gap 8, padding `8px 10px`, surface, `border: 1.5px
 solid var(--cn-{role})`, radius 10: `EyeMark 17` `-ink`; name 13 / 700
-     ellipsis; label 10 / 700 `-ink` ("سيّد التجسس" / "SPYMASTER", EN
+     ellipsis; label 10 / 700 `-ink` ("قائد المهمة" / "MISSION LEAD", EN
      letter-spacing `.03em`).
-   - Operative chips (column, gap 6): flex, gap 8, padding `7px 10px`, surface,
+   - Field Agent chips (column, gap 6): flex, gap 8, padding `7px 10px`, surface,
      border line, radius 10: avatar 22 px circle (`var(--cn-surface-2)`, border
      line, first letter 11 / 700 ink-soft) · name 13 / 600 ellipsis · optional
      "أنت" / "you" badge 10 / 700 ink-soft on surface-2, radius 999, padding `1px 6px`.
    - Join row (decorative, render as `<span aria-hidden>` not a button):
      centered 12.5 / 700 `-ink`, `border: 1.5px dashed var(--cn-{role})`,
-     radius 10, padding `8px 0`, opacity .9, "+ انضمّ كعميل" / "+ Join as operative".
+     radius 10, padding `8px 0`, opacity .9, "+ انضمّ كعميل ميداني" /
+     "+ Join as Field Agent".
 5. Start CTA (decorative `<span aria-hidden>`): centered 17 / 700,
    `color: var(--cn-surface)`, `background: var(--cn-ink)`, radius bar, padding
    `16px 0`, `box-shadow: var(--cn-shadow-cta)`, "ابدأ اللعب" / "Start game".
 
-**BoardPreview** (`cn-components.jsx › Board`, operative view, interactive) —
+**BoardPreview** (Field Agent view, interactive) —
 column, `min-height: 100%`, `dir` by page `lang`. State: revealed set
 initialised from `LAYOUT[i].r`.
 
@@ -261,8 +259,8 @@ initialised from `LAYOUT[i].r`.
 var(--cn-{role}) 45%, transparent)`; idle: `-tint` / `-ink`; `GlyphIcon` 16;
   number mono 18 / 500 tabular.
 - Grid `repeat(5, 1fr)`, gap 6, padding `6px 12px 12px`, 25 × `WordCard`
-  (operative, `lang`, revealed from state, click reveals, revealed → `disabled`).
-- Clue bar — `margin-block-start: auto`, padding `12px 14px calc(12px +
+  (Field Agent, `lang`, revealed from state, click reveals, revealed → `disabled`).
+- Signal bar — `margin-block-start: auto`, padding `12px 14px calc(12px +
 env(safe-area-inset-bottom))`; inner: surface, border line, radius bar,
   padding `12px 14px`, flex, between, gap 12, `box-shadow: var(--cn-shadow-bar)`:
   left (flex, baseline, gap 8, `min-width: 0`): `STR.clue` 12 / 600 ink-soft ·
@@ -285,7 +283,7 @@ mono 13 host link (margin-block-start 16) → `playUrl()`.
 ## Footer (`border-block-start: 1px solid var(--cn-line)`)
 
 `.cn-lp-wrap` flex, center, gap 12, wrap, padding `22px 24px`: `Mark 24` ·
-"Spymaster Mission" Rubik 14 / 700 · "· {STR.credit}" 13 ink-soft ·
+"Spy Mission" Rubik 14 / 700 · "· Ahmed Gamal — elgemmy" 13 ink-soft ·
 inline-end `dir="ltr"` mono 12 ink-soft: "© 2026 · " + `<a>` host label →
 `playUrl()`.
 
@@ -293,7 +291,7 @@ inline-end `dir="ltr"` mono 12 ink-soft: "© 2026 · " + `<a>` host label →
 
 ## Strings (`strings.ts`)
 
-Exactly the `STR` object from `cn-landing.jsx` (both languages), plus:
+The `STR` object contains both languages, plus:
 `h1Before` / `h1Highlight` / `h1After` (replacing the JSX `h1`), `install`,
 `langGroup` (a11y label for the toggle), `nav` (a11y label), and the lobby /
 board preview strings listed above under `lobby.*` / `board.*`. Export
@@ -309,10 +307,10 @@ Inline hex here only.
 
 ## Tests (`src/landing/LandingPage.test.tsx`, vitest + RTL)
 
-1. Renders Arabic by default: `document.documentElement.dir === 'rtl'`, h1 text
-   contains "٢٥ كلمة".
-2. Toggling "EN" sets `dir="ltr"`, `lang="en"`, persists `sm-lang`, and the h1
-   contains "25 words."; reload-from-storage path honoured.
+1. Renders English by default: `document.documentElement.dir === 'ltr'`, h1
+   text contains "25 words."
+2. Toggling "عربي" sets `dir="rtl"`, `lang="ar"`, persists `sm-lang`, and the h1
+   contains "٢٥ كلمة"; reload-from-storage path honoured.
 3. Every "create" CTA (`nav`, hero, closing) has `href === playUrl({ create: true })`;
    host links have `href === playUrl()`.
 4. MiniBoard: clicking a red tile decrements the red chip from 9 to 8; reset
@@ -365,15 +363,12 @@ which is a repo-rule or bug-avoidance concession rather than a design change.
    from 17 px) and zeroes `.cn-lp-footer__legal`'s `margin-inline-start` (down
    from `auto`) so the footer legal line wraps under the credit line instead
    of fighting it for space at narrow widths.
-8. **Release integration identity.** Browser prototypes that once lived under
-   `docs/handoff/landing/` were removed. The public product name is **Spy
-   Mission**. Runtime and PWA chrome in this checkout may still show an
-   earlier working name until the bilingual surface branch lands; do not
-   treat historical prototype names as the public identity.
+8. **Release identity.** Landing and PWA chrome use **Spy Mission**. English is
+   the default interface language; Arabic remains selectable and persists.
 
 ### Known accessibility trade-off
 
 `--cn-ink-soft` (`#7d7263`) measures 3.88:1 against `--cn-bg` and 4.12:1
 against `--cn-surface-2` — both below the WCAG AA 4.5:1 threshold for small
-text. It is kept as specified for design fidelity with the prototype; a
+text. It is kept as specified for design fidelity with the handoff; a
 token-level change is a design-owner decision, not an implementation one.

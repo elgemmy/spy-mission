@@ -1,13 +1,9 @@
 # Spy Mission
 
 Spy Mission is an independent word-association game project. Two teams, one
-clue, twenty-five words. Each player joins from their own phone.
-
-It is not affiliated with the commercial Codenames product.
+Signal, twenty-five words. Each player joins from their own phone.
 
 **Play:** [https://spymission.dev](https://spymission.dev)
-
-Legacy compatibility URL: [https://spymaster.elgemmy.com](https://spymaster.elgemmy.com)
 
 By [Ahmed Gamal — elgemmy](https://github.com/elgemmy).
 
@@ -16,8 +12,8 @@ By [Ahmed Gamal — elgemmy](https://github.com/elgemmy).
 A mobile-first family game:
 
 - Create a room and share a short code (or a private invite link)
-- One player on each team gives one-word clues
-- Teammates reveal tiles and avoid the assassin
+- One Mission Lead on each team gives one-word Signals
+- Field Agents reveal tiles and avoid the Trap
 - The board is bilingual: every concept carries English and Arabic labels
 - Rooms persist across refresh; leaving the URL leaves the table
 
@@ -36,7 +32,7 @@ Shared multiplayer on `/play/`:
 1. Open the landing page or go straight to `/play/`.
 2. Create a room or join with a code.
 3. Pick a display name, team, and role.
-4. The host starts the round. Spymasters see the key; operatives do not.
+4. The host starts the round. Mission Leads see the key; Field Agents do not.
 
 Invite links use `/play/?room=CODE`. Private rooms add `#invite=TOKEN` in the
 URL fragment so the token is not sent with the page request.
@@ -45,17 +41,19 @@ Without Supabase environment variables, `/play/` runs an in-memory local
 preview. That preview is useful for UI work and is **not** cross-device
 multiplayer.
 
-## Language
+## Language and identity
 
-| Surface                 | What ships today                                                     |
-| ----------------------- | -------------------------------------------------------------------- |
-| Marketing landing (`/`) | Arabic and English                                                   |
-| Board words             | Every concept has both labels; the room chooses one display language |
-| In-game chrome          | Arabic-first today                                                   |
-
-Some in-product copy and repository identifiers still use earlier working
-names. The public product name is Spy Mission. Runtime branding is owned by a
-separate change.
+- The landing and game interface are available in English and Arabic.
+- English is the default interface language. Selecting Arabic persists for
+  later visits.
+- Interface language and board language are independent.
+- Every board concept has English and Arabic labels. New rooms show English
+  board words by default; the room can select Arabic without changing the
+  interface language.
+- PWA, install, and page metadata use **Spy Mission**.
+- Public game terms are **Mission Lead**, **Field Agent**, **Signal**, and
+  **Trap**.
+- Footer attribution is **Ahmed Gamal — elgemmy**.
 
 ## Architecture
 
@@ -80,9 +78,6 @@ Two site surfaces share one origin:
 
 Only the game is a PWA. Details: [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md).
 
-Internal module names may still say `codenames`. That is a historical
-identifier, not the public product name.
-
 ## Secure multiplayer
 
 When Supabase variables are configured:
@@ -90,7 +85,7 @@ When Supabase variables are configured:
 - Each guest signs in with Supabase anonymous Auth
 - The browser talks only to `/api/rooms`
 - The server is the only component that reads complete room state
-- Operatives never receive unrevealed card kinds
+- Field Agents never receive unrevealed card kinds
 - Realtime sends a private `room_changed` signal, not the room row
 - Clients refetch their own authorized snapshot (and poll if Realtime drops)
 
@@ -175,7 +170,7 @@ denied.
 
 ## Tests
 
-- Engine contract: `src/engine/codenames/*.contract.test.ts`
+- Engine contract: `docs/planning/engine-contract.md`
 - UI foundation: `src/ui/card/Card.test.tsx`, `src/styles/tokens.test.ts`
 - Room API (mocked): `src/server/rooms/service.test.ts`
 - Room API (live local stack): `npm run test:supabase`
@@ -203,7 +198,7 @@ Supabase projects), and keep the service-role key server-only.
 | ---------------------------------------------------------------------------------------------------- | -------------------------------- |
 | [`docs/README.md`](docs/README.md)                                                                   | Index of remaining docs          |
 | [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md)                                 | Room access, invites, ban/delete |
-| [`docs/planning/codenames-engine-contract.md`](docs/planning/codenames-engine-contract.md)           | Game rules and engine types      |
+| [`docs/planning/engine-contract.md`](docs/planning/engine-contract.md)                               | Game rules and engine types      |
 | [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md) | `/` vs `/play/` and PWA scope    |
 | [`docs/BROWNFIELD_BASELINE.md`](docs/BROWNFIELD_BASELINE.md)                                         | Pre-competition baseline         |
 | [`src/content/words/README.md`](src/content/words/README.md)                                         | Word pack                        |

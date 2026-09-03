@@ -2,9 +2,7 @@
 
 Copyright (c) 2026 Ahmed Gamal (elgemmy)
 
-Spy Mission is an independent word-association game project. It is not
-affiliated with, endorsed by, or associated with another publisher’s
-commercial product.
+Spy Mission is an independent word-association game project.
 
 This inventory records what is known about first-party and third-party assets
 in the repository. **Unresolved items are flagged rather than guessed.**
@@ -37,14 +35,15 @@ No proprietary commercial-game logos or box art are included.
 
 ## Word pack
 
-`src/content/words/codenames.json` is the shipped bilingual concept pack
-(23 categories, 597 concepts). The filename is a historical identifier.
+The JSON file under `src/content/words/` is the shipped bilingual concept pack
+(23 categories, 597 concepts).
 
 Known facts:
 
 - The file entered git in `316dfc37c8733aa688cc889213189e9cc36482be`
   (30 May 2026).
-- Arabic labels match an author-owned working document created that same day.
+- Arabic labels match an author-owned Arabic word-list working document dated
+  30 May 2026.
 - English labels are stored as pairs in the same file.
 
 Unresolved: whether any English label was taken from another published list.
@@ -83,4 +82,3 @@ outside `src/content/words/README.md`.
 
 - No commercial box art or official logos
 - No vendored font files
-- No claimed affiliation with another publisher’s product

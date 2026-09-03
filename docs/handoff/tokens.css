@@ -1,7 +1,7 @@
 /* ============================================================
    Spy Mission — design tokens  ·  direction: "Warm Sand"
    Values reference. Live copy: src/styles/tokens.css (may be a superset).
-   Mobile-first bilingual word-association game. Arabic-first / English secondary.
+   Mobile-first bilingual word-association game. English default; Arabic selectable.
    ============================================================ */
 
 :root {
@@ -9,7 +9,7 @@
      Rubik   → UI chrome, Latin words, headings
      Cairo   → Arabic board words (Rubik has no Arabic script;
                Cairo shares its rounded-geometric DNA)
-     DM Mono → room codes, counts, clue numbers (tabular)        */
+     DM Mono → room codes, counts, Signal numbers (tabular)      */
   --cn-font-ui:     'Rubik', system-ui, sans-serif;
   --cn-font-ar:     'Cairo', system-ui, sans-serif;
   --cn-font-mono:   'DM Mono', ui-monospace, monospace;
@@ -56,7 +56,7 @@
   /* ---- Radii ------------------------------------------------- */
   --cn-r-card:      12px;  /* word tiles                          */
   --cn-r-chip:      999px; /* count chips, pills, segmented        */
-  --cn-r-bar:       18px;  /* clue bar, room-code card, CTAs       */
+  --cn-r-bar:       18px;  /* Signal bar, room-code card, CTAs     */
   --cn-r-sm:        10px;  /* player chips, small insets           */
 
   /* ---- Elevation -------------------------------------------- */

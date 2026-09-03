@@ -2,21 +2,15 @@
 
 **Status:** accepted · **Date:** 2026-08-23 · **Branch:** `feat/landing-page-and-play-route`
 
-**2026-09 note:** The public product name is **Spy Mission**. This ADR’s
-“Codenames Hub” wording is the identity that existed when the route split
-shipped. Prototype HTML/JSX under `docs/handoff/landing/` was removed from
-the public tree; [`../handoff/landing/landing-spec.md`](../handoff/landing/landing-spec.md)
-is the remaining landing design spec. Hosting is Vercel (`vercel.json`), not
-Netlify.
+**2026-09 note:** The public product name is **Spy Mission**. The canonical
+landing design spec is
+[`../handoff/landing/landing-spec.md`](../handoff/landing/landing-spec.md).
+Hosting is Vercel (`vercel.json`).
 
 ## Context
 
-Until now the game shell lived at the site root. The product now ships a public
-landing page (design source: a Claude Design project whose HTML prototype was
-once mirrored under `docs/handoff/landing/` and is no longer in the tree).
-This ADR did not adopt the prototype’s “Spymaster Mission” label. The public
-product name is now **Spy Mission**; “Codenames Hub” in this file is the
-identity that existed when the route split shipped. Requirements:
+The game shell originally lived at the site root. Spy Mission now ships a
+public landing page while keeping the game on a stable route. Requirements:
 
 1. The base domain is reserved for the landing page.
 2. The game moves to a route on the same origin: **`/play/`**.
@@ -50,6 +44,8 @@ would have coupled the two surfaces and complicated PWA scoping.
 | `injectRegister`               | `null` — the game registers via `virtual:pwa-register` |
 | `navigateFallback`             | `/play/index.html`, allow-list `^/play(/|$)` |
 | `globIgnores`                  | landing entry (`index.html`, `assets/landing-*`) |
+
+Manifest and install metadata use the **Spy Mission** public name.
 
 `vite-plugin-pwa` injects `<link rel="manifest">` into **both** pages. That is
 intentional: a browser install initiated from the landing page (Chromium

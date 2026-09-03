@@ -67,14 +67,14 @@
      a filter here would flatten the flip) */
   box-shadow: var(--cn-shadow-tile), inset 0 -2px 0 rgba(0, 0, 0, 0.05);
 }
-/* spymaster resting: key tint + corner glyph + top key bar */
+/* Mission Lead resting: key tint + corner glyph + top key bar */
 .cn-card[data-view='spymaster'] .cn-card__face--front {
   background: var(--c-tint);
   color: var(--c-ink);
   border: 1.5px solid var(--c);
   box-shadow: var(--cn-shadow-tile), inset 0 3px 0 var(--c);
 }
-.cn-card__key {                    /* corner glyph, spymaster only */
+.cn-card__key {                    /* corner glyph, Mission Lead only */
   position: absolute;
   top: 4px;
   inset-inline-start: 5px;

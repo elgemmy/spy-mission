@@ -1,7 +1,10 @@
-# Engine contract (draft v1)
+# Engine contract
 
 Canonical game-rules contract for the Spy Mission engine in `src/engine`.
-Internal module paths still use the historical `codenames` identifier.
+
+Public terminology is **Mission Lead**, **Field Agent**, **Signal**, and
+**Trap**. Runtime code retains the identifiers `spymaster`, `operative`,
+`clue`, and `assassin`; code excerpts reproduce those implementation names.
 
 Types and specs only: no React, no network, no Supabase.
 
@@ -21,8 +24,8 @@ export type Team = "red" | "blue";
 export type Role = "spymaster" | "operative";
 export type Lang = "ar" | "en";
 
-// Card allegiance. Kept distinct from Team so neutral/assassin are first-class,
-// not a nullable team.
+// Card allegiance. Kept distinct from Team so neutral/Trap states are
+// first-class, not a nullable team.
 export type CardKind = "red" | "blue" | "neutral" | "assassin";
 
 export type Phase = "lobby" | "clue" | "guess" | "ended";
@@ -35,7 +38,7 @@ export interface Concept {
 
 export interface Card {
   concept: Concept; // both labels travel; display picks state.lang
-  kind: CardKind;   // SECRET. Stripped for operatives by viewFor.
+  kind: CardKind;   // SECRET. Stripped for Field Agents by viewFor.
   revealed: boolean;
 }
 
@@ -57,7 +60,7 @@ export interface GameState {
   board: Card[];                     // exactly 25 once dealt; [] before deal
   startingTeam: Team | null;         // team dealt 9; null before deal
   turn: Team;                        // whose turn it is
-  clue: Clue | null;                 // current clue; null outside a guess phase
+  clue: Clue | null;                 // current Signal; null outside a guess phase
   guessesMadeThisTurn: number;       // resets to 0 on giveClue and on turn flip
   players: Record<string, Player>;   // key = playerId
   winner: Team | null;               // set only when phase === "ended"
@@ -84,7 +87,7 @@ export interface ViewCard {
   concept: Concept;      // UI renders concept[view.lang]; both ship for the switch
   revealed: boolean;
   kind: CardKind | null; // revealed: always set. unrevealed: set ONLY for
-                         // spymasters, else null.
+                         // Mission Leads, else null.
 }
 
 export interface PlayerView {
@@ -99,7 +102,7 @@ export interface PlayerView {
   redRemaining: number;
   blueRemaining: number;
 
-  // null outside guess phase; "unlimited" for a 0-clue; else count+1-made
+  // null outside guess phase; "unlimited" for a zero-count Signal; else count+1-made
   guessesRemaining: number | "unlimited" | null;
 
   winner: Team | null;
@@ -182,7 +185,7 @@ export declare function reducer(
   playerId: string,
 ): GameState;
 
-// Role-gated projection. Operatives never receive unrevealed kinds.
+// Role-gated projection. Field Agents never receive unrevealed kinds.
 export declare function viewFor(state: GameState, playerId: string): PlayerView;
 
 export declare const codenames: GameModule<
@@ -220,8 +223,8 @@ the listed code and leaves state untouched.
 
 ### `startGame { concepts, seed }`
 - Preconditions: `phase === "lobby"` (else `ALREADY_STARTED`);
-  `concepts.length === 25` (else `BAD_DEAL`); each team has >= 1 spymaster AND
-  >= 1 operative (else `NOT_ENOUGH_PLAYERS`).
+  `concepts.length === 25` (else `BAD_DEAL`); each team has >= 1 Mission Lead AND
+  >= 1 Field Agent (else `NOT_ENOUGH_PLAYERS`).
 - Transition (deterministic from `seed`):
   - Choose `startingTeam` from `seed`.
   - Assign kinds: 9 to starting team, 8 to the other, 7 `neutral`, 1 `assassin`,
@@ -233,17 +236,17 @@ the listed code and leaves state untouched.
 ### `giveClue { word, count }`
 - Preconditions: `phase === "clue"` (else `WRONG_PHASE`); `me` exists (else
   `NOT_A_PLAYER`); `me.role === "spymaster"` (else `WRONG_ROLE"`);
-  `me.team === turn` (else `NOT_YOUR_TURN`); clue valid (else `INVALID_CLUE`):
+  `me.team === turn` (else `NOT_YOUR_TURN`); a valid Signal (else `INVALID_CLUE`):
   `word.trim()` non-empty, no internal whitespace (single token), `count` an
   integer in `0..9`.
 - Transition: `clue = { word: word.trim(), count }`, `phase = "guess"`,
   `guessesMadeThisTurn = 0`.
-- Note: the engine does NOT check the clue word against board labels. That is a
+- Note: the engine does NOT check the Signal word against board labels. That is a
   house rule (see decisions).
 
 ### `guess { cardIndex }`
 - Preconditions: `phase === "guess"` (else `WRONG_PHASE`); `me` exists (else
-  `NOT_A_PLAYER`); `me.role === "operative"` (else `WRONG_ROLE` -- the spymaster
+  `NOT_A_PLAYER`); `me.role === "operative"` (else `WRONG_ROLE` -- the Mission Lead
   knows the key and cannot guess); `me.team === turn` (else `NOT_YOUR_TURN`);
   `cardIndex` in `0..24` (else `CARD_OUT_OF_RANGE`); target not already revealed
   (else `CARD_ALREADY_REVEALED`).
@@ -258,13 +261,13 @@ Guess outcome table (acting team = `T`, opponent = `O`):
 | `T` (own agent) | correct | if all of `T`'s cards revealed -> `winner = T`, `phase = "ended"` | if `guessesRemaining === 0` -> flip turn; else stay in guess phase |
 | `neutral` | turn ends | none | flip turn |
 | `O` (opponent agent) | reveal helps `O`; turn ends | if all of `O`'s cards revealed -> `winner = O`, `phase = "ended"` | flip turn |
-| `assassin` | acting team loses instantly | `winner = O`, `phase = "ended"` | n/a |
+| `assassin` (Trap) | acting team loses instantly | `winner = O`, `phase = "ended"` | n/a |
 
 `guessesRemaining` used above is the derived value:
 `clue.count === 0` -> effectively unlimited (never auto-ends on count; only
-neutral / opponent / assassin / voluntary `endTurn` / own-set-complete stops it).
+neutral / opponent / Trap / voluntary `endTurn` / own-set-complete stops it).
 `clue.count >= 1` -> `clue.count + 1 - guessesMadeThisTurn`. The `+1` is the
-bonus guess (N+1). Auto-end fires only for finite clues when this hits `0`.
+bonus guess (N+1). Auto-end fires only for finite Signals when this hits `0`.
 
 ### `endTurn`
 - Preconditions: `phase === "guess"` (else `WRONG_PHASE`); `me` exists (else
@@ -288,15 +291,15 @@ When `phase === "ended"`, all `can.*` flags are `false` and every action throws
 ## 4. `viewFor` spec
 
 `viewFor(state, P)` returns a `PlayerView`. `me = state.players[P]` or `null`
-(a non-joined client is a spectator: treated as an operative for visibility).
+(a non-joined client is a spectator: treated as a Field Agent for visibility).
 
 Visibility is gated by ROLE, not by turn. Turn only affects the `can` flags.
 
 Per card:
 - Revealed card: `kind` is shown to everyone (it is face-up on the board).
 - Unrevealed card: `kind` is shown only when `me?.role === "spymaster"`. Both
-  spymasters see the full 25-card key (their own team, the opponent's, neutrals,
-  and the assassin), exactly like the physical key card. Operatives and
+  Mission Leads see the full 25-card key (their own team, the opponent's, neutrals,
+  and the Trap), exactly like the physical key card. Field Agents and
   spectators get `kind: null`.
 
 Public fields (identical for everyone): `roomId`, `lang`, `phase`, `turn`,
@@ -316,12 +319,12 @@ Public fields (identical for everyone): `roomId`, `lang`, `phase`, `turn`,
 - `assignSelf`: `phase === "lobby"` and `P` in `players`.
 - `setLang`: `phase === "lobby"`.
 - `startGame`: `phase === "lobby"` and startGame preconditions met (both teams
-  have a spymaster and an operative).
+  have a Mission Lead and a Field Agent).
 - `giveClue`: `phase === "clue"` and `me.role === "spymaster"` and `me.team === turn`.
 - `guess`: `phase === "guess"` and `me.role === "operative"` and `me.team === turn`.
 - `endTurn`: `guess` flag true and `guessesMadeThisTurn >= 1`.
 
-On-turn vs off-turn: a spymaster off-turn still sees the full key (visibility is
+On-turn vs off-turn: a Mission Lead off-turn still sees the full key (visibility is
 role-based). The only off-turn difference is `can.*` flags are `false`, which
 the UI renders as disabled / reduced-affordance.
 
@@ -329,44 +332,24 @@ the UI renders as disabled / reduced-affordance.
 
 ## 5. Locked rule decisions
 
-1. Board is 9 / 8 / 7 / 1 (starting team / other team / neutral / assassin).
+1. Board is 9 / 8 / 7 / 1 (starting team / other team / neutral / Trap).
    Starting team chosen by `seed`, gets the 9. Deal is deterministic from
    `concepts` + `seed`.
 2. A team must make at least one guess before it can end its turn.
-3. Voluntary `endTurn` is allowed in guess phase, by an operative on the active
+3. Voluntary `endTurn` is allowed in guess phase, by a Field Agent on the active
    team, after at least one guess.
-4. Clue number range is 0..9. `0` means unlimited (`"unlimited"` in the view);
+4. Signal number range is 0..9. `0` means unlimited (`"unlimited"` in the view);
    `N >= 1` grants `N + 1` guesses (the bonus).
-5. Clue legality is structural only in the engine (single non-empty token, count
+5. Signal legality is structural only in the engine (single non-empty token, count
    in range). Semantic legality and "word on the board" are house rules, not
    engine-enforced. The hidden other-language label does NOT count as on the
    board.
-6. Display language is set in the lobby and locked once the game starts.
-   `setLang` is rejected outside lobby phase.
-7. Both spymasters always see the full key; operatives never see unrevealed
+6. Board language is room state, selected in the lobby and locked once the game
+   starts. New rooms default it to English. Interface language is separate and
+   can change independently. `setLang` is rejected outside lobby phase.
+7. Both Mission Leads always see the full key; Field Agents never see unrevealed
    kinds. Visibility is role-gated; turn affects affordances only.
-8. The spymaster cannot guess.
-9. `startGame` requires each team to have at least one spymaster and at least
-   one operative.
+8. The Mission Lead cannot guess.
+9. `startGame` requires each team to have at least one Mission Lead and at least
+   one Field Agent.
 10. The reducer is pure and throws a typed `IllegalMove` on any illegal action.
-
----
-
-## 6. Historical fold-back notes
-
-The architecture brief is superseded. The locked decisions in section 5 remain
-in force. The notes below only record how this contract closed early drafts:
-
-- `GameState` drops the stored `guessesRemaining`; stores `guessesMadeThisTurn`;
-  adds `startingTeam`. `guessesRemaining` is derived in `viewFor`.
-- The deal moves into the `startGame` action, which now carries
-  `{ concepts, seed }`. `initialState` builds an empty lobby. (Closes the
-  spymaster-peek-in-lobby gap and keeps content sampling out of the engine.)
-- Action set adds lobby actions `joinRoom` and `assignSelf`.
-- `PlayerView` gains a `can` affordance block.
-- Open decision "language switch mid-game vs lobby" -> lobby only.
-- Open decision "clue legality / other-language label" -> structural-only in
-  engine; other-language label does not count; rest is house rule.
-- Open decision "client-side vs server RPC" is untouched: this contract is
-  location-agnostic (pure reducer), so the move stays a move, not a rewrite.
-```

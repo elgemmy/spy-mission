@@ -3,15 +3,11 @@
 Canonical spec: [`landing-spec.md`](landing-spec.md).
 Implementation: `src/landing/`.
 
-Browser prototypes that once lived in this folder were removed from the public
-tree. They are not imported by the app. Git history still has them.
-
-The public product name is **Spy Mission**. Some spec copy still uses the
-working title from the design pass.
+The public product name is **Spy Mission**.
 
 Translation notes (design → repo):
 
-| Design prototype               | Repo implementation                                                                     |
+| Design reference               | Repo implementation                                                                     |
 | ------------------------------ | --------------------------------------------------------------------------------------- |
 | `Card` (inline styles)         | `src/ui/card/WordCard` (`docs/handoff/Card.html`)                                       |
 | `Glyph`                        | `src/ui/card/glyphs.tsx` `GlyphIcon` (+ `GlyphDefs`)                                    |

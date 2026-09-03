@@ -10,10 +10,10 @@ Before the WebMCP competition work, this repository already shipped:
 
 - A pure, deterministic game engine (`src/engine`) with contract tests
 - A bilingual English/Arabic concept pack (English-list lineage unresolved)
-- Mobile-first play: create/join room, roles, clues, guesses, replay
+- Mobile-first play: create/join room, roles, Signals, guesses, replay
 - Shared multiplayer over Supabase, later hardened so browsers do not write
   raw room rows
-- Arabic-first family play as the original product reason
+- Arabic family play as the original product reason
 
 ## Comparison baseline
 
@@ -49,9 +49,3 @@ It is not in this tree. Do not describe it as a shipped feature.
 
 A later branch may add that mode on top of the existing multiplayer game. The
 normal multiplayer product remains part of Spy Mission either way.
-
-## How to read this repository
-
-Internal paths and types still use historical identifiers such as `codenames`
-and `awesome-codenames`. Those are implementation names. The public product
-name is **Spy Mission**.

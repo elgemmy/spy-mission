@@ -4,7 +4,7 @@ Read before changing this codebase.
 
 ## Sources of truth
 
-Public product name: **Spy Mission**. Internal paths may still say `codenames`.
+Public product name: **Spy Mission**.
 
 ### Design (canonical — Warm Sand handoff)
 
@@ -19,15 +19,14 @@ Use only Warm Sand `--cn-*` tokens. Do not invent palette or type from memory.
 ### Engine & architecture
 
 - **Room lifecycle:** [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md)
-- **Engine:** [`docs/planning/codenames-engine-contract.md`](docs/planning/codenames-engine-contract.md)
+- **Engine:** [`docs/planning/engine-contract.md`](docs/planning/engine-contract.md)
 - **Routing:** [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md)
 - **Current multiplayer path:** browser → authenticated `/api/rooms` → server domain/engine → service-role Supabase → role-filtered `RoomSnapshot` → state-free Realtime invalidation + polling
-- **Historical only:** [`docs/planning/codenames-hub-architecture-brief.md`](docs/planning/codenames-hub-architecture-brief.md) is superseded (it still describes client last-write-wins and Netlify)
 
 ### Precedence when docs conflict
 
 1. `docs/handoff/*` for visual/UI decisions (live tokens in `src/styles/tokens.css` if they have diverged)
-2. `codenames-engine-contract.md` for game rules and state
+2. `engine-contract.md` for game rules and state
 3. `room-lifecycle-contract.md` for rooms, auth, and access
 4. `adr-001-landing-and-play-route.md` for `/` vs `/play/`
 5. Implementation convenience
