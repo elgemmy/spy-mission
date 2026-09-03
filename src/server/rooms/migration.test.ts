@@ -22,6 +22,8 @@ describe("0004 room lifecycle migration", () => {
     );
     expect(migration).toContain("add column if not exists banned_by uuid");
     expect(migration).toContain("status in ('active', 'banned')");
+    expect(migration).toContain("and banned_by is not null");
+    expect(migration).not.toMatch(/banned_by uuid references/i);
     expect(migration).not.toMatch(
       /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?players/i,
     );

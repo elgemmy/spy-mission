@@ -100,6 +100,47 @@ describe("App room lifecycle", () => {
     );
   });
 
+  it("canonicalizes the URL after room creation", async () => {
+    mocks.create.mockResolvedValue(snapshot());
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "إنشاء غرفة جديدة" }));
+    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+      target: { value: "Host" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "إنشاء الغرفة" }));
+
+    await screen.findByText("TESTROOM");
+    expect(mocks.create).toHaveBeenCalledWith({ name: "Host", lang: "ar" });
+    expect(window.location.pathname + window.location.search).toBe(
+      "/play/?room=TESTROOM",
+    );
+  });
+
+  it("joins a public room by code and canonicalizes the URL", async () => {
+    mocks.join.mockResolvedValue(snapshot());
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "الانضمام برمز" }));
+    fireEvent.change(screen.getByLabelText("رمز الغرفة"), {
+      target: { value: "testroom" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "متابعة" }));
+    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+      target: { value: "Guest" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "الدخول للغرفة" }));
+
+    await screen.findByText("TESTROOM");
+    expect(mocks.join).toHaveBeenCalledWith({
+      code: "TESTROOM",
+      name: "Guest",
+    });
+    expect(window.location.pathname + window.location.search).toBe(
+      "/play/?room=TESTROOM",
+    );
+  });
+
   it("uses only the private fragment token and strips it after joining", async () => {
     window.history.replaceState(
       null,
@@ -198,14 +239,62 @@ describe("App room lifecycle", () => {
     expect(mocks.clearRoomStorage).toHaveBeenCalledWith(snapshot().id);
     expect(window.location.pathname + window.location.search).toBe("/play/");
   });
+
+  it("clears URL and room storage after confirmed permanent leave", async () => {
+    const guestRoom = snapshot({
+      hostId: "00000000-0000-4000-8000-000000000099",
+    });
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume.mockResolvedValue({ status: "active", room: guestRoom });
+    mocks.mutate.mockResolvedValue({ left: true });
+    render(<App />);
+    await screen.findByText("TESTROOM");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "مغادرة الغرفة نهائيا" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "مغادرة" }));
+
+    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    expect(mocks.mutate).toHaveBeenCalledWith(guestRoom.id, 1, {
+      type: "leaveRoom",
+    });
+    expect(mocks.clearRoomStorage).toHaveBeenCalledWith(guestRoom.id);
+    expect(window.location.pathname + window.location.search).toBe("/play/");
+  });
+
+  it("clears URL and room storage after confirmed host deletion", async () => {
+    const hostRoom = snapshot();
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume.mockResolvedValue({ status: "active", room: hostRoom });
+    mocks.mutate.mockResolvedValue({ deleted: true });
+    render(<App />);
+    await screen.findByText("TESTROOM");
+
+    fireEvent.click(screen.getByRole("button", { name: "حذف الغرفة" }));
+    fireEvent.click(screen.getByRole("button", { name: "حذف" }));
+
+    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    expect(mocks.mutate).toHaveBeenCalledWith(hostRoom.id, 1, {
+      type: "deleteRoom",
+    });
+    expect(mocks.clearRoomStorage).toHaveBeenCalledWith(hostRoom.id);
+    expect(window.location.pathname + window.location.search).toBe("/play/");
+  });
 });
 
-function snapshot(): RoomSnapshot {
-  const playerId = "00000000-0000-4000-8000-000000000001";
+function snapshot(
+  options: {
+    hostId?: string;
+    playerId?: string;
+  } = {},
+): RoomSnapshot {
+  const playerId = options.playerId ?? "00000000-0000-4000-8000-000000000001";
+  const hostId = options.hostId ?? playerId;
   return {
     id: "room-00000000-0000-4000-8000-000000000000",
     code: "TESTROOM",
-    hostId: playerId,
+    hostId,
     visibility: "public",
     view: {
       roomId: "room-00000000-0000-4000-8000-000000000000",

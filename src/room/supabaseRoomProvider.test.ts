@@ -180,6 +180,61 @@ describe("SupabaseRoomProvider", () => {
     );
   });
 
+  it("replaces the cached token only on explicit regeneration", async () => {
+    authenticatedSession();
+    const privateRoom = {
+      ...snapshot(),
+      visibility: "private" as const,
+      inviteToken: "original-private-token",
+    };
+    const regenerated = {
+      ...privateRoom,
+      version: 2,
+      inviteToken: "regenerated-private-token",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(privateRoom))
+        .mockResolvedValueOnce(jsonResponse(regenerated)),
+    );
+    const provider = new SupabaseRoomProvider();
+    await provider.create({ name: "Host", lang: "ar", visibility: "private" });
+
+    await provider.mutate(privateRoom.id, privateRoom.version, {
+      type: "regenerateInvite",
+    });
+
+    expect(provider.getInviteToken(privateRoom.id)).toBe(
+      "regenerated-private-token",
+    );
+  });
+
+  it("clears the invite cache after permanent leave", async () => {
+    authenticatedSession();
+    const privateRoom = {
+      ...snapshot(),
+      visibility: "private" as const,
+      inviteToken: "private-token",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(privateRoom))
+        .mockResolvedValueOnce(jsonResponse({ left: true })),
+    );
+    const provider = new SupabaseRoomProvider();
+    await provider.create({ name: "Host", lang: "ar", visibility: "private" });
+
+    await provider.mutate(privateRoom.id, privateRoom.version, {
+      type: "leaveRoom",
+    });
+
+    expect(provider.getInviteToken(privateRoom.id)).toBeNull();
+  });
+
   it("ejects immediately on the state-free deletion broadcast", async () => {
     authenticatedSession();
     const privateRoom = {

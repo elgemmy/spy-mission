@@ -66,6 +66,12 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       expect(
         new Set(current.view.players.map((player) => player.id)).size,
       ).toBe(3);
+
+      const firstPrivateTransition = await command(host, created.id, {
+        type: "setVisibility",
+        visibility: "private",
+      });
+      expect(firstPrivateTransition.inviteToken).toBeTruthy();
     } finally {
       await deleteIfPresent(host, created.id);
     }
@@ -246,10 +252,44 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       );
       await joinRoom(leaver, created.code, "Leaving", regenerated.inviteToken);
 
+      const realtime = createClient(supabaseUrl, publishableKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      realtime.realtime.setAuth(banned.token);
+      const bannedChannel = realtime.channel(`room:${created.id}`, {
+        config: { private: true },
+      });
+      let resolveBanPayload:
+        | ((payload: Record<string, unknown>) => void)
+        | undefined;
+      const banPayloadPromise = new Promise<Record<string, unknown>>(
+        (resolve) => {
+          resolveBanPayload = resolve;
+        },
+      );
+      await subscribe(bannedChannel, (message) => {
+        resolveBanPayload?.(message.payload as Record<string, unknown>);
+      });
+
       const afterBan = await command(host, created.id, {
         type: "banPlayer",
         targetPlayerId: banned.userId,
       });
+      const banPayload = await withTimeout(
+        banPayloadPromise,
+        "REALTIME_BAN_TIMEOUT",
+      );
+      expect(banPayload).not.toHaveProperty("state");
+      await realtime.removeChannel(bannedChannel);
+
+      const bannedFreshChannel = realtime.channel(`room:${created.id}`, {
+        config: { private: true },
+      });
+      expect(await rejectedSubscriptionStatus(bannedFreshChannel)).toMatch(
+        /CHANNEL_ERROR|TIMED_OUT|CLOSED/,
+      );
+      await realtime.removeChannel(bannedFreshChannel);
+
       expect(
         await success<null>(banned, { op: "get", roomId: created.id }),
       ).toBeNull();
@@ -283,6 +323,30 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       expect(
         afterLeave.view.players.some((player) => player.id === leaver.userId),
       ).toBe(false);
+
+      const admin = adminClient();
+      const { data: bannedMembership, error: bannedMembershipError } =
+        await admin
+          .from("room_members")
+          .select("status,banned_at,banned_by")
+          .eq("room_id", created.id)
+          .eq("user_id", banned.userId)
+          .single();
+      expect(bannedMembershipError).toBeNull();
+      expect(bannedMembership).toMatchObject({
+        status: "banned",
+        banned_by: host.userId,
+      });
+      expect(bannedMembership?.banned_at).toBeTruthy();
+
+      const { data: leftMembership, error: leftMembershipError } = await admin
+        .from("room_members")
+        .select("status")
+        .eq("room_id", created.id)
+        .eq("user_id", leaver.userId)
+        .maybeSingle();
+      expect(leftMembershipError).toBeNull();
+      expect(leftMembership).toBeNull();
 
       const hostLeave = await call(host, {
         op: "command",
@@ -345,9 +409,37 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       type: "deleteRoom",
     });
     expect(deleted).toEqual({ deleted: true });
+
+    const raceRoom = await createRoom(host, "Race host");
+    await joinRoom(nextHost, raceRoom.code, "Race successor");
+    const raceVersion = (await getRoom(host, raceRoom.id)).version;
+    const [transferRace, deleteRace] = await Promise.all([
+      call(host, {
+        op: "command",
+        roomId: raceRoom.id,
+        expectedVersion: raceVersion,
+        command: { type: "transferHost", nextHostId: nextHost.userId },
+      }),
+      call(host, {
+        op: "command",
+        roomId: raceRoom.id,
+        expectedVersion: raceVersion,
+        command: { type: "deleteRoom" },
+      }),
+    ]);
+    const successfulRaceOperations = [transferRace, deleteRace].filter(
+      ({ response }) => response.status === 200,
+    );
+    expect(successfulRaceOperations).toHaveLength(1);
+    if (transferRace.response.ok) {
+      expect(deleteRace.response.status).toBe(409);
+      await deleteIfPresent(nextHost, raceRoom.id);
+    } else {
+      expect(deleteRace.response.status).toBe(200);
+    }
   }, 20_000);
 
-  it("broadcasts state-free deletion before cascade ejection and polling returns null", async () => {
+  it("broadcasts state-free deletion and the API fallback observes the cascade", async () => {
     const [host, member] = await Promise.all([
       anonymousIdentity(),
       anonymousIdentity(),
@@ -387,9 +479,7 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       await success<null>(member, { op: "get", roomId: created.id }),
     ).toBeNull();
 
-    const admin = createClient(supabaseUrl, secretKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const admin = adminClient();
     const cascade = await admin
       .from("room_members")
       .select("room_id", { count: "exact", head: true })
@@ -398,28 +488,53 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
     expect(cascade.count).toBe(0);
   }, 20_000);
 
-  it("denies direct publishable-key CRUD on raw rooms", async () => {
+  it("denies anonymous and authenticated publishable-key CRUD on raw rooms", async () => {
     const actor = await anonymousIdentity();
-    const browser = createClient(supabaseUrl, publishableKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-      global: { headers: { Authorization: `Bearer ${actor.token}` } },
-    });
+    const browsers = [
+      createClient(supabaseUrl, publishableKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      }),
+      createClient(supabaseUrl, publishableKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: { headers: { Authorization: `Bearer ${actor.token}` } },
+      }),
+    ];
 
-    const read = await browser.from("rooms").select("*").limit(1);
-    expect(read.error).not.toBeNull();
+    for (const browser of browsers) {
+      const read = await browser.from("rooms").select("*").limit(1);
+      expect(read.error).not.toBeNull();
 
-    const write = await browser.from("rooms").insert({
-      id: "forbidden-browser-write",
-      code: "DENY1",
-      host_id: actor.userId,
-      visibility: "public",
-      state: {},
-      ui: {},
-      version: 1,
-    });
-    expect(write.error).not.toBeNull();
+      const insert = await browser.from("rooms").insert({
+        id: "forbidden-browser-write",
+        code: "DENY1",
+        host_id: actor.userId,
+        visibility: "public",
+        state: {},
+        ui: {},
+        version: 1,
+      });
+      expect(insert.error).not.toBeNull();
+
+      const update = await browser
+        .from("rooms")
+        .update({ visibility: "private" })
+        .eq("id", "forbidden-browser-write");
+      expect(update.error).not.toBeNull();
+
+      const removal = await browser
+        .from("rooms")
+        .delete()
+        .eq("id", "forbidden-browser-write");
+      expect(removal.error).not.toBeNull();
+    }
   }, 15_000);
 });
+
+function adminClient() {
+  return createClient(supabaseUrl, secretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 async function anonymousIdentity(): Promise<Identity> {
   const client = createClient(supabaseUrl, publishableKey, {
@@ -568,6 +683,23 @@ async function subscribe(
           reject(error);
         }
       });
+  });
+}
+
+async function rejectedSubscriptionStatus(
+  channel: ReturnType<ReturnType<typeof createClient>["channel"]>,
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error("REALTIME_REJECTION_TIMEOUT")),
+      8_000,
+    );
+    channel.subscribe((status) => {
+      if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        clearTimeout(timeout);
+        resolve(status);
+      }
+    });
   });
 }
 

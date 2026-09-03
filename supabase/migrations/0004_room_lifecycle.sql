@@ -3,7 +3,7 @@
 alter table public.room_members
   add column if not exists status text,
   add column if not exists banned_at timestamptz,
-  add column if not exists banned_by uuid references auth.users(id) on delete set null;
+  add column if not exists banned_by uuid;
 
 update public.room_members
 set status = 'active'
@@ -36,7 +36,11 @@ begin
       add constraint room_members_ban_audit_check
       check (
         (status = 'active' and banned_at is null and banned_by is null)
-        or (status = 'banned' and banned_at is not null)
+        or (
+          status = 'banned'
+          and banned_at is not null
+          and banned_by is not null
+        )
       );
   end if;
 end;
@@ -647,4 +651,4 @@ comment on column public.room_members.status is
 comment on column public.room_members.banned_at is
   'Timestamp of the host ban; null for active memberships.';
 comment on column public.room_members.banned_by is
-  'Anonymous Auth identity that issued the ban; may become null if that Auth user is deleted.';
+  'Anonymous Auth identity that issued the ban. Retained as audit data even if that Auth user is later deleted.';
