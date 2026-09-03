@@ -80,4 +80,87 @@ describe("ClueBar", () => {
     fireEvent.change(input, { target: { value: "water" } });
     expect(send).toBeEnabled();
   });
+
+  it("ignores a second submit until the view refreshes", () => {
+    const onGiveClue = vi.fn();
+    render(
+      <ClueBar view={clueView} onGiveClue={onGiveClue} onEndTurn={vi.fn()} />,
+    );
+
+    const input = screen.getByLabelText("Signal text");
+    const send = screen.getByRole("button", { name: "Send" });
+    fireEvent.change(input, { target: { value: "water" } });
+
+    fireEvent.click(send);
+    fireEvent.click(send);
+
+    expect(onGiveClue).toHaveBeenCalledTimes(1);
+    expect(send).toBeDisabled();
+  });
+
+  it("re-enables Send when the word is edited after a stuck submit", () => {
+    const onGiveClue = vi.fn();
+    render(
+      <ClueBar view={clueView} onGiveClue={onGiveClue} onEndTurn={vi.fn()} />,
+    );
+
+    const input = screen.getByLabelText("Signal text");
+    const send = screen.getByRole("button", { name: "Send" });
+    fireEvent.change(input, { target: { value: "water" } });
+    fireEvent.click(send);
+    expect(send).toBeDisabled();
+
+    fireEvent.change(input, { target: { value: "waters" } });
+    expect(send).toBeEnabled();
+
+    fireEvent.click(send);
+    expect(onGiveClue).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-enables Send when the count is edited after a stuck submit", () => {
+    const onGiveClue = vi.fn();
+    render(
+      <ClueBar view={clueView} onGiveClue={onGiveClue} onEndTurn={vi.fn()} />,
+    );
+
+    const input = screen.getByLabelText("Signal text");
+    const send = screen.getByRole("button", { name: "Send" });
+    fireEvent.change(input, { target: { value: "water" } });
+    fireEvent.click(send);
+    expect(send).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Guess count"), {
+      target: { value: "2" },
+    });
+    expect(send).toBeEnabled();
+  });
+
+  it("re-enables Send when rerendered with a fresh (same-content) view", () => {
+    const onGiveClue = vi.fn();
+    const { rerender } = render(
+      <ClueBar view={clueView} onGiveClue={onGiveClue} onEndTurn={vi.fn()} />,
+    );
+
+    const input = screen.getByLabelText("Signal text");
+    const send = screen.getByRole("button", { name: "Send" });
+    fireEvent.change(input, { target: { value: "water" } });
+    fireEvent.click(send);
+    expect(send).toBeDisabled();
+
+    // A new poll/refresh landed but nothing actually changed content-wise —
+    // still a fresh `view` object, which must release the guard.
+    const refreshedView: PlayerView = { ...clueView };
+    rerender(
+      <ClueBar
+        view={refreshedView}
+        onGiveClue={onGiveClue}
+        onEndTurn={vi.fn()}
+      />,
+    );
+
+    expect(send).toBeEnabled();
+
+    fireEvent.click(send);
+    expect(onGiveClue).toHaveBeenCalledTimes(2);
+  });
 });

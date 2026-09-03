@@ -38,23 +38,30 @@ function SpymasterClueForm({
   const t = useMessages().play;
   const [word, setWord] = useState("");
   const [count, setCount] = useState("1");
-  const couldGiveClue = useRef(view.can.giveClue);
+  const [pending, setPending] = useState(false);
+  const lastView = useRef(view);
 
   // The room state, not the submit handler, confirms the Signal was
   // accepted: clear the field only once `can.giveClue` flips false (the
-  // clue phase has ended), so a rejected mutation leaves the typed word intact.
+  // clue phase has ended), so a rejected mutation leaves the typed word
+  // intact. A fresh `view` (any new snapshot — success or a post-failure
+  // refresh) also releases the Send guard below.
   useEffect(() => {
-    if (couldGiveClue.current && !view.can.giveClue) {
-      setWord("");
+    if (lastView.current !== view) {
+      if (lastView.current.can.giveClue && !view.can.giveClue) {
+        setWord("");
+      }
+      setPending(false);
+      lastView.current = view;
     }
-    couldGiveClue.current = view.can.giveClue;
-  }, [view.can.giveClue]);
+  }, [view]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!view.can.giveClue || word.trim().length === 0) {
+    if (!view.can.giveClue || word.trim().length === 0 || pending) {
       return;
     }
+    setPending(true);
     onGiveClue(word, Number(count));
   };
 
@@ -77,7 +84,10 @@ function SpymasterClueForm({
             id="signal-text"
             className="cn-field"
             value={word}
-            onChange={(event) => setWord(event.target.value)}
+            onChange={(event) => {
+              setWord(event.target.value);
+              setPending(false);
+            }}
             disabled={!view.can.giveClue}
             placeholder={t.signalText}
           />
@@ -90,7 +100,10 @@ function SpymasterClueForm({
             id="signal-count"
             className="cn-field font-mono"
             value={count}
-            onChange={(event) => setCount(event.target.value)}
+            onChange={(event) => {
+              setCount(event.target.value);
+              setPending(false);
+            }}
             disabled={!view.can.giveClue}
           >
             <option value="0">∞</option>
@@ -105,7 +118,8 @@ function SpymasterClueForm({
       <Button
         className="cn-clue-submit w-full"
         data-team={view.turn}
-        disabled={!view.can.giveClue || word.trim().length === 0}
+        disabled={!view.can.giveClue || word.trim().length === 0 || pending}
+        aria-busy={pending}
         type="submit"
       >
         {t.send}
