@@ -119,7 +119,8 @@ Local design preview does not require Supabase. Shared multiplayer requires:
   either secret with `VITE_`.
 - Anonymous Sign-Ins enabled under Supabase **Authentication → Providers**.
 - Every file in `supabase/migrations/` applied, including
-  `0003_secure_multiplayer.sql`.
+  `0004_room_lifecycle.sql`. Apply new migrations to local or staging first;
+  this repository does not apply them to production automatically.
 
 When configured, the browser authenticates each guest with Supabase Auth and
 calls `/api/rooms`. The Vercel Function is the only component allowed to read
@@ -128,8 +129,14 @@ a role-filtered snapshot, so operatives never receive unrevealed card kinds.
 Supabase Realtime broadcasts only a private `room_changed` signal to registered
 room members; clients then fetch their own authorized view.
 
+Room navigation is URL-driven: `/play/` always opens onboarding, while
+`/play/?room=CODE` resumes an active authenticated membership or offers a new
+join. Private invite tokens live only in the URL fragment and are stripped after
+a successful join. See [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md).
+
 The local provider is used only when Supabase variables are absent. It is useful
-for UI development but is not shared between devices.
+for UI development, but it is in-memory, non-persistent, and not shared between
+devices.
 
 ### Production setup
 

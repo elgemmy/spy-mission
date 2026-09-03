@@ -2,7 +2,9 @@
   display: flex;
   min-height: 100dvh;
   flex-direction: column;
-  padding: 18px 16px;
+  padding-block: calc(18px + env(safe-area-inset-top))
+    calc(18px + env(safe-area-inset-bottom));
+  padding-inline: 16px;
   gap: 16px;
 }
 
@@ -42,6 +44,7 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
+  margin-inline: calc(-1 * var(--cn-space-4));
   padding: 6px 12px 12px;
 }
 
@@ -79,8 +82,8 @@ button:disabled {
   inset-block-start: 4px;
   inset-inline-end: 4px;
   display: grid;
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 44px;
+  min-height: 44px;
   place-items: center;
   border: 1px solid var(--cn-line);
   border-radius: var(--cn-r-chip);
@@ -631,13 +634,21 @@ button:disabled {
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--cn-bg), transparent 24%);
-  padding: var(--cn-space-4);
+  overflow-y: auto;
+  padding-block: calc(var(--cn-space-4) + env(safe-area-inset-top))
+    calc(var(--cn-space-4) + env(safe-area-inset-bottom));
+  padding-inline: var(--cn-space-4);
 }
 
 .cn-dialog {
   display: flex;
   width: 100%;
   max-width: 420px;
+  max-block-size: calc(
+    100dvh - var(--cn-space-6) - env(safe-area-inset-top) -
+      env(safe-area-inset-bottom)
+  );
+  overflow-y: auto;
   flex-direction: column;
   gap: var(--cn-space-4);
   border: 1px solid var(--cn-line);

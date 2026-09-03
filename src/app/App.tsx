@@ -8,7 +8,7 @@ import {
   type RoomSnapshot,
   type RoomVisibility,
 } from "../room";
-import { absolutePlayUrl, readPlayParams } from "../config/routes";
+import { absolutePlayUrl, playUrl, readPlayParams } from "../config/routes";
 import { useInstallPrompt } from "../lib/pwa/installPrompt";
 import { useServiceWorkerStatus } from "../lib/pwa/serviceWorker";
 import { GlyphDefs } from "../ui/card";
@@ -20,10 +20,13 @@ import "../ui/game/Game.css";
 import { initTheme } from "./theme";
 
 const ROOM_ID_KEY = "codenames.roomId";
+const LEGACY_LOCAL_ROOM_KEY = "codenames.localRooms.v1";
+const LEGACY_LOCAL_PLAYER_KEY = "codenames.localPlayerId.v2";
 
 type JoinSource = "code" | "link";
 type OnboardingStep =
   | { type: "landing" }
+  | { type: "loadingRoom" }
   | { type: "createName" }
   | { type: "joinCode" }
   | { type: "joinName"; code: string; source: JoinSource };
@@ -38,16 +41,19 @@ interface ConfirmRequest {
 const roomProvider = getRoomProvider();
 
 export function App() {
-  const playParams = readPlayParams(window.location.search);
-  const inviteCode = playParams.room;
-  const inviteToken = readInviteToken();
-  const [roomId, setRoomId] = useState(() => localStorageSafe.get(ROOM_ID_KEY));
+  const [initialPlayParams] = useState(() =>
+    readPlayParams(window.location.search),
+  );
+  const [routeRoomCode, setRouteRoomCode] = useState(initialPlayParams.room);
+  const [pendingInviteToken, setPendingInviteToken] = useState(readInviteToken);
   const [room, setRoom] = useState<RoomSnapshot | null>(null);
   const [step, setStep] = useState<OnboardingStep>(() => {
-    if (inviteCode) {
-      return { type: "joinName", code: inviteCode, source: "link" };
+    if (initialPlayParams.room) {
+      return { type: "loadingRoom" };
     }
-    return playParams.create ? { type: "createName" } : { type: "landing" };
+    return initialPlayParams.create
+      ? { type: "createName" }
+      : { type: "landing" };
   });
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -55,11 +61,16 @@ export function App() {
     null,
   );
   const [renameOpen, setRenameOpen] = useState(false);
-  const [installOpen, setInstallOpen] = useState(() => playParams.install);
+  const [installOpen, setInstallOpen] = useState(
+    () => initialPlayParams.install,
+  );
   const { needRefresh } = useServiceWorkerStatus();
 
   useEffect(() => {
     initTheme("default");
+    localStorageSafe.remove(ROOM_ID_KEY);
+    localStorageSafe.remove(LEGACY_LOCAL_ROOM_KEY);
+    localStorageSafe.remove(LEGACY_LOCAL_PLAYER_KEY);
   }, []);
 
   useEffect(() => {
@@ -76,65 +87,89 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!roomId) {
+    const syncFromLocation = () => {
+      const params = readPlayParams(window.location.search);
+      setRouteRoomCode(params.room);
+      setPendingInviteToken(readInviteToken());
+      if (params.room) {
+        setRoom(null);
+        setStep({ type: "loadingRoom" });
+        setError(null);
+      } else {
+        setRoom(null);
+        setStep(params.create ? { type: "createName" } : { type: "landing" });
+        setError(null);
+      }
+    };
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
+  }, []);
+
+  useEffect(() => {
+    if (!routeRoomCode || room?.code === routeRoomCode) {
       return undefined;
     }
 
     let mounted = true;
-    const acceptRoom = (next: RoomSnapshot | null) => {
-      if (!next) {
-        localStorageSafe.remove(ROOM_ID_KEY);
-        setRoomId(null);
-        setRoom(null);
-        if (inviteCode) {
-          setStep({ type: "joinName", code: inviteCode, source: "link" });
-        }
-        return;
-      }
-
-      if (inviteCode && next.code !== inviteCode) {
-        localStorageSafe.remove(ROOM_ID_KEY);
-        setRoomId(null);
-        setRoom(null);
-        setStep({ type: "joinName", code: inviteCode, source: "link" });
-        return;
-      }
-
-      if (!next.view.me) {
-        localStorageSafe.remove(ROOM_ID_KEY);
-        setRoomId(null);
-        setRoom(null);
-        setStep({ type: "joinName", code: next.code, source: "link" });
-        setError("تم حذف جلستك من الغرفة. أدخل اسمك للعودة.");
-        return;
-      }
-
-      setRoom(next);
-    };
-
     void roomProvider
-      .load(roomId)
-      .then((loaded) => {
+      .resume(routeRoomCode)
+      .then((result) => {
         if (!mounted) {
           return;
         }
-        acceptRoom(loaded);
+        if (result.status === "active") {
+          setRoom(result.room);
+          replacePlayLocation(result.room.code);
+          setPendingInviteToken(null);
+          setError(null);
+          return;
+        }
+        if (result.status === "join") {
+          setStep({ type: "joinName", code: result.code, source: "link" });
+          setError(null);
+          return;
+        }
+        replacePlayLocation();
+        setRouteRoomCode(null);
+        setPendingInviteToken(null);
+        setStep({ type: "landing" });
+        setError(messageForError(new Error("ROOM_NOT_FOUND")));
       })
       .catch((caught: unknown) => {
         if (mounted) {
+          replacePlayLocation();
+          setRouteRoomCode(null);
+          setPendingInviteToken(null);
+          setRoom(null);
+          setStep({ type: "landing" });
           setError(messageForError(caught));
         }
       });
 
-    const unsubscribe = roomProvider.subscribe(roomId, (next) => {
-      acceptRoom(next);
-    });
-
     return () => {
       mounted = false;
-      unsubscribe();
     };
-  }, [inviteCode, roomId]);
+  }, [room?.code, routeRoomCode]);
+
+  const activeRoomId = room?.id ?? null;
+  useEffect(() => {
+    if (!activeRoomId) {
+      return undefined;
+    }
+    return roomProvider.subscribe(activeRoomId, (next) => {
+      if (next?.view.me) {
+        setRoom(next);
+        return;
+      }
+      roomProvider.clearRoomStorage(activeRoomId);
+      replacePlayLocation();
+      setRouteRoomCode(null);
+      setPendingInviteToken(null);
+      setRoom(null);
+      setStep({ type: "landing" });
+      setError(messageForError(new Error("ROOM_ACCESS_REVOKED")));
+    });
+  }, [activeRoomId]);
 
   const view = room?.view ?? null;
   const playerId = view?.me?.id ?? "";
@@ -147,9 +182,12 @@ export function App() {
     if (!room) {
       return;
     }
-    const next = await roomProvider.mutate(room.id, room.version, command);
-    setRoom(next);
+    const result = await roomProvider.mutate(room.id, room.version, command);
+    if ("id" in result) {
+      setRoom(result);
+    }
     setError(null);
+    return result;
   };
 
   const handleError = (caught: unknown) => {
@@ -173,7 +211,9 @@ export function App() {
       const next = await roomProvider.join({
         code,
         name,
-        ...(source === "link" && inviteToken ? { inviteToken } : {}),
+        ...(source === "link" && pendingInviteToken
+          ? { inviteToken: pendingInviteToken }
+          : {}),
       });
       enterRoom(next);
     } catch (caught) {
@@ -182,8 +222,9 @@ export function App() {
   };
 
   const enterRoom = (next: RoomSnapshot) => {
-    localStorageSafe.set(ROOM_ID_KEY, next.id);
-    setRoomId(next.id);
+    replacePlayLocation(next.code);
+    setRouteRoomCode(next.code);
+    setPendingInviteToken(null);
     setRoom(next);
     setError(null);
   };
@@ -300,7 +341,10 @@ export function App() {
         absolutePlayUrl(window.location.origin, { room: room.code }),
       );
       if (room.visibility === "private") {
-        const token = await roomProvider.ensureInvite(room.id, room.version);
+        const token = roomProvider.getInviteToken(room.id);
+        if (!token) {
+          throw new Error("ROOM_INVITE_UNAVAILABLE");
+        }
         invitation.hash = new URLSearchParams({ invite: token }).toString();
       }
       const url = invitation.toString();
@@ -319,8 +363,8 @@ export function App() {
       return;
     }
     try {
-      await roomProvider.delete(room.id);
-      leaveRoom();
+      await commit({ type: "deleteRoom" });
+      exitToHome(true);
     } catch (caught) {
       handleError(caught);
     }
@@ -337,12 +381,36 @@ export function App() {
     }
   };
 
-  const kickPlayer = async (targetPlayerId: string) => {
+  const banPlayer = async (targetPlayerId: string) => {
     if (!room) {
       return;
     }
     try {
-      await commit({ type: "removePlayer", targetPlayerId });
+      await commit({ type: "banPlayer", targetPlayerId });
+    } catch (caught) {
+      handleError(caught);
+    }
+  };
+
+  const regenerateInvite = async () => {
+    if (!room || !isHost) {
+      return;
+    }
+    try {
+      await commit({ type: "regenerateInvite" });
+      setCopied(false);
+    } catch (caught) {
+      handleError(caught);
+    }
+  };
+
+  const permanentlyLeaveRoom = async () => {
+    if (!room || isHost || room.view.phase !== "lobby") {
+      return;
+    }
+    try {
+      await commit({ type: "leaveRoom" });
+      exitToHome(true);
     } catch (caught) {
       handleError(caught);
     }
@@ -413,6 +481,15 @@ export function App() {
     });
   };
 
+  const confirmRegenerateInvite = () => {
+    requestConfirm({
+      title: "تجديد رابط الدعوة؟",
+      body: "سيتوقف رابط الدعوة الخاص السابق عن العمل.",
+      confirmLabel: "تجديد",
+      onConfirm: regenerateInvite,
+    });
+  };
+
   const confirmChangeHost = (nextHostId: string) => {
     const name =
       room?.view.players.find((player) => player.id === nextHostId)?.name ??
@@ -425,30 +502,43 @@ export function App() {
     });
   };
 
-  const confirmKickPlayer = (targetPlayerId: string) => {
+  const confirmBanPlayer = (targetPlayerId: string) => {
     const name =
       room?.view.players.find((player) => player.id === targetPlayerId)?.name ??
       "اللاعب";
     requestConfirm({
-      title: "حذف اللاعب؟",
-      body: `سيتم حذف ${name} من الغرفة.`,
-      confirmLabel: "حذف",
-      onConfirm: () => kickPlayer(targetPlayerId),
+      title: "حظر اللاعب؟",
+      body: `سيتم إخراج ${name} ومنعه من العودة بهذه الهوية.`,
+      confirmLabel: "حظر",
+      onConfirm: () => banPlayer(targetPlayerId),
     });
   };
 
-  const confirmLeaveRoom = () => {
+  const confirmExitToHome = () => {
     requestConfirm({
-      title: "الخروج من الغرفة؟",
-      body: "ستغادر هذه الشاشة وستحتاج للرابط أو رمز الغرفة للدخول مرة أخرى.",
+      title: "العودة للرئيسية؟",
+      body: "ستغادر هذه الشاشة فقط، وستبقى عضوا في الغرفة.",
       confirmLabel: "خروج",
-      onConfirm: leaveRoom,
+      onConfirm: () => exitToHome(false),
     });
   };
 
-  const leaveRoom = () => {
-    localStorageSafe.remove(ROOM_ID_KEY);
-    setRoomId(null);
+  const confirmPermanentLeave = () => {
+    requestConfirm({
+      title: "مغادرة الغرفة نهائيا؟",
+      body: "سيتم حذف مقعدك من الغرفة. يمكنك الانضمام من جديد ما دامت الغرفة مفتوحة.",
+      confirmLabel: "مغادرة",
+      onConfirm: permanentlyLeaveRoom,
+    });
+  };
+
+  const exitToHome = (clearRoomStorage: boolean) => {
+    if (clearRoomStorage && room) {
+      roomProvider.clearRoomStorage(room.id);
+    }
+    replacePlayLocation();
+    setRouteRoomCode(null);
+    setPendingInviteToken(null);
     setRoom(null);
     setStep({ type: "landing" });
     setError(null);
@@ -474,13 +564,15 @@ export function App() {
                 playerId={playerId}
                 copied={copied}
                 onCopyInvite={copyInvite}
+                onRegenerateInvite={confirmRegenerateInvite}
                 onSetLang={setLang}
                 onSetVisibility={setVisibility}
                 onAssignSelf={assignSelf}
                 onStartGame={confirmStartGame}
                 onDeleteRoom={confirmDeleteRoom}
+                onLeaveRoom={confirmPermanentLeave}
                 onTransferHost={confirmChangeHost}
-                onRemovePlayer={confirmKickPlayer}
+                onBanPlayer={confirmBanPlayer}
               />
             ) : (
               <PlayScreen
@@ -497,7 +589,7 @@ export function App() {
                 onRegenerate={confirmRegenerate}
               />
             )}
-            <Button variant="secondary" onClick={confirmLeaveRoom}>
+            <Button variant="secondary" onClick={confirmExitToHome}>
               الخروج من هذه الشاشة
             </Button>
           </>
@@ -505,6 +597,7 @@ export function App() {
           <Onboarding
             step={step}
             onStep={setStep}
+            onCancelRoomLink={() => exitToHome(false)}
             onCreateRoom={createRoom}
             onJoinRoom={joinRoom}
             onInstall={() => setInstallOpen(true)}
@@ -644,16 +737,26 @@ function ConfirmDialog({
 function Onboarding({
   step,
   onStep,
+  onCancelRoomLink,
   onCreateRoom,
   onJoinRoom,
   onInstall,
 }: {
   step: OnboardingStep;
   onStep: (step: OnboardingStep) => void;
+  onCancelRoomLink: () => void;
   onCreateRoom: (name: string) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
   onInstall: () => void;
 }) {
+  if (step.type === "loadingRoom") {
+    return (
+      <section className="cn-card-panel p-cn-4 text-center" aria-live="polite">
+        <p className="text-ink m-0 text-sm font-semibold">جار فتح الغرفة…</p>
+      </section>
+    );
+  }
+
   if (step.type === "createName") {
     return (
       <UsernameStep
@@ -673,9 +776,9 @@ function Onboarding({
         description={`الغرفة ${step.code}`}
         submitLabel="الدخول للغرفة"
         onBack={() =>
-          onStep(
-            step.source === "link" ? { type: "landing" } : { type: "joinCode" },
-          )
+          step.source === "link"
+            ? onCancelRoomLink()
+            : onStep({ type: "joinCode" })
         }
         onSubmit={(name) => onJoinRoom(step.code, name, step.source)}
       />
@@ -826,20 +929,6 @@ function UsernameStep({
 }
 
 const localStorageSafe = {
-  get(key: string): string | null {
-    try {
-      return window.localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  set(key: string, value: string): void {
-    try {
-      window.localStorage.setItem(key, value);
-    } catch {
-      return;
-    }
-  },
   remove(key: string): void {
     try {
       window.localStorage.removeItem(key);
@@ -849,15 +938,16 @@ const localStorageSafe = {
   },
 };
 
+function replacePlayLocation(room?: string): void {
+  window.history.replaceState(null, "", playUrl(room ? { room } : {}));
+}
+
 function readInviteToken(): string | null {
   try {
     const fragment = window.location.hash.startsWith("#")
       ? window.location.hash.slice(1)
       : window.location.hash;
-    return (
-      new URLSearchParams(fragment).get("invite") ??
-      new URLSearchParams(window.location.search).get("invite")
-    );
+    return new URLSearchParams(fragment).get("invite");
   } catch {
     return null;
   }
@@ -902,6 +992,11 @@ function errorMessage(code: string): string {
     ROOM_NOT_FOUND: "لم يتم العثور على الغرفة أو لم تعد عضوا فيها.",
     ROOM_INVITE_INVALID: "رابط الدعوة غير صالح أو تم استبداله.",
     ROOM_INVITE_UNAVAILABLE: "تعذر إنشاء رابط دعوة خاص.",
+    ROOM_BANNED: "تم حظر هذه الهوية من الغرفة.",
+    ROOM_ACCESS_REVOKED: "لم تعد عضوا في الغرفة.",
+    ROOM_MEMBERSHIP_INVALID: "تعذر التحقق من عضوية الغرفة.",
+    HOST_LEAVE_FORBIDDEN: "انقل الاستضافة أو احذف الغرفة أولا.",
+    LEAVE_LOBBY_ONLY: "المغادرة النهائية متاحة في الردهة فقط.",
     ANONYMOUS_AUTH_DISABLED:
       "الدخول كضيف غير مفعل في Supabase. فعّل Anonymous Sign-Ins ثم أعد المحاولة.",
     ROOM_SESSION_EXPIRED: "انتهت جلسة اللاعب. ادخل إلى الغرفة من جديد.",

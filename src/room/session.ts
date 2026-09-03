@@ -14,6 +14,8 @@ export type RoomErrorCode =
   | "ROOM_PRIVATE"
   | "PLAYER_NOT_FOUND"
   | "HOST_REMOVE_FORBIDDEN"
+  | "HOST_LEAVE_FORBIDDEN"
+  | "LEAVE_LOBBY_ONLY"
   | "INVALID_NAME";
 
 export class RoomError extends Error {
@@ -147,7 +149,7 @@ export function transferHost(
   return touch({ ...room, hostId: nextHostId }, now);
 }
 
-export function removePlayer(
+export function banPlayer(
   room: RoomRecord,
   playerId: string,
   targetPlayerId: string,
@@ -161,20 +163,24 @@ export function removePlayer(
     throw new RoomError("PLAYER_NOT_FOUND");
   }
 
-  const players = { ...room.state.players };
-  delete players[targetPlayerId];
+  return withoutPlayer(room, targetPlayerId, now);
+}
 
-  const votes = { ...room.ui.votes };
-  delete votes[targetPlayerId];
-
-  return touch(
-    {
-      ...room,
-      state: { ...room.state, players },
-      ui: { ...room.ui, votes },
-    },
-    now,
-  );
+export function leaveRoomRecord(
+  room: RoomRecord,
+  playerId: string,
+  now: string,
+): RoomRecord {
+  if (room.state.phase !== "lobby") {
+    throw new RoomError("LEAVE_LOBBY_ONLY");
+  }
+  if (playerId === room.hostId) {
+    throw new RoomError("HOST_LEAVE_FORBIDDEN");
+  }
+  if (!room.state.players[playerId]) {
+    throw new RoomError("PLAYER_NOT_FOUND");
+  }
+  return withoutPlayer(room, playerId, now);
 }
 
 export function renamePlayer(
@@ -384,6 +390,27 @@ function withState(
   now: string,
 ): RoomRecord {
   return touch({ ...room, state }, now);
+}
+
+function withoutPlayer(
+  room: RoomRecord,
+  playerId: string,
+  now: string,
+): RoomRecord {
+  const players = { ...room.state.players };
+  delete players[playerId];
+
+  const votes = { ...room.ui.votes };
+  delete votes[playerId];
+
+  return touch(
+    {
+      ...room,
+      state: { ...room.state, players },
+      ui: { ...room.ui, votes },
+    },
+    now,
+  );
 }
 
 function touch(room: RoomRecord, now: string): RoomRecord {

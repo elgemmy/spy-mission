@@ -16,6 +16,7 @@ Read before changing this codebase.
 
 ### Engine & architecture
 
+- **Room lifecycle:** `docs/room-lifecycle-contract.md`
 - **Engine:** `docs/planning/codenames-engine-contract.md`
 - **Architecture:** `docs/planning/codenames-hub-architecture-brief.md`
 - **Phasing:** `docs/planning/codenames-hub-roadmap.md`
@@ -89,7 +90,7 @@ Decision record: [`docs/planning/adr-001-landing-and-play-route.md`](docs/planni
   authenticated `/api/rooms` server boundary. Never restore direct browser
   CRUD on `public.rooms` or return raw `GameState` to clients.
 - Without Supabase environment variables, local design preview uses the
-  browser-persisted local provider and is not cross-device multiplayer.
+  in-memory local provider and is neither persistent nor cross-device multiplayer.
 
 ## Tests
 

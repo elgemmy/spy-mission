@@ -15,14 +15,19 @@ import { isIllegalMove } from "../../engine/index.js";
 import { applyRoomCommand } from "../../room/commands.js";
 import {
   RoomError,
+  banPlayer,
   createRoomRecord,
   joinRoomRecord,
+  leaveRoomRecord,
 } from "../../room/session.js";
 import { toRoomSnapshot } from "../../room/snapshot.js";
 import type {
   RoomCommand,
+  RoomMutationResult,
   RoomRecord,
   RoomSnapshot,
+  RoomStateCommand,
+  ResumeRoomResult,
 } from "../../room/types.js";
 import { normalizeRoomUi } from "../../room/uiState.js";
 
@@ -69,8 +74,11 @@ const roomCommandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("endTurn") }),
   z.strictObject({ type: z.literal("returnToLobby") }),
   z.strictObject({ type: z.literal("transferHost"), nextHostId: playerId }),
-  z.strictObject({ type: z.literal("removePlayer"), targetPlayerId: playerId }),
   z.strictObject({ type: z.literal("renamePlayer"), name: playerName }),
+  z.strictObject({ type: z.literal("leaveRoom") }),
+  z.strictObject({ type: z.literal("banPlayer"), targetPlayerId: playerId }),
+  z.strictObject({ type: z.literal("deleteRoom") }),
+  z.strictObject({ type: z.literal("regenerateInvite") }),
 ]);
 
 const requestSchema = z.discriminatedUnion("op", [
@@ -86,18 +94,13 @@ const requestSchema = z.discriminatedUnion("op", [
     name: playerName,
     inviteToken: z.string().min(32).max(128).optional(),
   }),
+  z.strictObject({ op: z.literal("resume"), code: roomCode }),
   z.strictObject({ op: z.literal("get"), roomId }),
   z.strictObject({
     op: z.literal("command"),
     roomId,
     expectedVersion: z.number().int().positive(),
     command: roomCommandSchema,
-  }),
-  z.strictObject({ op: z.literal("delete"), roomId }),
-  z.strictObject({
-    op: z.literal("invite"),
-    roomId,
-    expectedVersion: z.number().int().positive(),
   }),
 ]);
 
@@ -106,6 +109,10 @@ type RoomsRequest = z.infer<typeof requestSchema>;
 interface StoredRoom {
   room: RoomRecord;
   inviteHash: string | null;
+}
+
+interface RoomMembership {
+  status: "active" | "banned";
 }
 
 let adminClient: SupabaseClient | null = null;
@@ -126,7 +133,7 @@ export async function handleRoomsRequest(request: Request): Promise<Response> {
 
     const client = getAdminClient();
     const user = await authenticate(request, client);
-    const parsed = requestSchema.safeParse(await request.json());
+    const parsed = requestSchema.safeParse(await readJsonBody(request));
     if (!parsed.success) {
       throw new ApiError(400, "INVALID_REQUEST");
     }
@@ -142,16 +149,44 @@ export async function handleRoomsRequest(request: Request): Promise<Response> {
   }
 }
 
+async function readJsonBody(request: Request): Promise<unknown> {
+  if (!request.body) {
+    throw new SyntaxError("Request body is required");
+  }
+
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    bytes += value.byteLength;
+    if (bytes > MAX_BODY_BYTES) {
+      await reader.cancel();
+      throw new ApiError(413, "REQUEST_TOO_LARGE");
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  text += decoder.decode();
+  return JSON.parse(text) as unknown;
+}
+
 async function execute(
   request: RoomsRequest,
   user: User,
   client: SupabaseClient,
-): Promise<RoomSnapshot | null | { deleted: true }> {
+): Promise<RoomMutationResult | ResumeRoomResult | null> {
   switch (request.op) {
     case "create":
       return createRoom(request, user.id, client);
     case "join":
       return joinRoom(request, user.id, client);
+    case "resume":
+      return resumeRoom(request.code, user.id, client);
     case "get":
       return loadForMember(request.roomId, user.id, client).then((stored) =>
         stored ? toRoomSnapshot(stored.room, user.id) : null,
@@ -161,16 +196,6 @@ async function execute(
         request.roomId,
         request.expectedVersion,
         request.command as RoomCommand,
-        user.id,
-        client,
-      );
-    case "delete":
-      await deleteRoom(request.roomId, user.id, client);
-      return { deleted: true };
-    case "invite":
-      return rotateInvite(
-        request.roomId,
-        request.expectedVersion,
         user.id,
         client,
       );
@@ -223,6 +248,31 @@ async function createRoom(
   throw new ApiError(503, "ROOM_CODE_EXHAUSTED");
 }
 
+async function resumeRoom(
+  code: string,
+  userId: string,
+  client: SupabaseClient,
+): Promise<ResumeRoomResult> {
+  const stored = await loadByCode(code, client);
+  if (!stored) {
+    return { status: "notFound" };
+  }
+  const membership = await loadMembership(stored.room.id, userId, client);
+  if (membership?.status === "banned") {
+    throw new ApiError(403, "ROOM_BANNED");
+  }
+  if (membership?.status === "active") {
+    if (!stored.room.state.players[userId]) {
+      throw new ApiError(503, "ROOM_MEMBERSHIP_INVALID");
+    }
+    return {
+      status: "active",
+      room: toRoomSnapshot(stored.room, userId),
+    };
+  }
+  return { status: "join", code: stored.room.code };
+}
+
 async function joinRoom(
   request: Extract<RoomsRequest, { op: "join" }>,
   userId: string,
@@ -233,10 +283,13 @@ async function joinRoom(
     if (!stored) {
       throw new ApiError(404, "ROOM_NOT_FOUND");
     }
-    if (
-      stored.room.visibility === "private" &&
-      !validInvite(request.inviteToken, stored.inviteHash)
-    ) {
+    const membership = await loadMembership(stored.room.id, userId, client);
+    if (membership?.status === "banned") {
+      throw new ApiError(403, "ROOM_BANNED");
+    }
+    const activeMember = membership?.status === "active";
+    const inviteValid = validInvite(request.inviteToken, stored.inviteHash);
+    if (!activeMember && stored.room.visibility === "private" && !inviteValid) {
       throw new ApiError(403, "ROOM_INVITE_INVALID");
     }
 
@@ -245,7 +298,7 @@ async function joinRoom(
       userId,
       request.name,
       new Date().toISOString(),
-      { allowPrivate: true },
+      { allowPrivate: activeMember || inviteValid },
     );
     const { data, error } = await client
       .rpc("server_join_room", {
@@ -255,6 +308,9 @@ async function joinRoom(
         p_ui: next.ui,
         p_expected_version: stored.room.version,
         p_updated_at: next.updatedAt,
+        p_invite_hash: request.inviteToken
+          ? hashInvite(request.inviteToken)
+          : null,
       })
       .single();
     if (!error && data) {
@@ -274,7 +330,7 @@ async function mutateRoom(
   command: RoomCommand,
   userId: string,
   client: SupabaseClient,
-): Promise<RoomSnapshot> {
+): Promise<RoomMutationResult> {
   const stored = await loadForMember(id, userId, client);
   if (!stored) {
     throw new ApiError(404, "ROOM_NOT_FOUND");
@@ -283,33 +339,60 @@ async function mutateRoom(
     throw new ApiError(409, "ROOM_VERSION_CONFLICT");
   }
 
+  if (command.type === "deleteRoom") {
+    await deleteRoom(id, expectedVersion, userId, client);
+    return { deleted: true };
+  }
+  if (command.type === "leaveRoom") {
+    const next = leaveRoomRecord(stored.room, userId, new Date().toISOString());
+    await leaveRoom(next, expectedVersion, userId, client);
+    return { left: true };
+  }
+  if (command.type === "banPlayer") {
+    const next = banPlayer(
+      stored.room,
+      userId,
+      command.targetPlayerId,
+      new Date().toISOString(),
+    );
+    const updated = await banRoomMember(
+      next,
+      expectedVersion,
+      userId,
+      command.targetPlayerId,
+      client,
+    );
+    return toRoomSnapshot(updated.room, userId);
+  }
+  if (command.type === "regenerateInvite") {
+    return rotateInvite(id, expectedVersion, userId, client);
+  }
+
   const seed =
     command.type === "startGame" ? randomInt(1, 2_147_483_647) : undefined;
   const next = applyRoomCommand(
     stored.room,
     userId,
-    command,
+    command as RoomStateCommand,
     new Date().toISOString(),
     seed,
   );
-  let inviteHash = stored.inviteHash;
+  let newInviteHash: string | null = null;
   let inviteToken: string | undefined;
-  if (command.type === "setVisibility") {
-    if (command.visibility === "public") {
-      inviteHash = null;
-    } else if (!inviteHash) {
-      inviteToken = createInviteToken();
-      inviteHash = hashInvite(inviteToken);
-    }
+  if (
+    command.type === "setVisibility" &&
+    command.visibility === "private" &&
+    !stored.inviteHash
+  ) {
+    inviteToken = createInviteToken();
+    newInviteHash = hashInvite(inviteToken);
   }
 
-  const removedUserId =
-    command.type === "removePlayer" ? command.targetPlayerId : null;
   const updated = await persistRoom(
     next,
     expectedVersion,
-    inviteHash,
-    removedUserId,
+    userId,
+    newInviteHash,
     client,
   );
   return toRoomSnapshot(updated.room, userId, inviteToken);
@@ -335,8 +418,10 @@ async function rotateInvite(
   const { data, error } = await client
     .rpc("server_rotate_room_invite", {
       p_room_id: id,
+      p_actor_id: userId,
       p_expected_version: expectedVersion,
       p_invite_hash: hashInvite(inviteToken),
+      p_updated_at: new Date().toISOString(),
     })
     .single();
   throwDatabaseError(error);
@@ -345,38 +430,75 @@ async function rotateInvite(
 
 async function deleteRoom(
   id: string,
+  expectedVersion: number,
   userId: string,
   client: SupabaseClient,
 ): Promise<void> {
-  const stored = await loadForMember(id, userId, client);
-  if (!stored) {
-    throw new ApiError(404, "ROOM_NOT_FOUND");
-  }
-  if (stored.room.hostId !== userId) {
-    throw new ApiError(403, "NOT_HOST");
-  }
-  const { error } = await client.rpc("server_delete_room", { p_room_id: id });
+  const { error } = await client.rpc("server_delete_room", {
+    p_room_id: id,
+    p_actor_id: userId,
+    p_expected_version: expectedVersion,
+  });
   throwDatabaseError(error);
+}
+
+async function leaveRoom(
+  room: RoomRecord,
+  expectedVersion: number,
+  userId: string,
+  client: SupabaseClient,
+): Promise<void> {
+  const { error } = await client.rpc("server_leave_room", {
+    p_room_id: room.id,
+    p_actor_id: userId,
+    p_state: room.state,
+    p_ui: room.ui,
+    p_expected_version: expectedVersion,
+    p_updated_at: room.updatedAt,
+  });
+  throwDatabaseError(error);
+}
+
+async function banRoomMember(
+  room: RoomRecord,
+  expectedVersion: number,
+  userId: string,
+  targetUserId: string,
+  client: SupabaseClient,
+): Promise<StoredRoom> {
+  const { data, error } = await client
+    .rpc("server_ban_room_member", {
+      p_room_id: room.id,
+      p_actor_id: userId,
+      p_target_user_id: targetUserId,
+      p_state: room.state,
+      p_ui: room.ui,
+      p_expected_version: expectedVersion,
+      p_updated_at: room.updatedAt,
+    })
+    .single();
+  throwDatabaseError(error);
+  return rowToStoredRoom(data);
 }
 
 async function persistRoom(
   room: RoomRecord,
   expectedVersion: number,
-  inviteHash: string | null,
-  removedUserId: string | null,
+  userId: string,
+  newInviteHash: string | null,
   client: SupabaseClient,
 ): Promise<StoredRoom> {
   const { data, error } = await client
     .rpc("server_update_room", {
       p_room_id: room.id,
+      p_actor_id: userId,
       p_host_id: room.hostId,
       p_visibility: room.visibility,
       p_state: room.state,
       p_ui: room.ui,
       p_expected_version: expectedVersion,
       p_updated_at: room.updatedAt,
-      p_invite_hash: inviteHash,
-      p_removed_user_id: removedUserId,
+      p_new_invite_hash: newInviteHash,
     })
     .single();
   throwDatabaseError(error);
@@ -390,12 +512,31 @@ async function loadForMember(
 ): Promise<StoredRoom | null> {
   const membership = await client
     .from("room_members")
-    .select("room_id")
+    .select("room_id,status")
     .eq("room_id", id)
     .eq("user_id", userId)
+    .eq("status", "active")
     .maybeSingle();
   throwDatabaseError(membership.error);
   return membership.data ? loadById(id, client) : null;
+}
+
+async function loadMembership(
+  roomIdValue: string,
+  userId: string,
+  client: SupabaseClient,
+): Promise<RoomMembership | null> {
+  const { data, error } = await client
+    .from("room_members")
+    .select("status")
+    .eq("room_id", roomIdValue)
+    .eq("user_id", userId)
+    .maybeSingle();
+  throwDatabaseError(error);
+  if (!data) {
+    return null;
+  }
+  return { status: data.status === "banned" ? "banned" : "active" };
 }
 
 async function loadById(
@@ -513,6 +654,30 @@ function throwDatabaseError(
   }
   if (error.code === "40001") {
     throw new ApiError(409, "ROOM_VERSION_CONFLICT");
+  }
+  const knownCode = [
+    "ROOM_BANNED",
+    "ROOM_NOT_FOUND",
+    "ROOM_NOT_MEMBER",
+    "ROOM_INVITE_INVALID",
+    "ROOM_MEMBERSHIP_INVALID",
+    "WRONG_PHASE",
+    "NOT_HOST",
+    "HOST_LEAVE_FORBIDDEN",
+    "HOST_REMOVE_FORBIDDEN",
+    "LEAVE_LOBBY_ONLY",
+    "PLAYER_NOT_FOUND",
+  ].find((code) => error.message?.includes(code));
+  if (knownCode) {
+    const status =
+      knownCode === "ROOM_NOT_FOUND" || knownCode === "ROOM_NOT_MEMBER"
+        ? 404
+        : knownCode === "ROOM_BANNED" ||
+            knownCode === "ROOM_INVITE_INVALID" ||
+            knownCode === "NOT_HOST"
+          ? 403
+          : 409;
+    throw new ApiError(status, knownCode);
   }
   throw new ApiError(503, "ROOM_STORAGE_ERROR");
 }

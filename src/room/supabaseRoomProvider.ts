@@ -2,22 +2,50 @@ import { getSupabaseClient } from "../lib/supabase/client";
 import type {
   CreateSharedRoomInput,
   JoinSharedRoomInput,
+  ResumeRoomResult,
   RoomCommand,
+  RoomMutationResult,
   RoomProvider,
   RoomSnapshot,
   Unsubscribe,
 } from "./types";
 
 const ROOMS_API = "/api/rooms";
-const INVITE_KEY_PREFIX = "codenames.roomInvite.";
+const INVITE_KEY_PREFIX = "codenames.roomInvite.v2.";
+const LEGACY_INVITE_KEY_PREFIX = "codenames.roomInvite.";
+export const ROOM_POLL_INTERVAL_MS = 5_000;
 
 export class SupabaseRoomProvider implements RoomProvider {
+  private readonly roomCodes = new Map<string, string>();
+
+  constructor() {
+    removeLegacyInviteEntries();
+  }
+
   async create(input: CreateSharedRoomInput): Promise<RoomSnapshot> {
     return this.rememberInvite(await this.call({ op: "create", ...input }));
   }
 
+  async resume(code: string): Promise<ResumeRoomResult> {
+    try {
+      const result = await this.call<ResumeRoomResult>({ op: "resume", code });
+      if (result.status === "active") {
+        return { ...result, room: this.withCachedInvite(result.room) };
+      }
+      removeInviteForCode(code);
+      return result;
+    } catch (error) {
+      removeInviteForCode(code);
+      throw error;
+    }
+  }
+
   async join(input: JoinSharedRoomInput): Promise<RoomSnapshot> {
-    return this.call({ op: "join", ...input });
+    const room = await this.call<RoomSnapshot>({ op: "join", ...input });
+    if (room.visibility === "private" && input.inviteToken) {
+      writeLocal(inviteKey(room.code), input.inviteToken);
+    }
+    return this.rememberInvite(room);
   }
 
   async load(roomId: string): Promise<RoomSnapshot | null> {
@@ -29,36 +57,31 @@ export class SupabaseRoomProvider implements RoomProvider {
     roomId: string,
     expectedVersion: number,
     command: RoomCommand,
-  ): Promise<RoomSnapshot> {
-    const room = await this.call<RoomSnapshot>({
+  ): Promise<RoomMutationResult> {
+    const result = await this.call<RoomMutationResult>({
       op: "command",
       roomId,
       expectedVersion,
       command,
     });
-    return this.rememberInvite(room);
+    if (isRoomSnapshot(result)) {
+      return this.rememberInvite(result);
+    }
+    this.clearRoomStorage(roomId);
+    return result;
   }
 
-  async delete(roomId: string): Promise<void> {
-    await this.call({ op: "delete", roomId });
-    removeLocal(`${INVITE_KEY_PREFIX}${roomId}`);
+  getInviteToken(roomId: string): string | null {
+    const code = this.roomCodes.get(roomId);
+    return code ? (readLocal(inviteKey(code)) ?? null) : null;
   }
 
-  async ensureInvite(roomId: string, expectedVersion: number): Promise<string> {
-    const cached = readLocal(`${INVITE_KEY_PREFIX}${roomId}`);
-    if (cached) {
-      return cached;
+  clearRoomStorage(roomId: string): void {
+    const code = this.roomCodes.get(roomId);
+    if (code) {
+      removeInviteForCode(code);
+      this.roomCodes.delete(roomId);
     }
-    const room = await this.call<RoomSnapshot>({
-      op: "invite",
-      roomId,
-      expectedVersion,
-    });
-    const remembered = this.rememberInvite(room);
-    if (!remembered.inviteToken) {
-      throw new Error("ROOM_INVITE_UNAVAILABLE");
-    }
-    return remembered.inviteToken;
   }
 
   subscribe(
@@ -80,10 +103,17 @@ export class SupabaseRoomProvider implements RoomProvider {
       try {
         const room = await this.load(roomId);
         if (!stopped) {
+          if (!room) {
+            this.clearRoomStorage(roomId);
+          }
           onChange(room);
         }
-      } catch {
-        // A transient fetch failure should not eject a player from the room.
+      } catch (error) {
+        if (!stopped && isPermanentAccessError(error)) {
+          this.clearRoomStorage(roomId);
+          onChange(null);
+        }
+        // A transient network failure should not eject a player from the room.
       } finally {
         loading = false;
       }
@@ -96,7 +126,13 @@ export class SupabaseRoomProvider implements RoomProvider {
         }
         supabase.realtime.setAuth(token);
         channel
-          .on("broadcast", { event: "room_changed" }, () => {
+          .on("broadcast", { event: "room_changed" }, (message) => {
+            const payload = message.payload as { deleted?: unknown } | null;
+            if (payload?.deleted === true) {
+              this.clearRoomStorage(roomId);
+              onChange(null);
+              return;
+            }
             void refresh();
           })
           .subscribe();
@@ -105,7 +141,7 @@ export class SupabaseRoomProvider implements RoomProvider {
 
     const pollTimer = setInterval(() => {
       void refresh();
-    }, 15_000);
+    }, ROOM_POLL_INTERVAL_MS);
 
     return () => {
       stopped = true;
@@ -157,20 +193,22 @@ export class SupabaseRoomProvider implements RoomProvider {
   }
 
   private rememberInvite(room: RoomSnapshot): RoomSnapshot {
-    if (room.visibility === "public") {
-      removeLocal(`${INVITE_KEY_PREFIX}${room.id}`);
-      return room;
-    }
+    this.roomCodes.set(room.id, room.code);
     if (room.inviteToken) {
-      writeLocal(`${INVITE_KEY_PREFIX}${room.id}`, room.inviteToken);
+      writeLocal(inviteKey(room.code), room.inviteToken);
     }
     return this.withCachedInvite(room);
   }
 
   private withCachedInvite(room: RoomSnapshot): RoomSnapshot {
-    const inviteToken = readLocal(`${INVITE_KEY_PREFIX}${room.id}`);
+    this.roomCodes.set(room.id, room.code);
+    const inviteToken = readLocal(inviteKey(room.code)) ?? null;
     return inviteToken ? { ...room, inviteToken } : room;
   }
+}
+
+function isRoomSnapshot(value: RoomMutationResult): value is RoomSnapshot {
+  return "id" in value;
 }
 
 async function requestRoomsApi(
@@ -209,4 +247,43 @@ function removeLocal(key: string): void {
   } catch {
     return;
   }
+}
+
+function inviteKey(code: string): string {
+  return `${INVITE_KEY_PREFIX}${code.trim().toUpperCase()}`;
+}
+
+function removeInviteForCode(code: string): void {
+  removeLocal(inviteKey(code));
+}
+
+function removeLegacyInviteEntries(): void {
+  try {
+    const storage = globalThis.localStorage;
+    if (!storage) {
+      return;
+    }
+    const staleKeys: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (
+        key?.startsWith(LEGACY_INVITE_KEY_PREFIX) &&
+        !key.startsWith(INVITE_KEY_PREFIX)
+      ) {
+        staleKeys.push(key);
+      }
+    }
+    for (const key of staleKeys) {
+      storage.removeItem(key);
+    }
+  } catch {
+    return;
+  }
+}
+
+function isPermanentAccessError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    ["ROOM_SESSION_EXPIRED", "ANONYMOUS_AUTH_DISABLED"].includes(error.message)
+  );
 }
