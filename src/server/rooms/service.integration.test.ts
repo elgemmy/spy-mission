@@ -101,10 +101,13 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
         joinRoom(first, created.code, "First"),
         joinRoom(second, created.code, "Second"),
       ]);
-      await Promise.all([
+      const sameIdentityJoins = await Promise.all([
         joinRoom(sameBrowser, created.code, "One tab"),
         joinRoom(sameBrowser, created.code, "Other tab"),
       ]);
+      expect(sameIdentityJoins.map((snapshot) => snapshot.view.me?.id)).toEqual(
+        [sameBrowser.userId, sameBrowser.userId],
+      );
       const before = await getRoom(host, created.id);
       expect(before.view.players.map((player) => player.id)).toEqual(
         expect.arrayContaining([
@@ -117,6 +120,11 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       expect(
         before.view.players.filter(
           (player) => player.id === sameBrowser.userId,
+        ),
+      ).toHaveLength(1);
+      expect(
+        (await rawMembers(created.id)).filter(
+          (member) => member.user_id === sameBrowser.userId,
         ),
       ).toHaveLength(1);
 
@@ -138,6 +146,30 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
         after.view.players.find((player) => player.id === host.userId)?.name,
       ).toBe("Current host");
       expect(after.view.lang).toBe("ar");
+    } finally {
+      await deleteIfPresent(host, created.id);
+    }
+  }, 20_000);
+
+  it("fails closed when active membership persistently lacks a player", async () => {
+    const [host, member] = await Promise.all([
+      anonymousIdentity(),
+      anonymousIdentity(),
+    ]);
+    const created = await createRoom(host, "Host");
+
+    try {
+      await joinRoom(member, created.code, "Member");
+      removePlayerFromRoom(created.id, member.userId);
+
+      const result = await call(member, {
+        op: "join",
+        code: created.code,
+        name: "Member",
+      });
+
+      expect(result.response.status).toBe(503);
+      expect(result.payload.error).toBe("ROOM_MEMBERSHIP_INVALID");
     } finally {
       await deleteIfPresent(host, created.id);
     }
@@ -807,6 +839,26 @@ async function rawMembers(
     .order("user_id");
   expect(error).toBeNull();
   return (data ?? []) as Array<{ user_id: string; status: string }>;
+}
+
+function removePlayerFromRoom(roomId: string, userId: string): void {
+  if (
+    !/^room-[0-9a-f-]{36}$/i.test(roomId) ||
+    !/^[0-9a-f-]{36}$/i.test(userId)
+  ) {
+    throw new Error("INVALID_TEST_ROOM_OR_USER_ID");
+  }
+  const result = spawnSync(
+    "psql",
+    [
+      databaseUrl,
+      "--set=ON_ERROR_STOP=1",
+      "--command",
+      `update public.rooms set state = state #- array['players', '${userId}'] where id = '${roomId}'`,
+    ],
+    { encoding: "utf8" },
+  );
+  expect(result.status).toBe(0);
 }
 
 function expectAuthDeleteFailure(userId: string, sqlState: string): void {
