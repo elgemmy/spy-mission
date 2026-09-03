@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "../components/Button";
 import type { PlayerView } from "../../engine";
 import { useMessages } from "../../locale/useMessages";
@@ -38,14 +38,24 @@ function SpymasterClueForm({
   const t = useMessages().play;
   const [word, setWord] = useState("");
   const [count, setCount] = useState("1");
+  const couldGiveClue = useRef(view.can.giveClue);
+
+  // The room state, not the submit handler, confirms the Signal was
+  // accepted: clear the field only once `can.giveClue` flips false (the
+  // clue phase has ended), so a rejected mutation leaves the typed word intact.
+  useEffect(() => {
+    if (couldGiveClue.current && !view.can.giveClue) {
+      setWord("");
+    }
+    couldGiveClue.current = view.can.giveClue;
+  }, [view.can.giveClue]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!view.can.giveClue) {
+    if (!view.can.giveClue || word.trim().length === 0) {
       return;
     }
     onGiveClue(word, Number(count));
-    setWord("");
   };
 
   return (
