@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import roomsHandler from "../../../api/rooms";
 import { startTestGame } from "../../engine/codenames/testFixtures";
 import {
   handleRoomsRequest,
@@ -13,6 +14,18 @@ const ROOM_ID = "room-00000000-0000-4000-8000-000000000002";
 describe("room server boundary", () => {
   afterEach(() => {
     resetAdminClientForTests();
+  });
+
+  it("boots through the Vercel entry point and rejects unsupported methods", async () => {
+    const response = await roomsHandler.fetch(
+      new Request("https://game.example/api/rooms", { method: "GET" }),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      error: "METHOD_NOT_ALLOWED",
+    });
+    expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("POST");
   });
 
   it("returns an operative projection without hidden card identities", async () => {
