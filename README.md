@@ -210,8 +210,11 @@ Supabase projects), and keep the service-role key server-only.
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2026 Ahmed Gamal (elgemmy)
+[MIT](LICENSE) for first-party application code and design — Copyright (c)
+2026 Ahmed Gamal (elgemmy).
+
+The bilingual word pack is documented separately and is **not** asserted under
+that grant. See [`ASSET_PROVENANCE.md`](ASSET_PROVENANCE.md).
 
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
-- [`ASSET_PROVENANCE.md`](ASSET_PROVENANCE.md)
 - [`SECURITY.md`](SECURITY.md)

@@ -1,12 +1,11 @@
 # Word pack
 
 The shipped board content lives in [`codenames.json`](codenames.json).
-Internal filenames still say `codenames`; that is a historical identifier.
+That filename is a historical identifier.
 
-Spy Mission is an independent word-association game project. This pack is
-**not** an official commercial-game word list.
+Spy Mission is an independent word-association game project.
 
-Provenance and license caveats: [`ASSET_PROVENANCE.md`](../../../ASSET_PROVENANCE.md).
+Provenance: [`ASSET_PROVENANCE.md`](../../../ASSET_PROVENANCE.md).
 
 ## Bilingual structure
 
@@ -58,14 +57,16 @@ same English string can both appear on one board.
 
 ## Provenance
 
-The Arabic labels match an author-owned working document (“Codenames Arabic
-Wordlist”, 2026-05-30), created the same day this file entered git
-(`316dfc37c8733aa688cc889213189e9cc36482be`). English strings are paired
-translations in the same JSON.
+Known facts:
 
-See [`ASSET_PROVENANCE.md`](../../../ASSET_PROVENANCE.md) for the unresolved
-question about English-list lineage. This README does not invent a third-party
-source.
+- The pack entered git in `316dfc37c8733aa688cc889213189e9cc36482be`
+  (30 May 2026).
+- Arabic labels match an author-owned working document created that day.
+- English strings are paired in the same JSON.
+
+English-list lineage is unresolved. This README does not claim a third-party
+source or clearance, and does not place the pack under the repository MIT
+grant. See [`ASSET_PROVENANCE.md`](../../../ASSET_PROVENANCE.md).
 
 ## Normalization rules (documentation only)
 

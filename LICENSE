@@ -2,6 +2,12 @@ MIT License
 
 Copyright (c) 2026 Ahmed Gamal (elgemmy)
 
+This license applies to first-party application source, design tokens and
+specs, and documentation in this repository. It does not apply to
+`src/content/words/codenames.json`. That file’s English-list lineage is
+unresolved; see `ASSET_PROVENANCE.md`.
+
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

@@ -11,7 +11,8 @@ in the repository. **Unresolved items are flagged rather than guessed.**
 
 Companion files:
 
-- [`LICENSE`](LICENSE) — MIT grant for this project’s software
+- [`LICENSE`](LICENSE) — MIT grant for first-party application code and
+  design; not the word pack
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — third-party package and font licenses
 - [`src/content/words/README.md`](src/content/words/README.md) — word-pack structure and duplicates
 
@@ -23,7 +24,7 @@ Ahmed Gamal (elgemmy), 2026.
 
 | Asset                                                                                                                                | Origin                                                                         | License / status | Original? |
 | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ---------------- | --------- |
-| Application source under `src/`, `api/`, `supabase/`                                                                                 | Authored in this repository                                                    | MIT              | Yes       |
+| Application source under `src/`, `api/`, `supabase/` (excluding the word pack and leftover starter files below)                      | Authored in this repository                                                    | MIT              | Yes       |
 | Warm Sand tokens and card/chrome specs (`docs/handoff/tokens.css`, `card.css`, `Card.html`, `component-specs.md`, `landing-spec.md`) | Project design handoff                                                         | MIT              | Yes       |
 | Board faction glyphs (`src/ui/card/glyphs.tsx`)                                                                                      | Project design; geometric triangle / circle / rounded square / octagon + cross | MIT              | Yes       |
 | 2×2 wordmark (`src/ui/components/Mark.tsx`, `public/favicon.svg`, `public/pwa-icon.svg`)                                             | Same Warm Sand mark as the PWA icons                                           | MIT              | Yes       |
@@ -34,24 +35,25 @@ No proprietary commercial-game logos or box art are included.
 
 ## Word pack
 
-| Asset                              | Origin                                                                                                                                                                                                                                                                  | License / status                                                      | Original?                                                                   |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `src/content/words/codenames.json` | Shipped bilingual concept pack (23 categories, 597 concepts). Arabic labels match an author-owned working document titled “Codenames Arabic Wordlist” (created 2026-05-30, the same day the pack entered git). English labels are paired translations in the same file. | Included under this repository’s MIT grant, **with the caveat below** | Arabic side: author-curated. English pairing: **unresolved formal lineage** |
+`src/content/words/codenames.json` is the shipped bilingual concept pack
+(23 categories, 597 concepts). The filename is a historical identifier.
 
-An early planning note described a possible workflow of starting from publicly
-circulating English noun lists used by word-association games, then translating
-and curating Arabic. The shipped pack is a family-oriented bilingual noun list
-(animals, food, places, and similar everyday categories). It does **not**
-reproduce a commercial card deck, and this file does **not** claim a
-third-party word-list license.
+Known facts:
 
-**Unresolved:** whether any English label was copied from another published
-list, versus written as a translation of the Arabic working document. Until
-that is attested, do not describe the pack as a commercial-game word list, and
-do not claim a complete third-party clearance for every English string.
+- The file entered git in `316dfc37c8733aa688cc889213189e9cc36482be`
+  (30 May 2026).
+- Arabic labels match an author-owned working document created that same day.
+- English labels are stored as pairs in the same file.
+
+Unresolved: whether any English label was taken from another published list.
+
+The repository MIT license covers the first-party application code and design
+listed above. It does **not** license this pack. This file does not claim
+third-party clearance for the pack.
 
 Do not replace or regenerate the pack in documentation-only work. Duplicate
-rendered English labels are listed in [`src/content/words/README.md`](src/content/words/README.md).
+rendered English labels are listed in
+[`src/content/words/README.md`](src/content/words/README.md).
 
 ## Hosted typefaces
 
@@ -77,6 +79,6 @@ outside `src/content/words/README.md`.
 
 ## What this repository does not contain
 
-- No commercial Codenames card scans, box art, or official logos
+- No commercial box art or official logos
 - No vendored font files
-- No claimed affiliation with Czech Games Edition or other commercial publishers
+- No claimed affiliation with another publisher’s product
