@@ -31,10 +31,10 @@ The app loads these families from Google Fonts at runtime. They are **not**
 vendored in this repository. Each is published under the SIL Open Font License
 1.1:
 
-| Family                                               | Typical use in this project      | License     |
-| ---------------------------------------------------- | -------------------------------- | ----------- |
-| [Rubik](https://fonts.google.com/specimen/Rubik)     | UI chrome and Latin board words  | SIL OFL 1.1 |
-| [Cairo](https://fonts.google.com/specimen/Cairo)     | Arabic board words and Arabic UI | SIL OFL 1.1 |
+| Family                                               | Typical use in this project        | License     |
+| ---------------------------------------------------- | ---------------------------------- | ----------- |
+| [Rubik](https://fonts.google.com/specimen/Rubik)     | UI chrome and Latin board words    | SIL OFL 1.1 |
+| [Cairo](https://fonts.google.com/specimen/Cairo)     | Arabic board words and Arabic UI   | SIL OFL 1.1 |
 | [DM Mono](https://fonts.google.com/specimen/DM+Mono) | Room codes, counts, Signal numbers | SIL OFL 1.1 |
 
 ## Development tooling
