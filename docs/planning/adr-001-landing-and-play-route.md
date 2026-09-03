@@ -2,6 +2,13 @@
 
 **Status:** accepted · **Date:** 2026-08-23 · **Branch:** `feat/landing-page-and-play-route`
 
+**2026-09 note:** The public product name is **Spy Mission**. This ADR’s
+“Codenames Hub” wording is the identity that existed when the route split
+shipped. Prototype HTML/JSX under `docs/handoff/landing/` was removed from
+the public tree; [`../handoff/landing/landing-spec.md`](../handoff/landing/landing-spec.md)
+is the remaining landing design spec. Hosting is Vercel (`vercel.json`), not
+Netlify.
+
 ## Context
 
 Until now the game shell lived at the site root. The product now ships a public

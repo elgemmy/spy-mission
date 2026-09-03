@@ -4,31 +4,33 @@ Read before changing this codebase.
 
 ## Sources of truth
 
+Public product name: **Spy Mission**. Internal paths may still say `codenames`.
+
 ### Design (canonical — Warm Sand handoff)
 
 1. [`docs/handoff/component-specs.md`](docs/handoff/component-specs.md)
 2. [`docs/handoff/Card.html`](docs/handoff/Card.html)
 3. [`docs/handoff/card.css`](docs/handoff/card.css)
-4. [`docs/handoff/tokens.css`](docs/handoff/tokens.css) → live copy: [`src/styles/tokens.css`](src/styles/tokens.css)
-5. [`docs/handoff/CODEX_HANDOFF.md`](docs/handoff/CODEX_HANDOFF.md) — execution protocol for Codex
+4. [`docs/handoff/tokens.css`](docs/handoff/tokens.css) — values reference; live copy is [`src/styles/tokens.css`](src/styles/tokens.css) and may be a superset
+5. [`docs/handoff/landing/landing-spec.md`](docs/handoff/landing/landing-spec.md) — landing page
 
-**Do not** use values from `docs/planning/codenames-hub-design-system.md` for UI unless reconciled with handoff. That doc is historical planning only.
+Use only Warm Sand `--cn-*` tokens. Do not invent palette or type from memory.
 
 ### Engine & architecture
 
-- **Room lifecycle:** `docs/room-lifecycle-contract.md`
-- **Engine:** `docs/planning/codenames-engine-contract.md`
-- **Architecture:** `docs/planning/codenames-hub-architecture-brief.md`
-- **Phasing:** `docs/planning/codenames-hub-roadmap.md`
+- **Room lifecycle:** [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md)
+- **Engine:** [`docs/planning/codenames-engine-contract.md`](docs/planning/codenames-engine-contract.md)
+- **Routing:** [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md)
+- **Current multiplayer path:** browser → authenticated `/api/rooms` → server domain/engine → service-role Supabase → role-filtered `RoomSnapshot` → state-free Realtime invalidation + polling
+- **Historical only:** [`docs/planning/codenames-hub-architecture-brief.md`](docs/planning/codenames-hub-architecture-brief.md) is superseded (it still describes client last-write-wins and Netlify)
 
 ### Precedence when docs conflict
 
-1. `docs/handoff/*` for all visual/UI decisions
+1. `docs/handoff/*` for visual/UI decisions (live tokens in `src/styles/tokens.css` if they have diverged)
 2. `codenames-engine-contract.md` for game rules and state
-3. Architecture brief
-4. Roadmap
-5. Planning design system (historical)
-6. Implementation convenience
+3. `room-lifecycle-contract.md` for rooms, auth, and access
+4. `adr-001-landing-and-play-route.md` for `/` vs `/play/`
+5. Implementation convenience
 
 ## Hard rules
 

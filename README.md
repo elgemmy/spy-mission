@@ -1,16 +1,103 @@
-# Codenames Hub
+# Spy Mission
 
-Mobile-first Arabic-first Codenames web app. Design system: **Warm Sand** (`docs/handoff`).
+Spy Mission is an independent word-association game project. Two teams, one
+clue, twenty-five words. Each player joins from their own phone.
 
-## Stack
+It is not affiliated with the commercial Codenames product.
 
-- React + Vite + TypeScript, multi-page build (landing at `/`, game at `/play/`)
-- Tailwind CSS v4 (`@theme` maps `--cn-*` tokens)
-- `vite-plugin-pwa` — installable PWA scoped to `/play/`
-- Supabase Auth + server-authoritative room API
-- Pure game engine in `src/engine`
+**Play:** [https://spymission.dev](https://spymission.dev)
 
-## Quick start
+Legacy compatibility URL: [https://spymaster.elgemmy.com](https://spymaster.elgemmy.com)
+
+By [Ahmed Gamal — elgemmy](https://github.com/elgemmy).
+
+## What it is
+
+A mobile-first family game:
+
+- Create a room and share a short code (or a private invite link)
+- One player on each team gives one-word clues
+- Teammates reveal tiles and avoid the assassin
+- The board is bilingual: every concept carries English and Arabic labels
+- Rooms persist across refresh; leaving the URL leaves the table
+
+The shipped product is this **normal multiplayer game**.
+
+## Partner Mission
+
+A Partner Mission / WebMCP mode is planned as later competition work. It is
+**not in this tree**. Documentation is written so that mode can be added without
+pretending it already exists.
+
+## Current play mode
+
+Shared multiplayer on `/play/`:
+
+1. Open the landing page or go straight to `/play/`.
+2. Create a room or join with a code.
+3. Pick a display name, team, and role.
+4. The host starts the round. Spymasters see the key; operatives do not.
+
+Invite links use `/play/?room=CODE`. Private rooms add `#invite=TOKEN` in the
+URL fragment so the token is not sent with the page request.
+
+Without Supabase environment variables, `/play/` runs an in-memory local
+preview. That preview is useful for UI work and is **not** cross-device
+multiplayer.
+
+## Language
+
+| Surface | What ships today |
+| --- | --- |
+| Marketing landing (`/`) | Arabic and English |
+| Board words | Every concept has both labels; the room chooses one display language |
+| In-game chrome | Arabic-first today |
+
+Some in-product copy and repository identifiers still use earlier working
+names. The public product name is Spy Mission. Runtime branding is owned by a
+separate change.
+
+## Architecture
+
+```
+Browser
+  → authenticated POST /api/rooms
+  → server-side room domain + game engine
+  → service-role Supabase RPC / storage
+  → role-filtered RoomSnapshot
+  → state-free Realtime invalidation + polling fallback
+```
+
+The engine in `src/engine` is pure and deterministic. The UI dispatches
+actions and renders a `PlayerView`. It does not apply game rules itself.
+
+Two site surfaces share one origin:
+
+| URL | Entry | Purpose |
+| --- | --- | --- |
+| `/` | `index.html` → `src/landing/main.tsx` | Marketing landing |
+| `/play/` | `play/index.html` → `src/main.tsx` | The game |
+
+Only the game is a PWA. Details: [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md).
+
+Internal module names may still say `codenames`. That is a historical
+identifier, not the public product name.
+
+## Secure multiplayer
+
+When Supabase variables are configured:
+
+- Each guest signs in with Supabase anonymous Auth
+- The browser talks only to `/api/rooms`
+- The server is the only component that reads complete room state
+- Operatives never receive unrevealed card kinds
+- Realtime sends a private `room_changed` signal, not the room row
+- Clients refetch their own authorized snapshot (and poll if Realtime drops)
+
+The browser does not write `public.rooms` and does not last-write-wins a shared
+row. See [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md).
+
+## Local development
 
 ```bash
 npm install
@@ -20,92 +107,11 @@ npm run dev
 Then open <http://localhost:5173/> for the landing page and
 <http://localhost:5173/play/> for the game.
 
-## Routes & PWA
+`npm run dev` serves the Vite frontend only. End-to-end multiplayer against
+`/api/rooms` needs `vercel dev` (or an equivalent that serves the Vercel
+Function).
 
-Two HTML entries, one origin — see
-[`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md).
-
-| URL      | Entry HTML        | Entry module           | Purpose                      |
-| -------- | ----------------- | ---------------------- | ---------------------------- |
-| `/`      | `index.html`      | `src/landing/main.tsx` | Marketing landing            |
-| `/play/` | `play/index.html` | `src/main.tsx`         | The game (`src/app/App.tsx`) |
-
-### Deep-link params
-
-Every `/play/` URL is produced by `src/config/routes.ts` (`playUrl`,
-`absolutePlayUrl`, `readPlayParams`). Never hardcode `/play/` in a component.
-
-| Param     | Values                           | Behaviour                                        |
-| --------- | -------------------------------- | ------------------------------------------------ |
-| `room`    | room code (trimmed, upper-cased) | Invite link — jumps to "enter your name" to join |
-| `create`  | `1` / `true` / bare              | Jumps straight to the create-room name step      |
-| `install` | `1` / `true` / bare              | Opens the install sheet                          |
-
-Example: `/play/?room=ABC12&create=1&install=1` (params are emitted in that
-stable order). When both `room` and `create` are present, `room` wins and
-`create` is ignored — the invite flow takes precedence.
-
-Private invite links use `/play/?room=CODE#invite=TOKEN`. The opaque invite
-token stays in the URL fragment so it is not sent in the page request; the game
-passes it only in the authenticated room-join request.
-
-### PWA
-
-Only the game is installable. `manifest.webmanifest` uses `id`, `start_url`
-and `scope` of `/play/`; the service worker ships at `/sw.js` but is registered
-by `src/main.tsx` (`virtual:pwa-register`) with `scope: "/play/"`. The landing
-page never registers a service worker, so it is never cached or installed —
-but it does carry `<link rel="manifest">`, so a browser install started from
-the landing page installs the **game**. Workbox precache excludes the root
-`index.html` and `assets/landing-*`; `navigateFallback` is `/play/index.html`,
-allow-listed to `^/play(/|$)`.
-
-**Install flow.** `src/lib/pwa/installPrompt.ts` captures `beforeinstallprompt`
-at module load and exposes `useInstallPrompt()` (`canPrompt`, `prompt`,
-`isStandalone`, `platform`). The game's onboarding screen shows a "تثبيت
-التطبيق" button when not already installed; the landing page's own Install
-CTA either triggers the native prompt directly or, when the browser can't
-(iOS, Firefox), navigates to `playUrl({ install: true })` — `/play/?install=1`
-— which opens `InstallSheet` (`src/ui/components/InstallSheet.tsx`) on arrival
-and then strips the `install` param via `history.replaceState` so a refresh
-doesn't reopen it. `InstallSheet` shows the native prompt button when
-available, or platform-specific instructions (iOS Share sheet, Android
-browser menu, desktop address-bar icon) otherwise.
-
-**Update flow.** `vite.config.ts` sets `registerType: "prompt"` — a waiting
-service worker never force-reloads the page mid-game. `src/main.tsx` wires
-`registerSW`'s `onNeedRefresh`/`onOfflineReady` callbacks into the small store
-in `src/lib/pwa/serviceWorker.ts` (`useServiceWorkerStatus`, `applyUpdate`,
-`dismissRefresh`); when an update is waiting, `App` renders `UpdateToast`
-(`src/ui/components/UpdateToast.tsx`), a non-modal `role="status"` toast with
-"تحديث" (applies the update) and "لاحقًا" (dismiss) actions. The service
-worker only ever controls `/play/` — it never controls `/`.
-
-### Hosting (`vercel.json`)
-
-- Rewrites `/play/:path*` → `/play/index.html` (Vercel serves real
-  static files such as `/assets/*` before rewrites, so they are unaffected).
-- Redirects a hand-typed `/play` → `/play/` (permanent), so it lands inside
-  the PWA scope.
-- Redirects legacy invite links `/?room=CODE` → `/play/?room=CODE` (temporary).
-- Serves `/sw.js` and `/manifest.webmanifest` with `Cache-Control: no-cache`.
-
-Any static host can replicate these rules.
-
-### Build output
-
-`npm run build` emits:
-
-```
-dist/index.html            landing
-dist/play/index.html       game
-dist/assets/landing-*.js   landing entry
-dist/assets/play-*.js      game entry
-dist/manifest.webmanifest  scope /play/
-dist/sw.js                 service worker
-```
-
-## Environment variables
+### Environment variables
 
 ```bash
 cp .env.example .env.local
@@ -113,117 +119,99 @@ cp .env.example .env.local
 
 Local design preview does not require Supabase. Shared multiplayer requires:
 
-- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the browser build.
-- `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as server-only Vercel Function
-  variables. A legacy `SUPABASE_SERVICE_ROLE_KEY` also works. Never prefix
-  either secret with `VITE_`.
-- Anonymous Sign-Ins enabled under Supabase **Authentication → Providers**.
-- Every file in `supabase/migrations/` applied, including
-  `0004_room_lifecycle.sql`. Apply new migrations to local or staging first;
-  this repository does not apply them to production automatically.
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | Browser build | Project URL |
+| `VITE_SUPABASE_ANON_KEY` | Browser build | Anonymous Auth |
+| `SUPABASE_URL` | Server only | Project URL for `/api/rooms` |
+| `SUPABASE_SECRET_KEY` | Server only | Service-role key. A legacy `SUPABASE_SERVICE_ROLE_KEY` also works. Never prefix either secret with `VITE_`. |
 
-When configured, the browser authenticates each guest with Supabase Auth and
-calls `/api/rooms`. The Vercel Function is the only component allowed to read
-complete room state. It validates each action with the game engine and returns
-a role-filtered snapshot, so operatives never receive unrevealed card kinds.
-Supabase Realtime broadcasts only a private `room_changed` signal to registered
-room members; clients then fetch their own authorized view.
+Also enable Anonymous Sign-Ins in Supabase **Authentication → Providers**.
 
-Room navigation is URL-driven: `/play/` always opens onboarding, while
-`/play/?room=CODE` resumes an active authenticated membership or offers a new
-join. Private invite tokens live only in the URL fragment and are stripped after
-a successful join. See [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md).
+### Local Supabase and migrations
 
-The local provider is used only when Supabase variables are absent. It is useful
-for UI development, but it is in-memory, non-persistent, and not shared between
-devices.
+Docker is required. PostgreSQL’s `psql` client is required for the upgrade
+check inside the script.
 
-### Production setup
+```bash
+npm run test:supabase
+```
 
-1. Apply the migrations to each Supabase project.
-2. Enable Anonymous Sign-Ins in Supabase Auth.
-3. In Realtime Settings, disable public channel access so only private channels
-   are accepted.
-4. Add the four variables above to the matching Vercel environment. Keep
-   preview deployments on a separate Supabase project from production.
-5. Configure a Vercel Firewall rate limit for `POST /api/rooms`, especially the
-   create and join traffic. This deployment rule is required because the
-   server-authoritative 12-player cap is not a replacement for request-rate
-   limiting. Place the Function near the Supabase region.
-6. Deploy, then create a room on one device and join it from another using the
-   room link or code. Refresh both devices and confirm they remain in sync.
+That command starts a **disposable** project-local Supabase stack, applies
+migrations `0001` through `0004`, runs the real API / Realtime / permission
+suite, then verifies a populated `0003` → `0004` upgrade. It stops and removes
+that local data when it finishes.
 
-Use `vercel dev` for local end-to-end multiplayer testing because plain
-`npm run dev` serves the Vite frontend but not the `/api/rooms` function.
+- Local data is disposable.
+- **Never** point this suite at production Supabase.
+- This repository does not apply migrations to production automatically.
+- Apply new migrations to local or staging first.
 
-`public.rooms` intentionally has RLS enabled with no browser policies. Do not
-resolve the Security Advisor's “RLS Enabled No Policy” information item by
-adding client policies; direct room-table access must remain denied.
+Current migration files:
 
-## Scripts
+1. `supabase/migrations/0001_rooms.sql`
+2. `supabase/migrations/0002_lock_down_rooms.sql`
+3. `supabase/migrations/0003_secure_multiplayer.sql`
+4. `supabase/migrations/0004_room_lifecycle.sql`
 
-| Command                 | Description                              |
-| ----------------------- | ---------------------------------------- |
-| `npm run dev`           | Dev server                               |
-| `npm run build`         | Typecheck + production build             |
-| `npm run typecheck`     | TypeScript                               |
-| `npm run lint`          | ESLint                                   |
-| `npm run test`          | Vitest                                   |
-| `npm run test:supabase` | Disposable local Supabase database suite |
+`0001`–`0003` are immutable. Further schema changes are forward-only.
 
-`npm run test:supabase` requires Docker and PostgreSQL's `psql` client. It
-starts the project-scoped local Supabase stack, resets that disposable database
-through migrations 0001→0004, runs the real API/Realtime/permission suite with
-no skips, then resets through 0003, loads representative room data, applies
-0004, and verifies the populated upgrade. The command stops and removes its
-local Supabase data when it finishes; it never connects to a linked or
-production project.
+`public.rooms` has RLS enabled with no browser policies on purpose. Do not add
+client policies to silence the Security Advisor; direct table access must stay
+denied.
 
-## Design system (handoff-canonical)
+### Scripts
 
-**Canonical source:** [`docs/handoff/`](docs/handoff/)
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Vite dev server |
+| `npm run build` | Typecheck + production build |
+| `npm run typecheck` | TypeScript |
+| `npm run lint` | ESLint |
+| `npm run test` | Vitest (excludes the live Supabase integration file) |
+| `npm run test:supabase` | Disposable local Supabase integration suite |
+| `npm run format` / `format:write` | Prettier |
+| `npm run preview` | Preview the production build |
 
-| File                              | Role                                                  |
-| --------------------------------- | ----------------------------------------------------- |
-| `docs/handoff/tokens.css`         | Token reference (mirrored in `src/styles/tokens.css`) |
-| `docs/handoff/card.css`           | Word tile styles (mirrored in `src/ui/card/Card.css`) |
-| `docs/handoff/Card.html`          | Reference markup for `WordCard`                       |
-| `docs/handoff/component-specs.md` | TopBar, Board, ClueBar, Lobby specs                   |
-| `docs/handoff/CODEX_HANDOFF.md`   | Codex execution guardrails                            |
+## Tests
 
-### Handoff precedence
+- Engine contract: `src/engine/codenames/*.contract.test.ts`
+- UI foundation: `src/ui/card/Card.test.tsx`, `src/styles/tokens.test.ts`
+- Room API (mocked): `src/server/rooms/service.test.ts`
+- Room API (live local stack): `npm run test:supabase`
 
-For any UI work, follow **`docs/handoff/*` first**. Do not mix legacy planning tokens (`docs/planning/codenames-hub-design-system.md`) with Warm Sand values.
+CI runs typecheck, lint, unit tests, production build, and
+`npm run test:supabase`.
 
-### Replacing tokens
+## Deployment
 
-1. Edit **`src/styles/tokens.css`** (`--cn-*` variables).
-2. Extend **`src/styles/globals.css`** `@theme` if new semantic utilities are needed.
-3. Use Tailwind classes: `bg-bg`, `text-ink`, `bg-red-tint`, `font-ar`, `rounded-card`, `max-w-shell`.
-4. Layout shell: **`.cn-shell`** on the app root column.
+The site deploys on **Vercel** (`vercel.json`):
 
-### Reference component
+- `/play/:path*` serves the game shell
+- `/play` redirects to `/play/`
+- Legacy `/?room=CODE` redirects to `/play/?room=CODE`
+- `/sw.js` and `/manifest.webmanifest` are served `no-cache`
 
-`src/ui/card/WordCard` implements the handoff flip tile. The dev app shows a **design foundation preview** (legend + tap-to-flip demo row).
+Production setup, in short: apply migrations on the target Supabase project,
+enable anonymous sign-ins, keep Realtime on private channels, set the four
+environment variables above (preview and production should use separate
+Supabase projects), and keep the service-role key server-only.
 
-## Module boundaries
+## Documentation map
 
-| Path                   | Responsibility                |
-| ---------------------- | ----------------------------- |
-| `src/engine/`          | Pure rules                    |
-| `src/landing/`         | Marketing landing (`/`)       |
-| `src/config/routes.ts` | Canonical `/play/` URLs       |
-| `src/lib/pwa/`         | Install prompt primitives     |
-| `src/room/`            | `RoomProvider`                |
-| `src/ui/card/`         | Word tile (`WordCard`)        |
-| `src/ui/components/`   | Shared chrome controls        |
-| `src/app/`             | App shell                     |
-| `src/styles/`          | Tokens + Tailwind bridge      |
-| `docs/handoff/`        | Canonical design specs        |
-| `docs/planning/`       | Engine, architecture, roadmap |
+| Doc | Role |
+| --- | --- |
+| [`docs/README.md`](docs/README.md) | Index of remaining docs |
+| [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md) | Room access, invites, ban/delete |
+| [`docs/planning/codenames-engine-contract.md`](docs/planning/codenames-engine-contract.md) | Game rules and engine types |
+| [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md) | `/` vs `/play/` and PWA scope |
+| [`docs/BROWNFIELD_BASELINE.md`](docs/BROWNFIELD_BASELINE.md) | Pre-competition baseline |
+| [`src/content/words/README.md`](src/content/words/README.md) | Word pack |
 
-## Doc precedence
+## License
 
-1. `docs/handoff/*` — visual/UI
-2. `docs/planning/codenames-engine-contract.md` — game rules
-3. Architecture brief → roadmap → convenience
+[MIT](LICENSE) — Copyright (c) 2026 Ahmed Gamal (elgemmy)
+
+- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+- [`ASSET_PROVENANCE.md`](ASSET_PROVENANCE.md)
+- [`SECURITY.md`](SECURITY.md)

@@ -1,10 +1,17 @@
-# Landing page — component spec (Warm Sand · "Spymaster Mission")
+# Landing page — component spec (Warm Sand)
 
-Source of truth: `Spymaster Mission Landing.html` + `cn-landing.jsx` +
-`cn-components.jsx` + `cn-lobby.jsx` in this folder. This document translates
-the prototype into repo conventions. Where this doc and the prototype disagree
-on a _visual_ value, the prototype wins; where they disagree on _engineering_
-(tokens, a11y, routing), this doc wins.
+This document is the remaining landing design spec. Browser prototypes that
+used to sit beside it were removed from the public tree.
+
+Public product name: **Spy Mission**. “Spymaster Mission” in older copy is a
+working title from the design pass.
+
+Where this spec and live `src/landing/` disagree on engineering (tokens, a11y,
+routing), the repository conventions win. Visual values below still describe
+the intended Warm Sand landing.
+
+Names such as `cn-landing.jsx` in section headings below are historical
+mapping labels from the removed prototypes, not files that still ship.
 
 Global rules (from `AGENTS.md`): `--cn-*` tokens only (no raw hex/rgb in
 TSX/CSS; the only exception is the boot splash in `index.html` which runs

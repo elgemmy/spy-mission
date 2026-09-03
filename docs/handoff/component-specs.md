@@ -1,4 +1,7 @@
-# Codename — component specs (Warm Sand)
+# Component specs (Warm Sand)
+
+Public product name: **Spy Mission**. Internal “Codename” wording below is the
+original spec title.
 
 Mobile-first, Arabic-first. **Design baseline 390px**; on desktop the same single
 column centers at **max-width 480px** (`.cn-shell`). All values reference

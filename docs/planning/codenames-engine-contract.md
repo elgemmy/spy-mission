@@ -1,7 +1,9 @@
-# Codenames Engine Contract (draft v1)
+# Engine contract (draft v1)
 
-Output of the engine-contract session. This is what Codex implements against in
-Phase 2. Types and specs only: no React, no network, no Supabase.
+Canonical game-rules contract for the Spy Mission engine in `src/engine`.
+Internal module paths still use the historical `codenames` identifier.
+
+Types and specs only: no React, no network, no Supabase.
 
 Scope rule for the implementer: the reducer is pure and deterministic. All
 randomness lives in the `startGame` deal, seeded. No `Date`, no `Math.random`,
@@ -350,10 +352,10 @@ the UI renders as disabled / reduced-affordance.
 
 ---
 
-## 6. Fold back into the project brief
+## 6. Historical fold-back notes
 
-These deviate from the brief's DRAFT `Engine interface` / resolve its `Open
-decisions`, and should be updated there:
+The architecture brief is superseded. The locked decisions in section 5 remain
+in force. The notes below only record how this contract closed early drafts:
 
 - `GameState` drops the stored `guessesRemaining`; stores `guessesMadeThisTurn`;
   adds `startingTeam`. `guessesRemaining` is derived in `viewFor`.

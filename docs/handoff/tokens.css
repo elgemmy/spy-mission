@@ -1,7 +1,7 @@
 /* ============================================================
-   Codename — design tokens  ·  direction: "Warm Sand"
-   Mobile-first family Codenames. Arabic-first / English secondary.
-   Drop into your Vite app and import once (e.g. in main.tsx).
+   Spy Mission — design tokens  ·  direction: "Warm Sand"
+   Values reference. Live copy: src/styles/tokens.css (may be a superset).
+   Mobile-first bilingual word-association game. Arabic-first / English secondary.
    ============================================================ */
 
 :root {

@@ -1,6 +1,36 @@
+# SUPERSEDED — historical architecture brief
+
+**Status:** superseded. Keep this file for product-intent history (Arabic-first,
+mobile-first, bilingual `Concept { en, ar }`). **Do not implement from it.**
+
+Current sources of truth:
+
+- Multiplayer path: browser → authenticated `/api/rooms` → server domain +
+  engine → service-role Supabase RPC/storage → role-filtered `RoomSnapshot` →
+  state-free Realtime invalidation + polling fallback
+- Rooms: [`docs/room-lifecycle-contract.md`](../room-lifecycle-contract.md)
+- Rules: [`codenames-engine-contract.md`](codenames-engine-contract.md)
+- Routing: [`adr-001-landing-and-play-route.md`](adr-001-landing-and-play-route.md)
+- Public product name: Spy Mission (this brief’s “Codenames Hub” title is
+  historical)
+
+Obsolete claims in the body below — **not current**:
+
+- Client-side last-write-wins and browsers writing room rows
+- Realtime pushing full room rows
+- Static hosting on Netlify as the current deploy
+- “No real auth” / display-name identity
+- Chrome shipping in one language only (the landing is bilingual; game chrome
+  is still Arabic-first)
+- Open decisions that the engine contract and room lifecycle contract already
+  closed
+
+---
+
 # Codenames Game Hub: Architecture Brief
 
-The standing reference for this project. Conversations should treat this as the source of truth and propose updates here when decisions change.
+Historical standing reference from the first planning pass. The notice above
+replaces it as a source of truth.
 
 ## What this is
 
