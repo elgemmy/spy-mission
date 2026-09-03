@@ -30,6 +30,12 @@ export function ClosingCta({ t, hostLabel }: ClosingCtaProps) {
         >
           {t.play}
         </a>
+        <a
+          className="cn-lp-btn cn-lp-btn--secondary cn-lp-btn--closing"
+          href={playUrl()}
+        >
+          {t.join}
+        </a>
         {isStandalone ? null : (
           <button
             type="button"

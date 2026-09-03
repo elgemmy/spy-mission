@@ -72,44 +72,51 @@ afterEach(() => {
 });
 
 describe("LandingPage", () => {
-  it("renders Arabic right-to-left by default", () => {
+  it("renders English left-to-right by default", () => {
     render(<LandingPage />);
-
-    expect(document.documentElement.dir).toBe("rtl");
-    expect(document.documentElement.lang).toBe("ar");
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(
-      "٢٥ كلمة.",
-    );
-  });
-
-  it("switches to English, persists the choice and reads it back", () => {
-    const { unmount } = render(<LandingPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: "EN" }));
 
     expect(document.documentElement.dir).toBe("ltr");
     expect(document.documentElement.lang).toBe("en");
-    expect(localStorage.getItem(LANG_STORAGE_KEY)).toBe("en");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(
       "25 words.",
+    );
+    expect(screen.getByText("Ahmed Gamal — elgemmy")).toBeInTheDocument();
+  });
+
+  it("switches to Arabic, persists the choice and reads it back", () => {
+    const { unmount } = render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "عربي" }));
+
+    expect(document.documentElement.dir).toBe("rtl");
+    expect(document.documentElement.lang).toBe("ar");
+    expect(localStorage.getItem(LANG_STORAGE_KEY)).toBe("ar");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(
+      "٢٥ كلمة.",
     );
 
     unmount();
     render(<LandingPage />);
 
-    expect(document.documentElement.dir).toBe("ltr");
+    expect(document.documentElement.dir).toBe("rtl");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(
-      "25 words.",
+      "٢٥ كلمة.",
     );
   });
 
   it("points every game link at /play/ via routes.ts", () => {
     render(<LandingPage />);
 
-    const createLinks = screen.getAllByRole("link", { name: STR.ar.play });
+    const createLinks = screen.getAllByRole("link", { name: STR.en.play });
     expect(createLinks).toHaveLength(3);
     for (const link of createLinks) {
       expect(link).toHaveAttribute("href", playUrl({ create: true }));
+    }
+
+    const joinLinks = screen.getAllByRole("link", { name: STR.en.join });
+    expect(joinLinks.length).toBeGreaterThanOrEqual(2);
+    for (const link of joinLinks) {
+      expect(link).toHaveAttribute("href", playUrl());
     }
 
     const hostLabel = playHostLabel(realLocation.host);
@@ -129,18 +136,18 @@ describe("LandingPage", () => {
     expect(chipCount(head, "blue")).toBe("8");
 
     // Index 0 of LAYOUT is a red tile.
-    const tile = within(board).getByRole("button", { name: "قطار" });
+    const tile = within(board).getByRole("button", { name: "TRAIN" });
     fireEvent.click(tile);
 
     expect(chipCount(head, "red")).toBe("8");
     expect(chipCount(head, "blue")).toBe("8");
-    expect(within(board).getByRole("button", { name: "قطار" })).toBeDisabled();
+    expect(within(board).getByRole("button", { name: "TRAIN" })).toBeDisabled();
 
-    fireEvent.click(within(board).getByRole("button", { name: STR.ar.reset }));
+    fireEvent.click(within(board).getByRole("button", { name: STR.en.reset }));
 
     expect(chipCount(head, "red")).toBe("9");
     expect(
-      within(board).getByRole("button", { name: "قطار" }),
+      within(board).getByRole("button", { name: "TRAIN" }),
     ).not.toBeDisabled();
   });
 
@@ -148,20 +155,20 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     const lobby = region(container, ".cn-lp-lobby");
 
-    expect(lobby).toHaveAttribute("dir", "rtl");
+    expect(lobby).toHaveAttribute("dir", "ltr");
 
     fireEvent.click(
-      within(lobby).getByRole("button", { name: STR.ar.lobby.copy }),
+      within(lobby).getByRole("button", { name: STR.en.lobby.copy }),
     );
     expect(
-      within(lobby).getByRole("button", { name: STR.ar.lobby.copied }),
+      within(lobby).getByRole("button", { name: STR.en.lobby.copied }),
     ).toBeInTheDocument();
 
     fireEvent.click(
-      within(lobby).getByRole("button", { name: STR.ar.lobby.boardLangEn }),
+      within(lobby).getByRole("button", { name: STR.en.lobby.boardLangAr }),
     );
 
-    expect(region(container, ".cn-lp-lobby")).toHaveAttribute("dir", "ltr");
+    expect(region(container, ".cn-lp-lobby")).toHaveAttribute("dir", "rtl");
   });
 
   it("starts the in-game preview from the pre-revealed key", () => {
@@ -174,7 +181,7 @@ describe("LandingPage", () => {
     expect(chipCount(top, "blue")).toBe("7");
 
     // Index 6 of LAYOUT is a hidden red tile.
-    fireEvent.click(within(board).getByRole("button", { name: "شمس" }));
+    fireEvent.click(within(board).getByRole("button", { name: "SUN" }));
 
     expect(chipCount(top, "red")).toBe("6");
     expect(chipCount(top, "blue")).toBe("7");
@@ -184,7 +191,7 @@ describe("LandingPage", () => {
     it("falls back to the in-game install sheet", async () => {
       render(<LandingPage />);
 
-      const button = screen.getByRole("button", { name: STR.ar.install });
+      const button = screen.getByRole("button", { name: STR.en.install });
       await act(async () => {
         fireEvent.click(button);
       });
@@ -197,7 +204,7 @@ describe("LandingPage", () => {
       const event = fireBeforeInstallPrompt();
 
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: STR.ar.install }));
+        fireEvent.click(screen.getByRole("button", { name: STR.en.install }));
       });
 
       expect(event.prompt).toHaveBeenCalledOnce();
@@ -224,7 +231,7 @@ describe("LandingPage", () => {
       try {
         render(<LandingPage />);
         expect(
-          screen.queryByRole("button", { name: STR.ar.install }),
+          screen.queryByRole("button", { name: STR.en.install }),
         ).not.toBeInTheDocument();
       } finally {
         Object.defineProperty(window, "matchMedia", {

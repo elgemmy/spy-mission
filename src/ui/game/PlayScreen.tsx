@@ -4,6 +4,9 @@ import { TopBar } from "./TopBar";
 import { Button } from "../components/Button";
 import { GlyphIcon } from "../card/glyphs";
 import type { PlayerView, Role, Team } from "../../engine";
+import { roleLabel, teamLabel } from "../../locale/messages";
+import { useUiLocale } from "../../locale/uiLocale";
+import { useMessages } from "../../locale/useMessages";
 import type { ClueLogEntry, GameBanner, RoomSnapshot } from "../../room";
 
 interface PlayScreenProps {
@@ -37,6 +40,9 @@ export function PlayScreen({
   onRegenerate,
   onBanPlayer,
 }: PlayScreenProps) {
+  const { locale } = useUiLocale();
+  const t = useMessages().play;
+
   return (
     <>
       <BannerOverlay banners={room.ui.banners} />
@@ -44,7 +50,7 @@ export function PlayScreen({
       {clueToast ? (
         <div key={clueToast.id} className="cn-clue-toast" role="status">
           <p className="m-0 text-xs font-semibold">
-            {clueToast.team === "red" ? "الأحمر" : "الأزرق"}
+            {teamLabel(locale, clueToast.team)}
           </p>
           <p className="mt-cn-1 m-0 text-xl font-bold">{clueToast.clue.word}</p>
           <p className="mt-cn-1 m-0 font-mono text-sm">
@@ -54,12 +60,12 @@ export function PlayScreen({
       ) : null}
 
       {isHost ? (
-        <div className="cn-host-controls" aria-label="إدارة الجولة">
+        <div className="cn-host-controls" aria-label={t.hostControls}>
           <Button variant="secondary" onClick={onReturnToLobby}>
-            الردهة
+            {t.lobby}
           </Button>
           <Button variant="secondary" onClick={onRegenerate}>
-            لوحة جديدة
+            {t.newBoard}
           </Button>
         </div>
       ) : null}
@@ -94,6 +100,8 @@ export function PlayScreen({
 }
 
 function BannerOverlay({ banners }: { banners: GameBanner[] }) {
+  const { locale } = useUiLocale();
+  const t = useMessages().play;
   const visible = visibleBanners(banners);
   if (visible.length === 0) {
     return null;
@@ -113,9 +121,11 @@ function BannerOverlay({ banners }: { banners: GameBanner[] }) {
             banner.type === "win" && hasAssassin ? "after-assassin" : "now"
           }
         >
-          <p className="m-0 text-xs font-semibold">{bannerTitle(banner)}</p>
+          <p className="m-0 text-xs font-semibold">
+            {bannerTitle(banner, t)}
+          </p>
           <p className="mt-cn-1 m-0 text-2xl font-bold">
-            {bannerMessage(banner)}
+            {bannerMessage(banner, locale, t)}
           </p>
         </article>
       ))}
@@ -135,34 +145,43 @@ function visibleBanners(banners: GameBanner[]): GameBanner[] {
   return [latest];
 }
 
-function bannerTitle(banner: GameBanner): string {
+function bannerTitle(
+  banner: GameBanner,
+  t: ReturnType<typeof useMessages>["play"],
+): string {
   if (banner.type === "assassin") {
-    return "البطاقة السوداء";
+    return t.trap;
   }
   if (banner.type === "win") {
-    return "انتهت الجولة";
+    return t.roundOver;
   }
-  return "الدور الآن";
+  return t.nowPlaying;
 }
 
-function bannerMessage(banner: GameBanner): string {
+function bannerMessage(
+  banner: GameBanner,
+  locale: ReturnType<typeof useUiLocale>["locale"],
+  t: ReturnType<typeof useMessages>["play"],
+): string {
   if (banner.type === "assassin") {
-    return `${teamLabel(banner.losingTeam)} خسر`;
+    return t.teamLost(teamLabel(locale, banner.losingTeam));
   }
   if (banner.type === "win") {
-    return `${teamLabel(banner.team)} فاز`;
+    return t.teamWon(teamLabel(locale, banner.team));
   }
-  return `دور ${teamLabel(banner.team)}`;
+  return t.teamTurn(teamLabel(locale, banner.team));
 }
 
 function ClueHistory({ entries }: { entries: ClueLogEntry[] }) {
+  const { locale } = useUiLocale();
+  const t = useMessages().play;
   if (entries.length === 0) {
     return null;
   }
 
   return (
-    <section className="cn-card-panel p-cn-3" aria-label="سجل التلميحات">
-      <p className="text-ink-soft m-0 text-xs font-semibold">سجل التلميحات</p>
+    <section className="cn-card-panel p-cn-3" aria-label={t.signalLog}>
+      <p className="text-ink-soft m-0 text-xs font-semibold">{t.signalLog}</p>
       <ol className="mt-cn-2 gap-cn-2 m-0 flex list-none flex-col p-0">
         {entries.slice(-5).map((entry) => (
           <li
@@ -170,7 +189,7 @@ function ClueHistory({ entries }: { entries: ClueLogEntry[] }) {
             className="gap-cn-3 flex items-center justify-between text-sm"
           >
             <span className="text-ink font-semibold">
-              {entry.team === "red" ? "الأحمر" : "الأزرق"} · {entry.clue.word}
+              {t.signalLogItem(teamLabel(locale, entry.team), entry.clue.word)}
             </span>
             <span className="text-ink-soft font-mono">
               {formatCount(entry.clue.count)}
@@ -195,8 +214,9 @@ function TeamRoster({
   playerId: string;
   onBanPlayer: (targetPlayerId: string) => void;
 }) {
+  const t = useMessages().play;
   return (
-    <section className="cn-team-roster" aria-label="قوائم الفرق">
+    <section className="cn-team-roster" aria-label={t.teamLists}>
       <RosterTeam
         team="red"
         view={view}
@@ -232,6 +252,8 @@ function RosterTeam({
   playerId: string;
   onBanPlayer: (targetPlayerId: string) => void;
 }) {
+  const { locale } = useUiLocale();
+  const t = useMessages().play;
   const players = view.players.filter((player) => player.team === team);
 
   return (
@@ -239,7 +261,7 @@ function RosterTeam({
       <header className="cn-team-roster__header">
         <span className="cn-team-roster__title">
           <GlyphIcon role={team} />
-          {teamLabel(team)}
+          {teamLabel(locale, team)}
         </span>
         <span className="cn-team-roster__count">{players.length}</span>
       </header>
@@ -255,7 +277,7 @@ function RosterTeam({
               {player.name}
             </span>
             <span className="cn-team-roster__role">
-              {roleLabel(player.role)}
+              {roleLabel(locale, player.role as Role)}
             </span>
             {isHost && player.id !== hostId ? (
               <button
@@ -263,7 +285,7 @@ function RosterTeam({
                 className="cn-player-action"
                 onClick={() => onBanPlayer(player.id)}
               >
-                حظر
+                {t.ban}
               </button>
             ) : null}
           </li>
@@ -271,14 +293,6 @@ function RosterTeam({
       </ul>
     </article>
   );
-}
-
-function roleLabel(role: Role): string {
-  return role === "spymaster" ? "قائد" : "لاعب";
-}
-
-function teamLabel(team: "red" | "blue"): string {
-  return team === "red" ? "الأحمر" : "الأزرق";
 }
 
 function formatCount(count: number): string {

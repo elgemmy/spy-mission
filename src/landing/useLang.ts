@@ -1,54 +1,36 @@
-import { useCallback, useEffect, useState } from "react";
-import type { Lang } from "./strings";
+import {
+  DEFAULT_UI_LOCALE,
+  UI_LOCALE_STORAGE_KEY,
+  dirFor,
+  readStoredUiLocale,
+  useUiLocale,
+  type UiLocale,
+} from "../locale/uiLocale";
 
-export const LANG_STORAGE_KEY = "sm-lang";
-export const DEFAULT_LANG: Lang = "ar";
+export const LANG_STORAGE_KEY = UI_LOCALE_STORAGE_KEY;
+export const DEFAULT_LANG: UiLocale = DEFAULT_UI_LOCALE;
 
-function isLang(value: string | null): value is Lang {
-  return value === "ar" || value === "en";
-}
+export { dirFor };
+export type Lang = UiLocale;
 
-/** Arabic unless a valid preference was stored by a previous visit. */
-export function readStoredLang(): Lang {
-  try {
-    const stored = localStorage.getItem(LANG_STORAGE_KEY);
-    return isLang(stored) ? stored : DEFAULT_LANG;
-  } catch {
-    return DEFAULT_LANG;
-  }
-}
-
-export function dirFor(lang: Lang): "rtl" | "ltr" {
-  return lang === "ar" ? "rtl" : "ltr";
+/** Arabic or English, depending on the shared per-browser UI locale. */
+export function readStoredLang(): UiLocale {
+  return readStoredUiLocale();
 }
 
 export interface UseLangResult {
-  lang: Lang;
+  lang: UiLocale;
   dir: "rtl" | "ltr";
   isArabic: boolean;
-  setLang: (next: Lang) => void;
+  setLang: (next: UiLocale) => void;
 }
 
 /**
  * Page language: persisted under `sm-lang` and mirrored onto
  * `<html lang>` / `<html dir>` so the browser picks the right shaping.
+ * Same store as `/play/`.
  */
 export function useLang(): UseLangResult {
-  const [lang, setLangState] = useState<Lang>(readStoredLang);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LANG_STORAGE_KEY, lang);
-    } catch {
-      // A private-mode browser without storage still gets the right page.
-    }
-    document.documentElement.lang = lang;
-    document.documentElement.dir = dirFor(lang);
-  }, [lang]);
-
-  const setLang = useCallback((next: Lang) => {
-    setLangState(next);
-  }, []);
-
-  return { lang, dir: dirFor(lang), isArabic: lang === "ar", setLang };
+  const { locale, dir, isArabic, setLocale } = useUiLocale();
+  return { lang: locale, dir, isArabic, setLang: setLocale };
 }

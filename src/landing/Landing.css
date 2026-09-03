@@ -206,6 +206,8 @@
   margin-inline-start: auto;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -1295,6 +1297,15 @@
 @media (max-width: 520px) {
   .cn-lp-feats {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cn-lp-nav__inner {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .cn-lp-nav__actions {
+    flex: 1 1 100%;
   }
 
   .cn-lp-nav__inner,

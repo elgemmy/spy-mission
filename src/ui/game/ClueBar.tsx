@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "../components/Button";
 import type { PlayerView } from "../../engine";
+import { useMessages } from "../../locale/useMessages";
 
 interface ClueBarProps {
   view: PlayerView;
@@ -9,13 +10,14 @@ interface ClueBarProps {
 }
 
 export function ClueBar({ view, onGiveClue, onEndTurn }: ClueBarProps) {
+  const t = useMessages().play;
   const disabled = !view.can.giveClue && !view.can.guess && !view.clue;
 
   return (
     <section
       className="cn-cluebar"
       data-disabled={String(disabled)}
-      aria-label="التلميح"
+      aria-label={t.signal}
     >
       {view.me?.role === "spymaster" ? (
         <SpymasterClueForm view={view} onGiveClue={onGiveClue} />
@@ -33,6 +35,7 @@ function SpymasterClueForm({
   view: PlayerView;
   onGiveClue: (word: string, count: number) => void;
 }) {
+  const t = useMessages().play;
   const [word, setWord] = useState("");
   const [count, setCount] = useState("1");
 
@@ -48,34 +51,44 @@ function SpymasterClueForm({
   return (
     <form className="gap-cn-3 flex flex-col" onSubmit={submit}>
       <div>
-        <p className="text-ink-soft m-0 text-xs font-semibold">أعط تلميحا</p>
+        <p className="text-ink-soft m-0 text-xs font-semibold">{t.giveSignal}</p>
         <p className="mt-cn-1 text-ink m-0 text-sm font-semibold">
-          {view.can.giveClue ? "دور فريقك" : "انتظر دور فريقك"}
+          {view.can.giveClue ? t.yourTeamTurn : t.waitTeamTurn}
         </p>
       </div>
       <div className="cn-clue-form-grid">
-        <input
-          className="cn-field"
-          value={word}
-          onChange={(event) => setWord(event.target.value)}
-          disabled={!view.can.giveClue}
-          placeholder="نص التلميح"
-          aria-label="التلميح"
-        />
-        <select
-          className="cn-field font-mono"
-          value={count}
-          onChange={(event) => setCount(event.target.value)}
-          disabled={!view.can.giveClue}
-          aria-label="عدد التخمينات"
-        >
-          <option value="0">∞</option>
-          {Array.from({ length: 9 }, (_, index) => (
-            <option key={index + 1} value={index + 1}>
-              {index + 1}
-            </option>
-          ))}
-        </select>
+        <div>
+          <label className="cn-sr-only" htmlFor="signal-text">
+            {t.signalText}
+          </label>
+          <input
+            id="signal-text"
+            className="cn-field"
+            value={word}
+            onChange={(event) => setWord(event.target.value)}
+            disabled={!view.can.giveClue}
+            placeholder={t.signalText}
+          />
+        </div>
+        <div>
+          <label className="cn-sr-only" htmlFor="signal-count">
+            {t.guessCount}
+          </label>
+          <select
+            id="signal-count"
+            className="cn-field font-mono"
+            value={count}
+            onChange={(event) => setCount(event.target.value)}
+            disabled={!view.can.giveClue}
+          >
+            <option value="0">∞</option>
+            {Array.from({ length: 9 }, (_, index) => (
+              <option key={index + 1} value={index + 1}>
+                {index + 1}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <Button
         className="cn-clue-submit w-full"
@@ -83,7 +96,7 @@ function SpymasterClueForm({
         disabled={!view.can.giveClue || word.trim().length === 0}
         type="submit"
       >
-        إرسال
+        {t.send}
       </Button>
     </form>
   );
@@ -96,13 +109,14 @@ function OperativeCluePanel({
   view: PlayerView;
   onEndTurn: () => void;
 }) {
+  const t = useMessages().play;
   return (
     <div className="gap-cn-3 flex flex-col">
       <div className="gap-cn-3 flex items-center justify-between">
         <div className="min-w-0">
-          <p className="text-ink-soft m-0 text-xs font-semibold">CLUE</p>
+          <p className="text-ink-soft m-0 text-xs font-semibold">{t.signal}</p>
           <p className="cn-clue-word mt-cn-1 text-ink m-0">
-            {view.clue?.word ?? "بانتظار التلميح"}
+            {view.clue?.word ?? t.waitingSignal}
           </p>
         </div>
         <span className="rounded-chip bg-surface-2 px-cn-3 py-cn-2 text-ink font-mono text-sm">
@@ -115,7 +129,7 @@ function OperativeCluePanel({
           disabled={!view.can.endTurn}
           onClick={onEndTurn}
         >
-          إنهاء الدور
+          {t.endTurn}
         </Button>
       </div>
     </div>

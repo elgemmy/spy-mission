@@ -152,6 +152,8 @@
   font-weight: 600;
   font-size: 13px;
   line-height: 1.05;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   text-align: center;
 }
 

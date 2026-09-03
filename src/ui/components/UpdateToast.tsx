@@ -1,4 +1,5 @@
 import { applyUpdate, dismissRefresh } from "../../lib/pwa/serviceWorker";
+import { useMessages } from "../../locale/useMessages";
 import { Button } from "./Button";
 
 /**
@@ -6,15 +7,14 @@ import { Button } from "./Button";
  * `registerType: "prompt"` — updates never reload mid-game on their own).
  */
 export function UpdateToast() {
+  const t = useMessages().play;
   return (
     <div className="cn-update-toast" role="status">
-      <p className="text-ink m-0 text-sm font-semibold">
-        يتوفر تحديث جديد للعبة
-      </p>
+      <p className="text-ink m-0 text-sm font-semibold">{t.updateReady}</p>
       <div className="gap-cn-2 flex">
-        <Button onClick={() => void applyUpdate()}>تحديث</Button>
+        <Button onClick={() => void applyUpdate()}>{t.updateNow}</Button>
         <Button variant="secondary" onClick={dismissRefresh}>
-          لاحقًا
+          {t.updateLater}
         </Button>
       </div>
     </div>

@@ -1,7 +1,9 @@
 .cn-app {
   display: flex;
   min-height: 100dvh;
+  min-width: 0;
   flex-direction: column;
+  overflow-x: clip;
   padding-block: calc(18px + env(safe-area-inset-top))
     calc(18px + env(safe-area-inset-bottom));
   padding-inline: 16px;
@@ -30,6 +32,18 @@
 .cn-field:focus {
   outline: 2px solid var(--cn-ink);
   outline-offset: 2px;
+}
+
+.cn-sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 button:not(:disabled) {
@@ -557,6 +571,12 @@ button:disabled {
   border-radius: var(--cn-r-sm);
   background: var(--cn-surface);
   padding: 10px;
+}
+
+.cn-team-card button {
+  white-space: normal;
+  text-wrap: balance;
+  line-height: 1.25;
 }
 
 .cn-team-card[data-team="red"] {

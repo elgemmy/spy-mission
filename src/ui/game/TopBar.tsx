@@ -1,5 +1,8 @@
 import { GlyphIcon } from "../card/glyphs";
 import type { Team } from "../../engine";
+import { teamLabel } from "../../locale/messages";
+import { useUiLocale } from "../../locale/uiLocale";
+import { useMessages } from "../../locale/useMessages";
 
 interface TopBarProps {
   turn: Team;
@@ -8,35 +11,33 @@ interface TopBarProps {
   winner: Team | null;
 }
 
-const TEAM_LABEL: Record<Team, string> = {
-  red: "الأحمر",
-  blue: "الأزرق",
-};
-
 export function TopBar({
   turn,
   redRemaining,
   blueRemaining,
   winner,
 }: TopBarProps) {
+  const { locale } = useUiLocale();
+  const t = useMessages().play;
+
   if (winner) {
     return (
       <div className="cn-winner-panel p-cn-4 text-center" data-team={winner}>
-        <p className="m-0 text-xs font-semibold">انتهت الجولة</p>
+        <p className="m-0 text-xs font-semibold">{t.roundOver}</p>
         <p className="mt-cn-1 m-0 text-lg font-bold">
-          فاز الفريق {TEAM_LABEL[winner]}
+          {t.winnerLine(teamLabel(locale, winner))}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="cn-topbar cn-card-panel" aria-label="حالة الدور">
+    <div className="cn-topbar cn-card-panel" aria-label={t.turnStatus}>
       <CountChip team="red" count={redRemaining} active={turn === "red"} />
       <div className="cn-turn">
-        <span className="cn-turn__eyebrow">الدور الآن</span>
+        <span className="cn-turn__eyebrow">{t.nowPlaying}</span>
         <span className="cn-turn__team" data-team={turn}>
-          {TEAM_LABEL[turn]}
+          {teamLabel(locale, turn)}
         </span>
       </div>
       <CountChip team="blue" count={blueRemaining} active={turn === "blue"} />
