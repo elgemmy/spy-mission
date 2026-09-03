@@ -14,7 +14,11 @@ The file is an array of categories. Each category has a `category` slug and a
 `concepts` array. Every concept is:
 
 ```ts
-{ id: string; en: string; ar: string }
+{
+  id: string;
+  en: string;
+  ar: string;
+}
 ```
 
 Both labels always travel with the card. The room’s `lang` field chooses which
@@ -90,20 +94,20 @@ These pairs share the same normalized English string and **different** Arabic
 (or a gendered/synonym pair). The JSON was not edited. If a content pass is
 needed, that belongs to the runtime/content owner.
 
-| English (normalized) | Concept ids | Categories | Arabic |
-| --- | --- | --- | --- |
-| `cat` | `animals-029`, `animals-037` | animals, animals | قط / قطة |
-| `mouse` | `animals-031`, `tools-and-devices-018` | animals, tools_and_devices | فأر / ماوس |
-| `fish` | `animals-034`, `ingredients-vegetables-fruits-018` | animals, ingredients_vegetables_fruits | سمكة / سمك |
-| `pasta` | `food-011`, `ingredients-vegetables-fruits-002` | food, ingredients_vegetables_fruits | باستا / مكرونة |
-| `dates` | `food-042`, `ingredients-vegetables-fruits-072` | food, ingredients_vegetables_fruits | تمر / بلح |
-| `rice` | `food-043`, `ingredients-vegetables-fruits-001` | food, ingredients_vegetables_fruits | رز / أرز |
-| `cheese` | `food-044`, `ingredients-vegetables-fruits-013` | food, ingredients_vegetables_fruits | جبن / جبنة |
-| `orange` | `ingredients-vegetables-fruits-054`, `colors-005` | ingredients_vegetables_fruits, colors | برتقال / برتقالي |
-| `hammer` | `tools-and-devices-001`, `tools-and-devices-006` | tools_and_devices, tools_and_devices | مطرقة / شاكوش |
-| `burgundy` | `colors-019`, `colors-025` | colors, colors | نبيتي / عنابي |
-| `copper` | `colors-023`, `objects-009` | colors, objects | نحاسي / نحاس |
-| `grouper` | `fish-and-seafood-008`, `fish-and-seafood-014` | fish_and_seafood, fish_and_seafood | الهامور / وقار |
+| English (normalized) | Concept ids                                        | Categories                             | Arabic           |
+| -------------------- | -------------------------------------------------- | -------------------------------------- | ---------------- |
+| `cat`                | `animals-029`, `animals-037`                       | animals, animals                       | قط / قطة         |
+| `mouse`              | `animals-031`, `tools-and-devices-018`             | animals, tools_and_devices             | فأر / ماوس       |
+| `fish`               | `animals-034`, `ingredients-vegetables-fruits-018` | animals, ingredients_vegetables_fruits | سمكة / سمك       |
+| `pasta`              | `food-011`, `ingredients-vegetables-fruits-002`    | food, ingredients_vegetables_fruits    | باستا / مكرونة   |
+| `dates`              | `food-042`, `ingredients-vegetables-fruits-072`    | food, ingredients_vegetables_fruits    | تمر / بلح        |
+| `rice`               | `food-043`, `ingredients-vegetables-fruits-001`    | food, ingredients_vegetables_fruits    | رز / أرز         |
+| `cheese`             | `food-044`, `ingredients-vegetables-fruits-013`    | food, ingredients_vegetables_fruits    | جبن / جبنة       |
+| `orange`             | `ingredients-vegetables-fruits-054`, `colors-005`  | ingredients_vegetables_fruits, colors  | برتقال / برتقالي |
+| `hammer`             | `tools-and-devices-001`, `tools-and-devices-006`   | tools_and_devices, tools_and_devices   | مطرقة / شاكوش    |
+| `burgundy`           | `colors-019`, `colors-025`                         | colors, colors                         | نبيتي / عنابي    |
+| `copper`             | `colors-023`, `objects-009`                        | colors, objects                        | نحاسي / نحاس     |
+| `grouper`            | `fish-and-seafood-008`, `fish-and-seafood-014`     | fish_and_seafood, fish_and_seafood     | الهامور / وقار   |
 
 Most of these are real bilingual homographs or synonym pairs (animal vs
 ingredient, fruit vs color, tool vs material). A few are near-duplicate

@@ -47,11 +47,11 @@ multiplayer.
 
 ## Language
 
-| Surface | What ships today |
-| --- | --- |
-| Marketing landing (`/`) | Arabic and English |
-| Board words | Every concept has both labels; the room chooses one display language |
-| In-game chrome | Arabic-first today |
+| Surface                 | What ships today                                                     |
+| ----------------------- | -------------------------------------------------------------------- |
+| Marketing landing (`/`) | Arabic and English                                                   |
+| Board words             | Every concept has both labels; the room chooses one display language |
+| In-game chrome          | Arabic-first today                                                   |
 
 Some in-product copy and repository identifiers still use earlier working
 names. The public product name is Spy Mission. Runtime branding is owned by a
@@ -73,10 +73,10 @@ actions and renders a `PlayerView`. It does not apply game rules itself.
 
 Two site surfaces share one origin:
 
-| URL | Entry | Purpose |
-| --- | --- | --- |
-| `/` | `index.html` → `src/landing/main.tsx` | Marketing landing |
-| `/play/` | `play/index.html` → `src/main.tsx` | The game |
+| URL      | Entry                                 | Purpose           |
+| -------- | ------------------------------------- | ----------------- |
+| `/`      | `index.html` → `src/landing/main.tsx` | Marketing landing |
+| `/play/` | `play/index.html` → `src/main.tsx`    | The game          |
 
 Only the game is a PWA. Details: [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md).
 
@@ -119,12 +119,12 @@ cp .env.example .env.local
 
 Local design preview does not require Supabase. Shared multiplayer requires:
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL` | Browser build | Project URL |
-| `VITE_SUPABASE_ANON_KEY` | Browser build | Anonymous Auth |
-| `SUPABASE_URL` | Server only | Project URL for `/api/rooms` |
-| `SUPABASE_SECRET_KEY` | Server only | Service-role key. A legacy `SUPABASE_SERVICE_ROLE_KEY` also works. Never prefix either secret with `VITE_`. |
+| Variable                 | Where         | Purpose                                                                                                     |
+| ------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`      | Browser build | Project URL                                                                                                 |
+| `VITE_SUPABASE_ANON_KEY` | Browser build | Anonymous Auth                                                                                              |
+| `SUPABASE_URL`           | Server only   | Project URL for `/api/rooms`                                                                                |
+| `SUPABASE_SECRET_KEY`    | Server only   | Service-role key. A legacy `SUPABASE_SERVICE_ROLE_KEY` also works. Never prefix either secret with `VITE_`. |
 
 Also enable Anonymous Sign-Ins in Supabase **Authentication → Providers**.
 
@@ -162,16 +162,16 @@ denied.
 
 ### Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Vite dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run typecheck` | TypeScript |
-| `npm run lint` | ESLint |
-| `npm run test` | Vitest (excludes the live Supabase integration file) |
-| `npm run test:supabase` | Disposable local Supabase integration suite |
-| `npm run format` / `format:write` | Prettier |
-| `npm run preview` | Preview the production build |
+| Command                           | Description                                          |
+| --------------------------------- | ---------------------------------------------------- |
+| `npm run dev`                     | Vite dev server                                      |
+| `npm run build`                   | Typecheck + production build                         |
+| `npm run typecheck`               | TypeScript                                           |
+| `npm run lint`                    | ESLint                                               |
+| `npm run test`                    | Vitest (excludes the live Supabase integration file) |
+| `npm run test:supabase`           | Disposable local Supabase integration suite          |
+| `npm run format` / `format:write` | Prettier                                             |
+| `npm run preview`                 | Preview the production build                         |
 
 ## Tests
 
@@ -199,14 +199,14 @@ Supabase projects), and keep the service-role key server-only.
 
 ## Documentation map
 
-| Doc | Role |
-| --- | --- |
-| [`docs/README.md`](docs/README.md) | Index of remaining docs |
-| [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md) | Room access, invites, ban/delete |
-| [`docs/planning/codenames-engine-contract.md`](docs/planning/codenames-engine-contract.md) | Game rules and engine types |
-| [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md) | `/` vs `/play/` and PWA scope |
-| [`docs/BROWNFIELD_BASELINE.md`](docs/BROWNFIELD_BASELINE.md) | Pre-competition baseline |
-| [`src/content/words/README.md`](src/content/words/README.md) | Word pack |
+| Doc                                                                                                  | Role                             |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------- |
+| [`docs/README.md`](docs/README.md)                                                                   | Index of remaining docs          |
+| [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md)                                 | Room access, invites, ban/delete |
+| [`docs/planning/codenames-engine-contract.md`](docs/planning/codenames-engine-contract.md)           | Game rules and engine types      |
+| [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md) | `/` vs `/play/` and PWA scope    |
+| [`docs/BROWNFIELD_BASELINE.md`](docs/BROWNFIELD_BASELINE.md)                                         | Pre-competition baseline         |
+| [`src/content/words/README.md`](src/content/words/README.md)                                         | Word pack                        |
 
 ## License
 
