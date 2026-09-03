@@ -277,7 +277,7 @@ async function joinRoom(
   client: SupabaseClient,
 ): Promise<RoomSnapshot> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    const stored = await loadByCode(request.code, client);
+    let stored = await loadByCode(request.code, client);
     if (!stored) {
       throw new ApiError(404, "ROOM_NOT_FOUND");
     }
@@ -291,7 +291,11 @@ async function joinRoom(
       throw new ApiError(403, "ROOM_INVITE_INVALID");
     }
     if (activeMember && !stored.room.state.players[userId]) {
-      throw new ApiError(503, "ROOM_MEMBERSHIP_INVALID");
+      const fresh = await loadById(stored.room.id, client);
+      if (!fresh?.room.state.players[userId]) {
+        throw new ApiError(503, "ROOM_MEMBERSHIP_INVALID");
+      }
+      stored = fresh;
     }
 
     const next = joinRoomRecord(
