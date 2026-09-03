@@ -12,7 +12,12 @@ export function LocaleToggle() {
           {t.interfaceLanguage}
         </span>
       </div>
-      <div className="cn-segmented" role="group" aria-label={t.interfaceLanguage}>
+      <div
+        className="cn-segmented"
+        role="group"
+        aria-label={t.interfaceLanguage}
+        dir="ltr"
+      >
         <button
           type="button"
           aria-pressed={locale === "en"}

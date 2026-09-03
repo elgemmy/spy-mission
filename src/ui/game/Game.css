@@ -534,7 +534,7 @@ button:disabled {
 .cn-landing-logo {
   width: 112px;
   height: 112px;
-  filter: drop-shadow(var(--cn-shadow-bar));
+  filter: drop-shadow(var(--cn-shadow-cta));
 }
 
 .cn-segmented {

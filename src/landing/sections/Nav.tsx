@@ -3,8 +3,8 @@ import { Mark } from "../../ui/components/Mark";
 import type { Lang, LandingStrings } from "../strings";
 
 const OPTIONS: readonly { id: Lang; label: string; className: string }[] = [
-  { id: "ar", label: "عربي", className: "cn-lp-lang__btn--ar" },
   { id: "en", label: "EN", className: "cn-lp-lang__btn--en" },
+  { id: "ar", label: "عربي", className: "cn-lp-lang__btn--ar" },
 ];
 
 export interface NavProps {
@@ -20,7 +20,12 @@ export function Nav({ lang, onLangChange, t }: NavProps) {
         <Mark size={30} />
         <span className="cn-lp-wordmark">{t.productName}</span>
         <div className="cn-lp-nav__actions">
-          <div className="cn-lp-lang" role="group" aria-label={t.langGroup}>
+          <div
+            className="cn-lp-lang"
+            role="group"
+            aria-label={t.langGroup}
+            dir="ltr"
+          >
             {OPTIONS.map((option) => (
               <button
                 key={option.id}
