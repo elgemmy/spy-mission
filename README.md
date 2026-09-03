@@ -147,7 +147,9 @@ devices.
 4. Add the four variables above to the matching Vercel environment. Keep
    preview deployments on a separate Supabase project from production.
 5. Configure a Vercel Firewall rate limit for `POST /api/rooms`, especially the
-   create and join traffic, and place the Function near the Supabase region.
+   create and join traffic. This deployment rule is required because the
+   server-authoritative 12-player cap is not a replacement for request-rate
+   limiting. Place the Function near the Supabase region.
 6. Deploy, then create a room on one device and join it from another using the
    room link or code. Refresh both devices and confirm they remain in sync.
 
@@ -160,13 +162,22 @@ adding client policies; direct room-table access must remain denied.
 
 ## Scripts
 
-| Command             | Description                  |
-| ------------------- | ---------------------------- |
-| `npm run dev`       | Dev server                   |
-| `npm run build`     | Typecheck + production build |
-| `npm run typecheck` | TypeScript                   |
-| `npm run lint`      | ESLint                       |
-| `npm run test`      | Vitest                       |
+| Command                 | Description                              |
+| ----------------------- | ---------------------------------------- |
+| `npm run dev`           | Dev server                               |
+| `npm run build`         | Typecheck + production build             |
+| `npm run typecheck`     | TypeScript                               |
+| `npm run lint`          | ESLint                                   |
+| `npm run test`          | Vitest                                   |
+| `npm run test:supabase` | Disposable local Supabase database suite |
+
+`npm run test:supabase` requires Docker and PostgreSQL's `psql` client. It
+starts the project-scoped local Supabase stack, resets that disposable database
+through migrations 0001→0004, runs the real API/Realtime/permission suite with
+no skips, then resets through 0003, loads representative room data, applies
+0004, and verifies the populated upgrade. The command stops and removes its
+local Supabase data when it finishes; it never connects to a linked or
+production project.
 
 ## Design system (handoff-canonical)
 

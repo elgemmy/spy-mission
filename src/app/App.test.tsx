@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   clearRoomStorage: vi.fn(),
   subscribe: vi.fn(),
   onChange: undefined as ((room: RoomSnapshot | null) => void) | undefined,
+  onChanges: [] as Array<(room: RoomSnapshot | null) => void>,
 }));
 
 vi.mock("../room", async () => {
@@ -58,8 +59,10 @@ beforeEach(() => {
   mocks.getInviteToken.mockReset().mockReturnValue(null);
   mocks.clearRoomStorage.mockReset();
   mocks.onChange = undefined;
+  mocks.onChanges = [];
   mocks.subscribe.mockReset().mockImplementation((_roomId, onChange) => {
     mocks.onChange = onChange;
+    mocks.onChanges.push(onChange);
     return vi.fn();
   });
 });
@@ -117,6 +120,30 @@ describe("App room lifecycle", () => {
     );
   });
 
+  it("disables duplicate cold-start room creation submissions", async () => {
+    let resolveCreate: ((room: RoomSnapshot) => void) | undefined;
+    mocks.create.mockImplementation(
+      () =>
+        new Promise<RoomSnapshot>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "إنشاء غرفة جديدة" }));
+    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+      target: { value: "Host" },
+    });
+    const submit = screen.getByRole("button", { name: "إنشاء الغرفة" });
+
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+    expect(submit).toBeDisabled();
+    resolveCreate?.(snapshot());
+    await screen.findByText("TESTROOM");
+  });
+
   it("joins a public room by code and canonicalizes the URL", async () => {
     mocks.join.mockResolvedValue(snapshot());
     render(<App />);
@@ -139,6 +166,34 @@ describe("App room lifecycle", () => {
     expect(window.location.pathname + window.location.search).toBe(
       "/play/?room=TESTROOM",
     );
+  });
+
+  it("disables duplicate cold-start join submissions", async () => {
+    let resolveJoin: ((room: RoomSnapshot) => void) | undefined;
+    mocks.join.mockImplementation(
+      () =>
+        new Promise<RoomSnapshot>((resolve) => {
+          resolveJoin = resolve;
+        }),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "الانضمام برمز" }));
+    fireEvent.change(screen.getByLabelText("رمز الغرفة"), {
+      target: { value: "TESTROOM" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "متابعة" }));
+    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+      target: { value: "Guest" },
+    });
+    const submit = screen.getByRole("button", { name: "الدخول للغرفة" });
+
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(mocks.join).toHaveBeenCalledTimes(1);
+    expect(submit).toBeDisabled();
+    resolveJoin?.(snapshot());
+    await screen.findByText("TESTROOM");
   });
 
   it("uses only the private fragment token and strips it after joining", async () => {
@@ -167,6 +222,29 @@ describe("App room lifecycle", () => {
       }),
     );
     await screen.findByText("TESTROOM");
+    expect(window.location.href).toBe("http://localhost/play/?room=TESTROOM");
+  });
+
+  it("preserves a transient resume URL and invite until retry succeeds", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/play/?room=TESTROOM#invite=stable-private-token",
+    );
+    mocks.resume
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({ status: "active", room: snapshot() });
+
+    render(<App />);
+
+    expect(await screen.findByText(/تعذر الاتصال/)).toBeInTheDocument();
+    expect(window.location.href).toBe(
+      "http://localhost/play/?room=TESTROOM#invite=stable-private-token",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "متابعة" }));
+
+    await screen.findByText("TESTROOM");
+    expect(mocks.resume).toHaveBeenCalledTimes(2);
     expect(window.location.href).toBe("http://localhost/play/?room=TESTROOM");
   });
 
@@ -238,6 +316,167 @@ describe("App room lifecycle", () => {
     await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
     expect(mocks.clearRoomStorage).toHaveBeenCalledWith(snapshot().id);
     expect(window.location.pathname + window.location.search).toBe("/play/");
+  });
+
+  it("tears down dialogs, copied state, and pending room actions on revocation", async () => {
+    let resolveMutation: ((room: RoomSnapshot) => void) | undefined;
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume.mockResolvedValue({ status: "active", room: snapshot() });
+    mocks.mutate.mockImplementation(
+      () =>
+        new Promise<RoomSnapshot>((resolve) => {
+          resolveMutation = resolve;
+        }),
+    );
+    render(<App />);
+    await screen.findByText("TESTROOM");
+    fireEvent.click(screen.getByRole("button", { name: "نسخ الرابط" }));
+    expect(
+      screen.getByRole("button", { name: "تم النسخ" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "تغيير الاسم" }));
+    fireEvent.change(screen.getByLabelText("الاسم الجديد"), {
+      target: { value: "Renamed" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+
+    act(() => mocks.onChange?.(null));
+    const create = await screen.findByRole("button", {
+      name: "إنشاء غرفة جديدة",
+    });
+    expect(create).toBeEnabled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    resolveMutation?.({ ...snapshot(), version: 2 });
+    await act(async () => Promise.resolve());
+    expect(create).toBeInTheDocument();
+  });
+
+  it("ignores a queued clipboard completion after room teardown", async () => {
+    let resolveClipboard: (() => void) | undefined;
+    const writeText = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveClipboard = resolve;
+        }),
+    );
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    try {
+      window.history.replaceState(null, "", "/play/?room=TESTROOM");
+      mocks.resume.mockResolvedValue({ status: "active", room: snapshot() });
+      render(<App />);
+      await screen.findByText("TESTROOM");
+
+      fireEvent.click(screen.getByRole("button", { name: "نسخ الرابط" }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+      act(() => mocks.onChange?.(null));
+      await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+
+      await act(async () => {
+        resolveClipboard?.();
+        await Promise.resolve();
+      });
+
+      expect(
+        screen.queryByRole("button", { name: "تم النسخ" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(navigator, "clipboard", descriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+    }
+  });
+
+  it("clears a confirmation dialog through the same revocation teardown", async () => {
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume.mockResolvedValue({ status: "active", room: snapshot() });
+    render(<App />);
+    await screen.findByText("TESTROOM");
+    fireEvent.click(screen.getByRole("button", { name: "حذف الغرفة" }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    act(() => mocks.onChange?.(null));
+
+    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("ignores a stale room subscription after navigating to another room", async () => {
+    const roomA = snapshot();
+    const roomB = {
+      ...snapshot(),
+      id: "room-00000000-0000-4000-8000-000000000099",
+      code: "ROOMB",
+      view: {
+        ...snapshot().view,
+        roomId: "room-00000000-0000-4000-8000-000000000099",
+      },
+    };
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume
+      .mockResolvedValueOnce({ status: "active", room: roomA })
+      .mockResolvedValueOnce({ status: "active", room: roomB });
+    render(<App />);
+    await screen.findByText("TESTROOM");
+    const staleRoomAChange = mocks.onChanges[0];
+
+    window.history.pushState(null, "", "/play/?room=ROOMB");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await screen.findByText("ROOMB");
+    act(() => staleRoomAChange?.(null));
+
+    expect(screen.getByText("ROOMB")).toBeInTheDocument();
+    expect(window.location.pathname + window.location.search).toBe(
+      "/play/?room=ROOMB",
+    );
+  });
+
+  it("lets the host ban a player during an active game", async () => {
+    const activeRoom = snapshot();
+    activeRoom.view.phase = "clue";
+    activeRoom.view.players.push({
+      id: "00000000-0000-4000-8000-000000000002",
+      name: "Guest",
+      team: "blue",
+      role: "operative",
+    });
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume.mockResolvedValue({ status: "active", room: activeRoom });
+    mocks.mutate.mockResolvedValue({ ...activeRoom, version: 2 });
+    render(<App />);
+    await screen.findByText("Guest");
+
+    fireEvent.click(screen.getByRole("button", { name: "حظر" }));
+    fireEvent.click(
+      screen.getByRole("alertdialog").querySelectorAll("button")[1]!,
+    );
+
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith(activeRoom.id, 1, {
+        type: "banPlayer",
+        targetPlayerId: "00000000-0000-4000-8000-000000000002",
+      }),
+    );
+  });
+
+  it("disables private invite copying when this host lacks the plaintext token", async () => {
+    const privateRoom = { ...snapshot(), visibility: "private" as const };
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume.mockResolvedValue({ status: "active", room: privateRoom });
+    mocks.getInviteToken.mockReturnValue(null);
+    render(<App />);
+
+    expect(
+      await screen.findByText("رابط الدعوة الخاص غير متاح في هذا المتصفح."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "نسخ الرابط" })).toBeDisabled();
+    expect(screen.queryByText("تجديد رابط الدعوة")).not.toBeInTheDocument();
   });
 
   it("clears URL and room storage after confirmed permanent leave", async () => {

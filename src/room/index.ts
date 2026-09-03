@@ -15,6 +15,7 @@ export type {
   ResumeRoomResult,
   Unsubscribe,
 } from "./types";
+export { MAX_ROOM_PLAYERS } from "./types";
 export {
   InMemoryRoomProvider,
   inMemoryRoomProvider,

@@ -24,6 +24,9 @@ describe("0004 room lifecycle migration", () => {
     expect(migration).toContain("status in ('active', 'banned')");
     expect(migration).toContain("and banned_by is not null");
     expect(migration).not.toMatch(/banned_by uuid references/i);
+    expect(migration).toMatch(
+      /foreign key \(user_id\) references auth\.users \(id\) on delete restrict/i,
+    );
     expect(migration).not.toMatch(
       /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?players/i,
     );
@@ -36,7 +39,6 @@ describe("0004 room lifecycle migration", () => {
       "server_update_room",
       "server_leave_room",
       "server_ban_room_member",
-      "server_rotate_room_invite",
       "server_delete_room",
     ]) {
       const body = functionBody(functionName);
@@ -69,7 +71,6 @@ describe("0004 room lifecycle migration", () => {
       "server_update_room",
       "server_leave_room",
       "server_ban_room_member",
-      "server_rotate_room_invite",
       "server_delete_room",
     ]) {
       expect(migration).toMatch(
@@ -79,6 +80,21 @@ describe("0004 room lifecycle migration", () => {
         new RegExp(`grant execute on function public\\.${functionName}`),
       );
     }
+    expect(migration).toMatch(
+      /drop function if exists public\.server_rotate_room_invite/,
+    );
+    expect(migration).not.toMatch(
+      /create (?:or replace )?function public\.server_rotate_room_invite/,
+    );
+  });
+
+  it("enforces stable invites, the player limit, and no-op persistence", () => {
+    expect(functionBody("server_create_room")).toContain(
+      "if p_invite_hash is null",
+    );
+    expect(functionBody("server_join_room")).toContain("message = 'room_full'");
+    expect(functionBody("server_join_room")).toMatch(/count\(\*\)[\s\S]*>= 12/);
+    expect(functionBody("server_update_room")).toContain("return current_room");
   });
 
   it("authorizes Realtime only for active members", () => {

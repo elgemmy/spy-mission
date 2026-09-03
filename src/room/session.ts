@@ -8,6 +8,7 @@ import type {
   RoomUiState,
   RoomVisibility,
 } from "./types.js";
+import { MAX_ROOM_PLAYERS as ROOM_PLAYER_LIMIT } from "./types.js";
 
 export type RoomErrorCode =
   | "NOT_HOST"
@@ -16,6 +17,7 @@ export type RoomErrorCode =
   | "HOST_REMOVE_FORBIDDEN"
   | "HOST_LEAVE_FORBIDDEN"
   | "LEAVE_LOBBY_ONLY"
+  | "ROOM_FULL"
   | "INVALID_NAME";
 
 export class RoomError extends Error {
@@ -61,6 +63,9 @@ export function joinRoomRecord(
   }
   if (room.visibility === "private" && !options.allowPrivate) {
     throw new RoomError("ROOM_PRIVATE");
+  }
+  if (Object.keys(room.state.players).length >= ROOM_PLAYER_LIMIT) {
+    throw new RoomError("ROOM_FULL");
   }
 
   return withState(
@@ -112,7 +117,9 @@ export function dispatchRoomAction(
     };
   }
 
-  return touch({ ...room, state, ui }, now);
+  return state === room.state && ui === room.ui
+    ? room
+    : touch({ ...room, state, ui }, now);
 }
 
 export function updateRoomSettings(
@@ -125,11 +132,16 @@ export function updateRoomSettings(
   const state = settings.lang
     ? reducer(room.state, { type: "setLang", lang: settings.lang }, playerId)
     : room.state;
+  const visibility = settings.visibility ?? room.visibility;
+
+  if (state === room.state && visibility === room.visibility) {
+    return room;
+  }
 
   return touch(
     {
       ...room,
-      visibility: settings.visibility ?? room.visibility,
+      visibility,
       state,
     },
     now,
@@ -145,6 +157,9 @@ export function transferHost(
   assertHost(room, playerId);
   if (!room.state.players[nextHostId]) {
     throw new RoomError("PLAYER_NOT_FOUND");
+  }
+  if (room.hostId === nextHostId) {
+    return room;
   }
   return touch({ ...room, hostId: nextHostId }, now);
 }
@@ -223,6 +238,9 @@ export function voteCard(
   now: string,
 ): RoomRecord {
   assertCanVote(room.state, playerId, cardIndex);
+  if (room.ui.votes[playerId] === cardIndex) {
+    return room;
+  }
   return touch(
     {
       ...room,
@@ -240,6 +258,7 @@ export function clearVote(
   playerId: string,
   now: string,
 ): RoomRecord {
+  assertCanClearVote(room.state, playerId);
   if (!(playerId in room.ui.votes)) {
     return room;
   }
@@ -256,7 +275,7 @@ export function confirmGuess(
 ): RoomRecord {
   const target = room.state.board[cardIndex];
   if (target?.revealed) {
-    return room;
+    throw new IllegalMove("CARD_ALREADY_REVEALED");
   }
 
   const actingTeam = room.state.players[playerId]?.team;
@@ -289,6 +308,14 @@ export function returnToLobby(
   now: string,
 ): RoomRecord {
   assertHost(room, playerId);
+  if (
+    room.state.phase === "lobby" &&
+    Object.keys(room.ui.votes).length === 0 &&
+    room.ui.clueLog.length === 0 &&
+    room.ui.banners.length === 0
+  ) {
+    return room;
+  }
   return touch(
     {
       ...room,
@@ -327,6 +354,16 @@ function assertCanVote(
   playerId: string,
   cardIndex: number,
 ): void {
+  assertCanClearVote(state, playerId);
+  if (cardIndex < 0 || cardIndex > 24 || !state.board[cardIndex]) {
+    throw new IllegalMove("CARD_OUT_OF_RANGE");
+  }
+  if (state.board[cardIndex]?.revealed) {
+    throw new IllegalMove("CARD_ALREADY_REVEALED");
+  }
+}
+
+function assertCanClearVote(state: GameState, playerId: string): void {
   if (state.phase !== "guess") {
     throw new IllegalMove("WRONG_PHASE");
   }
@@ -339,12 +376,6 @@ function assertCanVote(
   }
   if (me.team !== state.turn) {
     throw new IllegalMove("NOT_YOUR_TURN");
-  }
-  if (cardIndex < 0 || cardIndex > 24 || !state.board[cardIndex]) {
-    throw new IllegalMove("CARD_OUT_OF_RANGE");
-  }
-  if (state.board[cardIndex]?.revealed) {
-    throw new IllegalMove("CARD_ALREADY_REVEALED");
   }
 }
 

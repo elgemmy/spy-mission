@@ -1,6 +1,13 @@
 -- Forward-only room lifecycle hardening. Migrations 0001..0003 are immutable.
 
 alter table public.room_members
+  drop constraint if exists room_members_user_id_fkey;
+
+alter table public.room_members
+  add constraint room_members_user_id_fkey
+  foreign key (user_id) references auth.users (id) on delete restrict;
+
+alter table public.room_members
   add column if not exists status text,
   add column if not exists banned_at timestamptz,
   add column if not exists banned_by uuid;
@@ -172,6 +179,10 @@ as $$
 declare
   created public.rooms;
 begin
+  if p_invite_hash is null then
+    raise exception using errcode = 'P0001', message = 'ROOM_INVITE_INVALID';
+  end if;
+
   insert into public.rooms (
     id, code, host_id, visibility, state, ui, version,
     created_at, updated_at, invite_hash
@@ -239,6 +250,14 @@ begin
       raise exception using errcode = 'P0001', message = 'ROOM_MEMBERSHIP_INVALID';
     end if;
     return current_room;
+  end if;
+
+  if (
+    select count(*)
+    from public.room_members
+    where room_id = p_room_id and status = 'active'
+  ) >= 12 then
+    raise exception using errcode = 'P0001', message = 'ROOM_FULL';
   end if;
 
   if current_room.version <> p_expected_version then
@@ -346,6 +365,15 @@ begin
       raise exception using errcode = 'P0001', message = 'ROOM_INVITE_INVALID';
     end if;
     next_invite_hash := p_new_invite_hash;
+  end if;
+
+  if p_host_id::text = current_room.host_id
+    and p_visibility = current_room.visibility
+    and p_state = current_room.state
+    and p_ui = current_room.ui
+    and next_invite_hash is not distinct from current_room.invite_hash
+  then
+    return current_room;
   end if;
 
   update public.rooms
@@ -508,55 +536,9 @@ end;
 $$;
 
 drop function if exists public.server_rotate_room_invite(text, integer, text);
-
-create function public.server_rotate_room_invite(
-  p_room_id text,
-  p_actor_id uuid,
-  p_expected_version integer,
-  p_invite_hash text,
-  p_updated_at timestamptz
-)
-returns public.rooms
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  current_room public.rooms;
-  updated public.rooms;
-begin
-  select * into current_room
-  from public.rooms
-  where id = p_room_id
-  for update;
-
-  if current_room.id is null then
-    raise exception using errcode = 'P0001', message = 'ROOM_NOT_FOUND';
-  end if;
-  if current_room.version <> p_expected_version then
-    raise exception 'room version conflict' using errcode = '40001';
-  end if;
-  if current_room.host_id <> p_actor_id::text then
-    raise exception using errcode = 'P0001', message = 'NOT_HOST';
-  end if;
-  if not exists (
-    select 1 from public.room_members
-    where room_id = p_room_id
-      and user_id = p_actor_id
-      and status = 'active'
-  ) then
-    raise exception using errcode = 'P0001', message = 'ROOM_NOT_MEMBER';
-  end if;
-
-  update public.rooms
-  set invite_hash = p_invite_hash,
-      version = version + 1,
-      updated_at = p_updated_at
-  where id = p_room_id
-  returning * into updated;
-  return updated;
-end;
-$$;
+drop function if exists public.server_rotate_room_invite(
+  text, uuid, integer, text, timestamptz
+);
 
 drop function if exists public.server_delete_room(text);
 
@@ -619,9 +601,6 @@ revoke execute on function public.server_leave_room(
 revoke execute on function public.server_ban_room_member(
   text, uuid, uuid, jsonb, jsonb, integer, timestamptz
 ) from public, anon, authenticated;
-revoke execute on function public.server_rotate_room_invite(
-  text, uuid, integer, text, timestamptz
-) from public, anon, authenticated;
 revoke execute on function public.server_delete_room(text, uuid, integer)
   from public, anon, authenticated;
 
@@ -639,9 +618,6 @@ grant execute on function public.server_leave_room(
 ) to service_role;
 grant execute on function public.server_ban_room_member(
   text, uuid, uuid, jsonb, jsonb, integer, timestamptz
-) to service_role;
-grant execute on function public.server_rotate_room_invite(
-  text, uuid, integer, text, timestamptz
 ) to service_role;
 grant execute on function public.server_delete_room(text, uuid, integer)
   to service_role;

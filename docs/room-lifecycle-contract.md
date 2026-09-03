@@ -49,12 +49,13 @@ remains authoritative for visual decisions.
 - Active members resume private rooms without a token. Banned identities are
   rejected even with a valid token.
 - Private tokens travel in the URL fragment and are stripped after successful
-  join. They do not expire. They remain valid until room deletion or explicit
-  host regeneration.
-- Visibility toggles never rotate or invalidate an existing token. The first
-  transition to private may create a token if none exists. Explicit
-  regeneration is host-only, expected-version guarded, increments the room
-  version, and invalidates the previous token.
+  join. They do not expire and remain valid until room deletion. New rooms
+  receive a stable token/hash even while public; an older public room without
+  one creates it once on its first transition to private.
+- Visibility toggles never rotate, remove, or invalidate an existing token.
+  Public rooms ignore tokens for joining. Invite regeneration does not exist.
+  A transferred host without the plaintext token cannot copy a private invite;
+  plaintext tokens are never stored server-side.
 
 ## Player and host control
 
@@ -85,6 +86,8 @@ remains authoritative for visual decisions.
   receive the committed delete broadcast. A bounded poll remains the reliable
   fallback and must also transition clients home when the room or active
   membership no longer exists.
+- A room has at most 12 active players. New-member joins enforce this limit
+  under the same locked database transaction used for membership insertion.
 
 ## Lifetime and browser storage
 
@@ -95,8 +98,8 @@ remains authoritative for visual decisions.
 - Browser storage must not contain an active room ID, a full room/game
   snapshot, or a custom persistent player ID. Local design preview may use an
   in-memory ephemeral actor ID and rooms, but may not persist either.
-- Invite cache is cleared on room deletion, ban/revocation, permanent leave,
-  and explicit regeneration. Client-only exit does not revoke membership.
+- Invite cache is cleared on room deletion, ban/revocation, and permanent
+  leave. Client-only exit does not revoke membership.
 
 ## Database and security requirements
 
@@ -113,6 +116,9 @@ remains authoritative for visual decisions.
 - Request parsing enforces the actual streamed body size, including absent or
   false `Content-Length`. JSON schemas reject malformed JSON, unknown
   operations, and extra fields.
+- Active and banned `room_members.user_id` references restrict Auth user
+  deletion. Auth cleanup succeeds only after the room lifecycle legitimately
+  removes the membership reference.
 - Production Supabase/Vercel configuration is never mutated by this work, and
   migration `0004` is run only on a disposable local or staging project.
 

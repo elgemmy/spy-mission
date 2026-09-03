@@ -8,8 +8,8 @@ interface LobbyProps {
   view: PlayerView;
   playerId: string;
   copied: boolean;
+  canCopyInvite: boolean;
   onCopyInvite: () => void;
-  onRegenerateInvite: () => void;
   onSetLang: (lang: Lang) => void;
   onSetVisibility: (visibility: RoomVisibility) => void;
   onAssignSelf: (team: Team, role: Role) => void;
@@ -30,8 +30,8 @@ export function Lobby({
   view,
   playerId,
   copied,
+  canCopyInvite,
   onCopyInvite,
-  onRegenerateInvite,
   onSetLang,
   onSetVisibility,
   onAssignSelf,
@@ -77,11 +77,16 @@ export function Lobby({
           className="mt-cn-3 w-full"
           variant="secondary"
           onClick={onCopyInvite}
+          disabled={!canCopyInvite}
         >
           {copied ? "تم النسخ" : "نسخ الرابط"}
         </Button>
         <p className="mt-cn-2 text-ink-soft m-0 text-xs">
-          {room.visibility === "public" ? "غرفة عامة بالرابط" : "غرفة خاصة"}
+          {room.visibility === "public"
+            ? "غرفة عامة بالرابط"
+            : canCopyInvite
+              ? "غرفة خاصة"
+              : "رابط الدعوة الخاص غير متاح في هذا المتصفح."}
         </p>
       </section>
 
@@ -110,11 +115,6 @@ export function Lobby({
             English
           </button>
         </div>
-        {isHost && room.visibility === "private" ? (
-          <Button variant="secondary" onClick={onRegenerateInvite}>
-            تجديد رابط الدعوة
-          </Button>
-        ) : null}
       </section>
 
       <section className="gap-cn-2 flex flex-col" aria-label="ظهور الغرفة">

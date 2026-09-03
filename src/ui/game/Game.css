@@ -366,6 +366,10 @@ button:disabled {
   font-weight: 700;
 }
 
+.cn-team-roster__player .cn-player-action {
+  grid-column: 1 / -1;
+}
+
 .cn-clue-toast {
   position: fixed;
   z-index: 20;

@@ -64,6 +64,55 @@ describe("room server boundary", () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
+  it("does not persist an authorized command that changes nothing", async () => {
+    const client = fakeClient();
+    setAdminClientForTests(client);
+
+    const response = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: { type: "renamePlayer", name: "Red OP" },
+      }),
+    );
+    const payload = (await response.json()) as {
+      data: { version: number };
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.data.version).toBe(8);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects unauthorized and illegal no-ops before persistence", async () => {
+    const client = fakeClient();
+    setAdminClientForTests(client);
+
+    const unauthorized = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: { type: "setVisibility", visibility: "public" },
+      }),
+    );
+    expect(unauthorized.status).toBe(403);
+    await expect(unauthorized.json()).resolves.toEqual({ error: "NOT_HOST" });
+
+    const illegal = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: { type: "clearVote" },
+      }),
+    );
+    expect(illegal.status).toBe(409);
+    await expect(illegal.json()).resolves.toEqual({ error: "WRONG_PHASE" });
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
   it("rejects requests without a player access token", async () => {
     setAdminClientForTests(fakeClient());
     const response = await handleRoomsRequest(

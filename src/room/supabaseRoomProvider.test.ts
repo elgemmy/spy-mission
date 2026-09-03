@@ -27,7 +27,13 @@ vi.mock("../lib/supabase/client", () => ({
   }),
 }));
 
-import { SupabaseRoomProvider } from "./supabaseRoomProvider";
+import {
+  ROOM_POLL_INTERVAL_MS,
+  ROOM_POLL_TIMEOUT_MS,
+  resetAnonymousSessionInitializationForTests,
+  runStorageAuthLockForTests,
+  SupabaseRoomProvider,
+} from "./supabaseRoomProvider";
 
 describe("SupabaseRoomProvider", () => {
   beforeEach(() => {
@@ -49,6 +55,7 @@ describe("SupabaseRoomProvider", () => {
 
   afterEach(() => {
     localStorage.clear();
+    resetAnonymousSessionInitializationForTests();
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
@@ -88,6 +95,97 @@ describe("SupabaseRoomProvider", () => {
       name: "Player",
       lang: "ar",
     });
+  });
+
+  it("single-flights concurrent anonymous session initialization", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    mocks.signInAnonymously.mockResolvedValue({
+      data: { session: { access_token: "one-anonymous-jwt" } },
+      error: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(jsonResponse(snapshot()))),
+    );
+    const provider = new SupabaseRoomProvider();
+
+    await Promise.all([
+      provider.create({ name: "First tab", lang: "ar" }),
+      provider.create({ name: "Second tab", lang: "ar" }),
+    ]);
+
+    expect(mocks.signInAnonymously).toHaveBeenCalledTimes(1);
+  });
+
+  it("rechecks the session inside the cross-tab lock before signing in", async () => {
+    mocks.getSession
+      .mockResolvedValueOnce({ data: { session: null }, error: null })
+      .mockResolvedValueOnce({
+        data: { session: { access_token: "other-tab-jwt" } },
+        error: null,
+      });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(snapshot())));
+
+    await new SupabaseRoomProvider().create({ name: "Player", lang: "ar" });
+
+    expect(mocks.getSession).toHaveBeenCalledTimes(2);
+    expect(mocks.signInAnonymously).not.toHaveBeenCalled();
+  });
+
+  it("serializes independent storage-lock callers without an expiring lease", async () => {
+    vi.useFakeTimers();
+    let releaseFirst: (() => void) | undefined;
+    let firstEntered = false;
+    let secondEntered = false;
+    const first = runStorageAuthLockForTests(async () => {
+      firstEntered = true;
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+    });
+    await Promise.resolve();
+    expect(firstEntered).toBe(true);
+
+    const second = runStorageAuthLockForTests(async () => {
+      secondEntered = true;
+    });
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    expect(secondEntered).toBe(false);
+    releaseFirst?.();
+    await first;
+    await vi.advanceTimersByTimeAsync(50);
+    await second;
+    expect(secondEntered).toBe(true);
+  });
+
+  it("fails closed when shared storage is unavailable", async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "localStorage",
+    );
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get: () => {
+        throw new DOMException("Blocked", "SecurityError");
+      },
+    });
+    try {
+      await expect(
+        runStorageAuthLockForTests(async () => undefined),
+      ).rejects.toThrow("ANONYMOUS_AUTH_LOCK_UNAVAILABLE");
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(globalThis, "localStorage", descriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, "localStorage");
+      }
+    }
   });
 
   it("rejects a malformed success response from the room API", async () => {
@@ -180,38 +278,48 @@ describe("SupabaseRoomProvider", () => {
     );
   });
 
-  it("replaces the cached token only on explicit regeneration", async () => {
+  it("preserves invite context after a transient resume failure", async () => {
     authenticatedSession();
     const privateRoom = {
       ...snapshot(),
       visibility: "private" as const,
-      inviteToken: "original-private-token",
-    };
-    const regenerated = {
-      ...privateRoom,
-      version: 2,
-      inviteToken: "regenerated-private-token",
+      inviteToken: "stable-private-token",
     };
     vi.stubGlobal(
       "fetch",
       vi
         .fn()
         .mockResolvedValueOnce(jsonResponse(privateRoom))
-        .mockResolvedValueOnce(jsonResponse(regenerated)),
+        .mockRejectedValueOnce(new TypeError("Failed to fetch")),
     );
     const provider = new SupabaseRoomProvider();
     await provider.create({ name: "Host", lang: "ar", visibility: "private" });
 
-    await provider.mutate(privateRoom.id, privateRoom.version, {
-      type: "regenerateInvite",
-    });
-
+    await expect(provider.resume(privateRoom.code)).rejects.toThrow(
+      "Failed to fetch",
+    );
     expect(provider.getInviteToken(privateRoom.id)).toBe(
-      "regenerated-private-token",
+      "stable-private-token",
     );
   });
 
-  it("clears the invite cache after permanent leave", async () => {
+  it("caches the stable token created for a public room", async () => {
+    authenticatedSession();
+    const publicRoom = {
+      ...snapshot(),
+      inviteToken: "stable-room-token",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(jsonResponse(publicRoom)),
+    );
+    const provider = new SupabaseRoomProvider();
+    await provider.create({ name: "Host", lang: "ar" });
+
+    expect(provider.getInviteToken(publicRoom.id)).toBe("stable-room-token");
+  });
+
+  it("clears the invite cache through the explicit teardown method", async () => {
     authenticatedSession();
     const privateRoom = {
       ...snapshot(),
@@ -232,6 +340,8 @@ describe("SupabaseRoomProvider", () => {
       type: "leaveRoom",
     });
 
+    expect(provider.getInviteToken(privateRoom.id)).toBe("private-token");
+    provider.clearRoomStorage(privateRoom.id);
     expect(provider.getInviteToken(privateRoom.id)).toBeNull();
   });
 
@@ -255,6 +365,8 @@ describe("SupabaseRoomProvider", () => {
     mocks.broadcastHandler?.({ payload: { deleted: true } });
 
     expect(onChange).toHaveBeenCalledWith(null);
+    expect(provider.getInviteToken(snapshot().id)).toBe("private-token");
+    provider.clearRoomStorage(snapshot().id);
     expect(provider.getInviteToken(snapshot().id)).toBeNull();
     unsubscribe();
   });
@@ -286,6 +398,77 @@ describe("SupabaseRoomProvider", () => {
     unsubscribe();
   });
 
+  it("aborts a hung poll and continues with the next interval", async () => {
+    vi.useFakeTimers();
+    authenticatedSession();
+    let firstSignal: AbortSignal | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        (_input: RequestInfo | URL, init?: RequestInit) => {
+          firstSignal = init?.signal ?? undefined;
+          return new Promise<Response>((_resolve, reject) => {
+            firstSignal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          });
+        },
+      )
+      .mockResolvedValueOnce(jsonResponse(snapshot()));
+    vi.stubGlobal("fetch", fetchMock);
+    const onChange = vi.fn();
+    const unsubscribe = new SupabaseRoomProvider().subscribe(
+      snapshot().id,
+      onChange,
+    );
+
+    await vi.advanceTimersByTimeAsync(ROOM_POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(ROOM_POLL_TIMEOUT_MS);
+    expect(firstSignal?.aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(
+      ROOM_POLL_INTERVAL_MS - ROOM_POLL_TIMEOUT_MS,
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenCalledWith(snapshot());
+    unsubscribe();
+  });
+
+  it("ignores queued fetch and Realtime callbacks after unsubscribe", async () => {
+    vi.useFakeTimers();
+    authenticatedSession();
+    let resolveFetch: ((response: Response) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveFetch = resolve;
+          }),
+      ),
+    );
+    const provider = new SupabaseRoomProvider();
+    const roomAChange = vi.fn();
+    const unsubscribeA = provider.subscribe(snapshot().id, roomAChange);
+    await vi.waitFor(() => expect(mocks.subscribe).toHaveBeenCalledTimes(1));
+    const staleBroadcast = mocks.broadcastHandler;
+    await vi.advanceTimersByTimeAsync(ROOM_POLL_INTERVAL_MS);
+    unsubscribeA();
+
+    const roomB = { ...snapshot(), id: "room-b", code: "ROOMB" };
+    const roomBChange = vi.fn();
+    const unsubscribeB = provider.subscribe(roomB.id, roomBChange);
+    await vi.waitFor(() => expect(mocks.subscribe).toHaveBeenCalledTimes(2));
+    staleBroadcast?.({ payload: { deleted: true } });
+    resolveFetch?.(jsonResponse(null));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(roomAChange).not.toHaveBeenCalled();
+    expect(roomBChange).not.toHaveBeenCalled();
+    unsubscribeB();
+  });
+
   it("ejects on a permanently expired Auth session but not a transient fetch", async () => {
     vi.useFakeTimers();
     authenticatedSession();
@@ -314,6 +497,33 @@ describe("SupabaseRoomProvider", () => {
     expect(onChange).not.toHaveBeenCalled();
     unsubscribe();
   });
+
+  it.each(["ROOM_BANNED", "ROOM_NOT_MEMBER"])(
+    "ejects when polling reports permanent room access loss: %s",
+    async (code) => {
+      vi.useFakeTimers();
+      authenticatedSession();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(JSON.stringify({ error: code }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          }),
+        ),
+      );
+      const onChange = vi.fn();
+      const unsubscribe = new SupabaseRoomProvider().subscribe(
+        snapshot().id,
+        onChange,
+      );
+
+      await vi.advanceTimersByTimeAsync(ROOM_POLL_INTERVAL_MS);
+
+      expect(onChange).toHaveBeenCalledWith(null);
+      unsubscribe();
+    },
+  );
 });
 
 function authenticatedSession(): void {

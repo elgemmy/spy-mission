@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { createClient } from "@supabase/supabase-js";
+import { spawnSync } from "node:child_process";
 import { afterAll, describe, expect, it } from "vitest";
 import type {
   RoomCommand,
@@ -17,6 +18,7 @@ const secretKey =
   process.env.SUPABASE_SECRET_KEY ??
   process.env.SUPABASE_SERVICE_ROLE_KEY ??
   "";
+const databaseUrl = process.env.SUPABASE_DB_URL ?? "";
 
 interface Identity {
   token: string;
@@ -31,7 +33,8 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
   });
 
   it("keeps identity separate from mutable and duplicate display names", async () => {
-    const [host, first, second] = await Promise.all([
+    const [host, first, second, privateJoiner] = await Promise.all([
+      anonymousIdentity(),
       anonymousIdentity(),
       anonymousIdentity(),
       anonymousIdentity(),
@@ -71,7 +74,14 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
         type: "setVisibility",
         visibility: "private",
       });
-      expect(firstPrivateTransition.inviteToken).toBeTruthy();
+      expect(created.inviteToken).toBeTruthy();
+      expect(firstPrivateTransition.inviteToken).toBeUndefined();
+      await joinRoom(
+        privateJoiner,
+        created.code,
+        "Stable invite",
+        created.inviteToken,
+      );
     } finally {
       await deleteIfPresent(host, created.id);
     }
@@ -182,6 +192,22 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
         true,
       );
       expect(JSON.stringify(operativeView)).not.toContain('"kind":"assassin"');
+
+      const afterActiveBan = await command(host, created.id, {
+        type: "banPlayer",
+        targetPlayerId: blueOperative.userId,
+      });
+      expect(
+        afterActiveBan.view.players.some(
+          (player) => player.id === blueOperative.userId,
+        ),
+      ).toBe(false);
+      expect(
+        await success<null>(blueOperative, {
+          op: "get",
+          roomId: created.id,
+        }),
+      ).toBeNull();
     } finally {
       await deleteIfPresent(host, created.id);
     }
@@ -229,28 +255,8 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       expect(privateAgain.visibility).toBe("private");
       await joinRoom(toggledMember, created.code, "Old token", initialToken);
 
-      const regenerated = await command(host, created.id, {
-        type: "regenerateInvite",
-      });
-      expect(regenerated.version).toBeGreaterThan(privateAgain.version);
-      expect(regenerated.inviteToken).toBeTruthy();
-      expect(regenerated.inviteToken).not.toBe(initialToken);
-
-      const oldTokenDenied = await call(banned, {
-        op: "join",
-        code: created.code,
-        name: "Old link",
-        inviteToken: initialToken,
-      });
-      expect(oldTokenDenied.response.status).toBe(403);
-      expect(oldTokenDenied.payload.error).toBe("ROOM_INVITE_INVALID");
-      await joinRoom(
-        banned,
-        created.code,
-        "Banned later",
-        regenerated.inviteToken,
-      );
-      await joinRoom(leaver, created.code, "Leaving", regenerated.inviteToken);
+      await joinRoom(banned, created.code, "Banned later", initialToken);
+      await joinRoom(leaver, created.code, "Leaving", initialToken);
 
       const realtime = createClient(supabaseUrl, publishableKey, {
         auth: { autoRefreshToken: false, persistSession: false },
@@ -299,7 +305,7 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
           op: "join",
           code: created.code,
           name: "Return",
-          inviteToken: regenerated.inviteToken,
+          inviteToken: initialToken,
         },
         {
           op: "command",
@@ -528,7 +534,334 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       expect(removal.error).not.toBeNull();
     }
   }, 15_000);
+
+  it("denies every server RPC to anonymous and authenticated browser roles", async () => {
+    const actor = await anonymousIdentity();
+    const probes = serverRpcProbes(actor.userId);
+    expect([...new Set(probes.map((probe) => probe.name))].sort()).toEqual(
+      publicServerRpcNames(),
+    );
+    const browsers = [
+      createClient(supabaseUrl, publishableKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      }),
+      createClient(supabaseUrl, publishableKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: { headers: { Authorization: `Bearer ${actor.token}` } },
+      }),
+    ];
+
+    for (const browser of browsers) {
+      for (const probe of probes) {
+        const result = await browser.rpc(probe.name, probe.args);
+        expect(result.error?.code, probe.name).toBe("42501");
+        expect(result.error?.message, probe.name).toMatch(/permission denied/i);
+      }
+    }
+  }, 20_000);
+
+  it("enforces the 12-player limit under concurrent joins", async () => {
+    const host = await anonymousIdentity();
+    const joiners = await Promise.all(
+      Array.from({ length: 12 }, () => anonymousIdentity()),
+    );
+    const created = await createRoom(host, "Host");
+
+    try {
+      for (const [index, joiner] of joiners.slice(0, 10).entries()) {
+        await joinRoom(joiner, created.code, `Player ${index + 1}`);
+      }
+      const contenders = await Promise.all(
+        joiners.slice(10).map((joiner, index) =>
+          call(joiner, {
+            op: "join",
+            code: created.code,
+            name: `Contender ${index + 1}`,
+          }),
+        ),
+      );
+      expect(contenders.filter(({ response }) => response.ok)).toHaveLength(1);
+      const denied = contenders.find(({ response }) => !response.ok);
+      expect(denied?.response.status).toBe(409);
+      expect(denied?.payload.error).toBe("ROOM_FULL");
+
+      const current = await getRoom(host, created.id);
+      expect(current.view.players).toHaveLength(12);
+      const memberships = await adminClient()
+        .from("room_members")
+        .select("room_id", { count: "exact", head: true })
+        .eq("room_id", created.id)
+        .eq("status", "active");
+      expect(memberships.error).toBeNull();
+      expect(memberships.count).toBe(12);
+    } finally {
+      await deleteIfPresent(host, created.id);
+    }
+  }, 40_000);
+
+  it("does not churn versions for authorized or malicious no-op commands", async () => {
+    const [host, member] = await Promise.all([
+      anonymousIdentity(),
+      anonymousIdentity(),
+    ]);
+    const created = await createRoom(host, "Host");
+    await joinRoom(member, created.code, "Member");
+
+    try {
+      const before = await getRoom(host, created.id);
+      const unchanged = await commandAt(host, created.id, before.version, {
+        type: "setLang",
+        lang: "ar",
+      });
+      expect(unchanged.version).toBe(before.version);
+
+      const unauthorized = await call(member, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: before.version,
+        command: { type: "setVisibility", visibility: "public" },
+      });
+      expect(unauthorized.response.status).toBe(403);
+      expect(unauthorized.payload.error).toBe("NOT_HOST");
+
+      const illegal = await call(member, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: before.version,
+        command: { type: "clearVote" },
+      });
+      expect(illegal.response.status).toBe(409);
+      expect(illegal.payload.error).toBe("WRONG_PHASE");
+      expect((await getRoom(host, created.id)).version).toBe(before.version);
+    } finally {
+      await deleteIfPresent(host, created.id);
+    }
+  }, 20_000);
+
+  it("restricts Auth deletion until room lifecycle references are removed", async () => {
+    if (!databaseUrl) {
+      throw new Error("SUPABASE_DB_URL_REQUIRED");
+    }
+    const [host, active, banned] = await Promise.all([
+      anonymousIdentity(),
+      anonymousIdentity(),
+      anonymousIdentity(),
+    ]);
+    const created = await createRoom(host, "Host");
+    await joinRoom(active, created.code, "Active");
+    await joinRoom(banned, created.code, "Banned");
+    await command(host, created.id, {
+      type: "banPlayer",
+      targetPlayerId: banned.userId,
+    });
+
+    try {
+      const beforeRoom = await rawRoom(created.id);
+      const beforeMembers = await rawMembers(created.id);
+      for (const identity of [active, banned, host]) {
+        expectAuthDeleteFailure(identity.userId, "23503");
+      }
+
+      expect(await rawRoom(created.id)).toEqual(beforeRoom);
+      expect(await rawMembers(created.id)).toEqual(beforeMembers);
+      expect(beforeRoom.host_id).toBe(host.userId);
+      expect(beforeRoom.state.players).toHaveProperty(host.userId);
+      expect(beforeRoom.state.players).toHaveProperty(active.userId);
+      expect(beforeRoom.state.players).not.toHaveProperty(banned.userId);
+      expect(
+        beforeMembers.find((member) => member.user_id === banned.userId)
+          ?.status,
+      ).toBe("banned");
+
+      await commandRaw(active, created.id, { type: "leaveRoom" });
+      deleteAuthUser(active.userId);
+      await commandRaw(host, created.id, { type: "deleteRoom" });
+      deleteAuthUser(banned.userId);
+      deleteAuthUser(host.userId);
+    } finally {
+      await deleteIfPresent(host, created.id);
+    }
+  }, 30_000);
 });
+
+function serverRpcProbes(
+  userId: string,
+): Array<{ name: string; args: Record<string, unknown> }> {
+  const state = {
+    roomId: "forbidden-room-probe",
+    lang: "ar",
+    phase: "lobby",
+    players: {
+      [userId]: { name: "Probe", team: "red", role: "operative" },
+    },
+    board: [],
+    turn: "red",
+    startingTeam: "red",
+    clue: null,
+    guessesMadeThisTurn: 0,
+    winner: null,
+  };
+  const ui = { votes: {}, clueLog: [], banners: [] };
+  const now = "2026-09-03T00:00:00.000Z";
+  return [
+    {
+      name: "server_create_room",
+      args: {
+        p_id: "forbidden-room-probe",
+        p_code: "DENY1",
+        p_host_id: userId,
+        p_visibility: "public",
+        p_state: state,
+        p_ui: ui,
+        p_version: 1,
+        p_created_at: now,
+        p_updated_at: now,
+        p_invite_hash: "0".repeat(64),
+      },
+    },
+    {
+      name: "server_join_room",
+      args: {
+        p_room_id: "forbidden-room-probe",
+        p_user_id: userId,
+        p_state: state,
+        p_ui: ui,
+        p_expected_version: 1,
+        p_updated_at: now,
+        p_invite_hash: null,
+      },
+    },
+    {
+      name: "server_update_room",
+      args: {
+        p_room_id: "forbidden-room-probe",
+        p_actor_id: userId,
+        p_host_id: userId,
+        p_visibility: "public",
+        p_state: state,
+        p_ui: ui,
+        p_expected_version: 1,
+        p_updated_at: now,
+        p_new_invite_hash: null,
+      },
+    },
+    {
+      name: "server_leave_room",
+      args: {
+        p_room_id: "forbidden-room-probe",
+        p_actor_id: userId,
+        p_state: state,
+        p_ui: ui,
+        p_expected_version: 1,
+        p_updated_at: now,
+      },
+    },
+    {
+      name: "server_ban_room_member",
+      args: {
+        p_room_id: "forbidden-room-probe",
+        p_actor_id: userId,
+        p_target_user_id: userId,
+        p_state: state,
+        p_ui: ui,
+        p_expected_version: 1,
+        p_updated_at: now,
+      },
+    },
+    {
+      name: "server_delete_room",
+      args: {
+        p_room_id: "forbidden-room-probe",
+        p_actor_id: userId,
+        p_expected_version: 1,
+      },
+    },
+  ];
+}
+
+async function rawRoom(roomId: string): Promise<{
+  host_id: string;
+  state: { players: Record<string, unknown> };
+  version: number;
+}> {
+  const { data, error } = await adminClient()
+    .from("rooms")
+    .select("host_id,state,version")
+    .eq("id", roomId)
+    .single();
+  expect(error).toBeNull();
+  return data as {
+    host_id: string;
+    state: { players: Record<string, unknown> };
+    version: number;
+  };
+}
+
+async function rawMembers(
+  roomId: string,
+): Promise<Array<{ user_id: string; status: string }>> {
+  const { data, error } = await adminClient()
+    .from("room_members")
+    .select("user_id,status")
+    .eq("room_id", roomId)
+    .order("user_id");
+  expect(error).toBeNull();
+  return (data ?? []) as Array<{ user_id: string; status: string }>;
+}
+
+function expectAuthDeleteFailure(userId: string, sqlState: string): void {
+  const result = runAuthDelete(userId);
+  expect(result.status).not.toBe(0);
+  expect(`${result.stdout}\n${result.stderr}`).toContain(sqlState);
+}
+
+function deleteAuthUser(userId: string): void {
+  const result = runAuthDelete(userId);
+  expect(`${result.stdout}\n${result.stderr}`).toBeTruthy();
+  expect(result.status).toBe(0);
+}
+
+function runAuthDelete(userId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+    throw new Error("INVALID_TEST_USER_ID");
+  }
+  return spawnSync(
+    "psql",
+    [
+      databaseUrl,
+      "--set=ON_ERROR_STOP=1",
+      "--set=VERBOSITY=verbose",
+      "--command",
+      `delete from auth.users where id = '${userId}'::uuid`,
+    ],
+    { encoding: "utf8" },
+  );
+}
+
+function publicServerRpcNames(): string[] {
+  if (!databaseUrl) {
+    throw new Error("SUPABASE_DB_URL_REQUIRED");
+  }
+  const result = spawnSync(
+    "psql",
+    [
+      databaseUrl,
+      "--tuples-only",
+      "--no-align",
+      "--set=ON_ERROR_STOP=1",
+      "--command",
+      "select distinct proname from pg_proc where pronamespace = 'public'::regnamespace and proname ~ '^server_' order by proname",
+    ],
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(`SERVER_RPC_DISCOVERY_FAILED: ${result.stderr}`);
+  }
+  return result.stdout
+    .split("\n")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
 
 function adminClient() {
   return createClient(supabaseUrl, secretKey, {

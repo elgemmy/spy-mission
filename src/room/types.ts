@@ -9,6 +9,7 @@ import type {
 
 export type Unsubscribe = () => void;
 export type RoomVisibility = "public" | "private";
+export const MAX_ROOM_PLAYERS = 12;
 
 export interface ClueLogEntry {
   id: string;
@@ -109,8 +110,7 @@ export type RoomCommand =
   | RoomStateCommand
   | { type: "leaveRoom" }
   | { type: "banPlayer"; targetPlayerId: string }
-  | { type: "deleteRoom" }
-  | { type: "regenerateInvite" };
+  | { type: "deleteRoom" };
 
 export type RoomMutationResult =
   | RoomSnapshot

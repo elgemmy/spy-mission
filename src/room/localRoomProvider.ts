@@ -47,12 +47,9 @@ export class LocalRoomProvider implements RoomProvider {
       now,
     });
     await inMemoryRoomProvider.create(room);
-    if (room.visibility === "private") {
-      const inviteToken = createClientId();
-      localInvites.set(room.id, inviteToken);
-      return toRoomSnapshot(room, this.playerId, inviteToken);
-    }
-    return toRoomSnapshot(room, this.playerId);
+    const inviteToken = createClientId();
+    localInvites.set(room.id, inviteToken);
+    return toRoomSnapshot(room, this.playerId, inviteToken);
   }
 
   async resume(code: string): Promise<ResumeRoomResult> {
@@ -91,7 +88,9 @@ export class LocalRoomProvider implements RoomProvider {
       new Date().toISOString(),
       { allowPrivate },
     );
-    await inMemoryRoomProvider.save(next, room.version);
+    if (next !== room) {
+      await inMemoryRoomProvider.save(next, room.version);
+    }
     return toRoomSnapshot(next, this.playerId);
   }
 
@@ -123,7 +122,6 @@ export class LocalRoomProvider implements RoomProvider {
     if (command.type === "leaveRoom") {
       const next = leaveRoomRecord(room, this.playerId, now);
       await inMemoryRoomProvider.save(next, expectedVersion);
-      this.clearRoomStorage(roomId);
       return { left: true };
     }
     if (command.type === "banPlayer") {
@@ -140,24 +138,8 @@ export class LocalRoomProvider implements RoomProvider {
       }
       await inMemoryRoomProvider.delete(roomId);
       localBans.delete(roomId);
-      this.clearRoomStorage(roomId);
       return { deleted: true };
     }
-    if (command.type === "regenerateInvite") {
-      if (room.hostId !== this.playerId) {
-        throw new Error("NOT_HOST");
-      }
-      const inviteToken = createClientId();
-      const next = {
-        ...room,
-        version: room.version + 1,
-        updatedAt: now,
-      };
-      localInvites.set(roomId, inviteToken);
-      await inMemoryRoomProvider.save(next, expectedVersion);
-      return toRoomSnapshot(next, this.playerId, inviteToken);
-    }
-
     let inviteToken = localInvites.get(roomId);
     if (
       command.type === "setVisibility" &&
@@ -174,7 +156,9 @@ export class LocalRoomProvider implements RoomProvider {
       now,
       command.type === "startGame" ? createSeed() : undefined,
     );
-    await inMemoryRoomProvider.save(next, expectedVersion);
+    if (next !== room) {
+      await inMemoryRoomProvider.save(next, expectedVersion);
+    }
     return toRoomSnapshot(next, this.playerId, inviteToken);
   }
 

@@ -1,10 +1,17 @@
-import { useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { isIllegalMove, type Lang, type Role, type Team } from "../engine";
 import {
   getRoomProvider,
   RoomError,
   type ClueLogEntry,
   type RoomCommand,
+  type RoomMutationResult,
   type RoomSnapshot,
   type RoomVisibility,
 } from "../room";
@@ -27,6 +34,7 @@ type JoinSource = "code" | "link";
 type OnboardingStep =
   | { type: "landing" }
   | { type: "loadingRoom" }
+  | { type: "roomRetry"; code: string }
   | { type: "createName" }
   | { type: "joinCode" }
   | { type: "joinName"; code: string; source: JoinSource };
@@ -61,10 +69,98 @@ export function App() {
     null,
   );
   const [renameOpen, setRenameOpen] = useState(false);
+  const [pendingRoomAction, setPendingRoomAction] = useState<string | null>(
+    null,
+  );
+  const [resumeAttempt, setResumeAttempt] = useState(0);
   const [installOpen, setInstallOpen] = useState(
     () => initialPlayParams.install,
   );
   const { needRefresh } = useServiceWorkerStatus();
+  const activeRoomRef = useRef<string | null>(null);
+  const lifecycleGenerationRef = useRef(0);
+  const pendingActionRef = useRef<{ key: string } | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
+
+  const teardownRoomContext = useCallback(
+    ({
+      expectedRoomId,
+      clearInvite,
+      clearUrl = true,
+      nextError = null,
+    }: {
+      expectedRoomId?: string | null;
+      clearInvite: boolean;
+      clearUrl?: boolean;
+      nextError?: string | null;
+    }): boolean => {
+      if (
+        expectedRoomId &&
+        activeRoomRef.current &&
+        activeRoomRef.current !== expectedRoomId
+      ) {
+        return false;
+      }
+      lifecycleGenerationRef.current += 1;
+      if (clearInvite && expectedRoomId) {
+        roomProvider.clearRoomStorage(expectedRoomId);
+      }
+      activeRoomRef.current = null;
+      if (clearUrl) {
+        replacePlayLocation();
+        setRouteRoomCode(null);
+      }
+      setPendingInviteToken(null);
+      setRoom(null);
+      setStep({ type: "landing" });
+      setResumeAttempt(0);
+      setError(nextError);
+      setConfirmRequest(null);
+      setRenameOpen(false);
+      setCopied(false);
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = null;
+      }
+      pendingActionRef.current = null;
+      setPendingRoomAction(null);
+      return true;
+    },
+    [],
+  );
+
+  const enterRoom = useCallback((next: RoomSnapshot) => {
+    lifecycleGenerationRef.current += 1;
+    activeRoomRef.current = next.id;
+    replacePlayLocation(next.code);
+    setRouteRoomCode(next.code);
+    setPendingInviteToken(null);
+    setRoom(next);
+    setError(null);
+  }, []);
+
+  const runPending = useCallback(
+    async <T,>(
+      key: string,
+      action: () => Promise<T>,
+    ): Promise<T | undefined> => {
+      if (pendingActionRef.current) {
+        return undefined;
+      }
+      const pending = { key };
+      pendingActionRef.current = pending;
+      setPendingRoomAction(key);
+      try {
+        return await action();
+      } finally {
+        if (pendingActionRef.current === pending) {
+          pendingActionRef.current = null;
+          setPendingRoomAction(null);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     initTheme("default");
@@ -89,21 +185,22 @@ export function App() {
   useEffect(() => {
     const syncFromLocation = () => {
       const params = readPlayParams(window.location.search);
+      teardownRoomContext({
+        expectedRoomId: activeRoomRef.current,
+        clearInvite: false,
+        clearUrl: false,
+      });
       setRouteRoomCode(params.room);
       setPendingInviteToken(readInviteToken());
       if (params.room) {
-        setRoom(null);
         setStep({ type: "loadingRoom" });
-        setError(null);
       } else {
-        setRoom(null);
         setStep(params.create ? { type: "createName" } : { type: "landing" });
-        setError(null);
       }
     };
     window.addEventListener("popstate", syncFromLocation);
     return () => window.removeEventListener("popstate", syncFromLocation);
-  }, []);
+  }, [teardownRoomContext]);
 
   useEffect(() => {
     if (!routeRoomCode || room?.code === routeRoomCode) {
@@ -111,17 +208,18 @@ export function App() {
     }
 
     let mounted = true;
+    const requestedCode = routeRoomCode;
     void roomProvider
-      .resume(routeRoomCode)
+      .resume(requestedCode)
       .then((result) => {
-        if (!mounted) {
+        if (
+          !mounted ||
+          readPlayParams(window.location.search).room !== requestedCode
+        ) {
           return;
         }
         if (result.status === "active") {
-          setRoom(result.room);
-          replacePlayLocation(result.room.code);
-          setPendingInviteToken(null);
-          setError(null);
+          enterRoom(result.room);
           return;
         }
         if (result.status === "join") {
@@ -129,19 +227,25 @@ export function App() {
           setError(null);
           return;
         }
-        replacePlayLocation();
-        setRouteRoomCode(null);
-        setPendingInviteToken(null);
-        setStep({ type: "landing" });
-        setError(messageForError(new Error("ROOM_NOT_FOUND")));
+        teardownRoomContext({
+          clearInvite: true,
+          nextError: messageForError(new Error("ROOM_NOT_FOUND")),
+        });
       })
       .catch((caught: unknown) => {
-        if (mounted) {
-          replacePlayLocation();
-          setRouteRoomCode(null);
-          setPendingInviteToken(null);
-          setRoom(null);
-          setStep({ type: "landing" });
+        if (
+          !mounted ||
+          readPlayParams(window.location.search).room !== requestedCode
+        ) {
+          return;
+        }
+        if (isTerminalRoomError(caught)) {
+          teardownRoomContext({
+            clearInvite: true,
+            nextError: messageForError(caught),
+          });
+        } else {
+          setStep({ type: "roomRetry", code: requestedCode });
           setError(messageForError(caught));
         }
       });
@@ -149,27 +253,39 @@ export function App() {
     return () => {
       mounted = false;
     };
-  }, [room?.code, routeRoomCode]);
+  }, [
+    enterRoom,
+    resumeAttempt,
+    room?.code,
+    routeRoomCode,
+    teardownRoomContext,
+  ]);
 
   const activeRoomId = room?.id ?? null;
   useEffect(() => {
     if (!activeRoomId) {
       return undefined;
     }
+    const generation = lifecycleGenerationRef.current;
     return roomProvider.subscribe(activeRoomId, (next) => {
+      if (
+        activeRoomRef.current !== activeRoomId ||
+        lifecycleGenerationRef.current !== generation ||
+        (next && next.id !== activeRoomId)
+      ) {
+        return;
+      }
       if (next?.view.me) {
         setRoom(next);
         return;
       }
-      roomProvider.clearRoomStorage(activeRoomId);
-      replacePlayLocation();
-      setRouteRoomCode(null);
-      setPendingInviteToken(null);
-      setRoom(null);
-      setStep({ type: "landing" });
-      setError(messageForError(new Error("ROOM_ACCESS_REVOKED")));
+      teardownRoomContext({
+        expectedRoomId: activeRoomId,
+        clearInvite: true,
+        nextError: messageForError(new Error("ROOM_ACCESS_REVOKED")),
+      });
     });
-  }, [activeRoomId]);
+  }, [activeRoomId, teardownRoomContext]);
 
   const view = room?.view ?? null;
   const playerId = view?.me?.id ?? "";
@@ -182,7 +298,29 @@ export function App() {
     if (!room) {
       return;
     }
-    const result = await roomProvider.mutate(room.id, room.version, command);
+    const sourceRoom = room;
+    const generation = lifecycleGenerationRef.current;
+    let result: RoomMutationResult | undefined;
+    try {
+      result = await runPending(command.type, () =>
+        roomProvider.mutate(sourceRoom.id, sourceRoom.version, command),
+      );
+    } catch (caught) {
+      if (
+        activeRoomRef.current === sourceRoom.id &&
+        lifecycleGenerationRef.current === generation
+      ) {
+        throw caught;
+      }
+      return undefined;
+    }
+    if (
+      !result ||
+      activeRoomRef.current !== sourceRoom.id ||
+      lifecycleGenerationRef.current !== generation
+    ) {
+      return result;
+    }
     if ("id" in result) {
       setRoom(result);
     }
@@ -191,42 +329,56 @@ export function App() {
   };
 
   const handleError = (caught: unknown) => {
+    if (isTerminalRoomError(caught) && (room || routeRoomCode)) {
+      teardownRoomContext({
+        expectedRoomId: room?.id,
+        clearInvite: true,
+        nextError: messageForError(caught),
+      });
+      return;
+    }
     setError(messageForError(caught));
   };
 
   const createRoom = async (name: string) => {
+    const generation = lifecycleGenerationRef.current;
     try {
-      const next = await roomProvider.create({
-        name,
-        lang: "ar",
-      });
-      enterRoom(next);
+      const next = await runPending("create", () =>
+        roomProvider.create({
+          name,
+          lang: "ar",
+        }),
+      );
+      if (next && lifecycleGenerationRef.current === generation) {
+        enterRoom(next);
+      }
     } catch (caught) {
-      handleError(caught);
+      if (lifecycleGenerationRef.current === generation) {
+        handleError(caught);
+      }
     }
   };
 
   const joinRoom = async (code: string, name: string, source: JoinSource) => {
+    const generation = lifecycleGenerationRef.current;
     try {
-      const next = await roomProvider.join({
-        code,
-        name,
-        ...(source === "link" && pendingInviteToken
-          ? { inviteToken: pendingInviteToken }
-          : {}),
-      });
-      enterRoom(next);
+      const next = await runPending("join", () =>
+        roomProvider.join({
+          code,
+          name,
+          ...(source === "link" && pendingInviteToken
+            ? { inviteToken: pendingInviteToken }
+            : {}),
+        }),
+      );
+      if (next && lifecycleGenerationRef.current === generation) {
+        enterRoom(next);
+      }
     } catch (caught) {
-      handleError(caught);
+      if (lifecycleGenerationRef.current === generation) {
+        handleError(caught);
+      }
     }
-  };
-
-  const enterRoom = (next: RoomSnapshot) => {
-    replacePlayLocation(next.code);
-    setRouteRoomCode(next.code);
-    setPendingInviteToken(null);
-    setRoom(next);
-    setError(null);
   };
 
   const assignSelf = async (team: Team, role: Role) => {
@@ -336,6 +488,11 @@ export function App() {
     if (!room) {
       return;
     }
+    const sourceRoomId = room.id;
+    const generation = lifecycleGenerationRef.current;
+    const isCurrentRoom = () =>
+      activeRoomRef.current === sourceRoomId &&
+      lifecycleGenerationRef.current === generation;
     try {
       const invitation = new URL(
         absolutePlayUrl(window.location.origin, { room: room.code }),
@@ -351,10 +508,24 @@ export function App() {
       if ("clipboard" in navigator) {
         await navigator.clipboard.writeText(url);
       }
+      if (!isCurrentRoom()) {
+        return;
+      }
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = window.setTimeout(() => {
+        copiedTimerRef.current = null;
+        if (!isCurrentRoom()) {
+          return;
+        }
+        setCopied(false);
+      }, 1600);
     } catch (caught) {
-      handleError(caught);
+      if (isCurrentRoom()) {
+        handleError(caught);
+      }
     }
   };
 
@@ -363,8 +534,13 @@ export function App() {
       return;
     }
     try {
-      await commit({ type: "deleteRoom" });
-      exitToHome(true);
+      const result = await commit({ type: "deleteRoom" });
+      if (result && "deleted" in result) {
+        teardownRoomContext({
+          expectedRoomId: room.id,
+          clearInvite: true,
+        });
+      }
     } catch (caught) {
       handleError(caught);
     }
@@ -392,25 +568,18 @@ export function App() {
     }
   };
 
-  const regenerateInvite = async () => {
-    if (!room || !isHost) {
-      return;
-    }
-    try {
-      await commit({ type: "regenerateInvite" });
-      setCopied(false);
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
-
   const permanentlyLeaveRoom = async () => {
     if (!room || isHost || room.view.phase !== "lobby") {
       return;
     }
     try {
-      await commit({ type: "leaveRoom" });
-      exitToHome(true);
+      const result = await commit({ type: "leaveRoom" });
+      if (result && "left" in result) {
+        teardownRoomContext({
+          expectedRoomId: room.id,
+          clearInvite: true,
+        });
+      }
     } catch (caught) {
       handleError(caught);
     }
@@ -481,15 +650,6 @@ export function App() {
     });
   };
 
-  const confirmRegenerateInvite = () => {
-    requestConfirm({
-      title: "تجديد رابط الدعوة؟",
-      body: "سيتوقف رابط الدعوة الخاص السابق عن العمل.",
-      confirmLabel: "تجديد",
-      onConfirm: regenerateInvite,
-    });
-  };
-
   const confirmChangeHost = (nextHostId: string) => {
     const name =
       room?.view.players.find((player) => player.id === nextHostId)?.name ??
@@ -519,7 +679,12 @@ export function App() {
       title: "العودة للرئيسية؟",
       body: "ستغادر هذه الشاشة فقط، وستبقى عضوا في الغرفة.",
       confirmLabel: "خروج",
-      onConfirm: () => exitToHome(false),
+      onConfirm: () => {
+        teardownRoomContext({
+          expectedRoomId: room?.id,
+          clearInvite: false,
+        });
+      },
     });
   };
 
@@ -530,18 +695,6 @@ export function App() {
       confirmLabel: "مغادرة",
       onConfirm: permanentlyLeaveRoom,
     });
-  };
-
-  const exitToHome = (clearRoomStorage: boolean) => {
-    if (clearRoomStorage && room) {
-      roomProvider.clearRoomStorage(room.id);
-    }
-    replacePlayLocation();
-    setRouteRoomCode(null);
-    setPendingInviteToken(null);
-    setRoom(null);
-    setStep({ type: "landing" });
-    setError(null);
   };
 
   return (
@@ -563,8 +716,11 @@ export function App() {
                 view={view}
                 playerId={playerId}
                 copied={copied}
+                canCopyInvite={
+                  room.visibility === "public" ||
+                  Boolean(roomProvider.getInviteToken(room.id))
+                }
                 onCopyInvite={copyInvite}
-                onRegenerateInvite={confirmRegenerateInvite}
                 onSetLang={setLang}
                 onSetVisibility={setVisibility}
                 onAssignSelf={assignSelf}
@@ -580,6 +736,7 @@ export function App() {
                 view={view}
                 selectedCardIndex={selectedCardIndex}
                 isHost={isHost}
+                playerId={playerId}
                 clueToast={clueToast}
                 onVote={vote}
                 onGiveClue={giveClue}
@@ -587,6 +744,7 @@ export function App() {
                 onEndTurn={endTurn}
                 onReturnToLobby={confirmReturnToLobby}
                 onRegenerate={confirmRegenerate}
+                onBanPlayer={confirmBanPlayer}
               />
             )}
             <Button variant="secondary" onClick={confirmExitToHome}>
@@ -597,7 +755,13 @@ export function App() {
           <Onboarding
             step={step}
             onStep={setStep}
-            onCancelRoomLink={() => exitToHome(false)}
+            pending={pendingRoomAction !== null}
+            onCancelRoomLink={() => teardownRoomContext({ clearInvite: false })}
+            onRetryRoom={() => {
+              setError(null);
+              setStep({ type: "loadingRoom" });
+              setResumeAttempt((attempt) => attempt + 1);
+            }}
             onCreateRoom={createRoom}
             onJoinRoom={joinRoom}
             onInstall={() => setInstallOpen(true)}
@@ -737,14 +901,18 @@ function ConfirmDialog({
 function Onboarding({
   step,
   onStep,
+  pending,
   onCancelRoomLink,
+  onRetryRoom,
   onCreateRoom,
   onJoinRoom,
   onInstall,
 }: {
   step: OnboardingStep;
   onStep: (step: OnboardingStep) => void;
+  pending: boolean;
   onCancelRoomLink: () => void;
+  onRetryRoom: () => void;
   onCreateRoom: (name: string) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
   onInstall: () => void;
@@ -757,12 +925,24 @@ function Onboarding({
     );
   }
 
+  if (step.type === "roomRetry") {
+    return (
+      <section className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col">
+        <Button onClick={onRetryRoom}>متابعة</Button>
+        <Button variant="secondary" onClick={onCancelRoomLink}>
+          رجوع
+        </Button>
+      </section>
+    );
+  }
+
   if (step.type === "createName") {
     return (
       <UsernameStep
         title="اختر اسمك"
         description="سيظهر هذا الاسم في الغرفة."
         submitLabel="إنشاء الغرفة"
+        pending={pending}
         onBack={() => onStep({ type: "landing" })}
         onSubmit={onCreateRoom}
       />
@@ -775,6 +955,7 @@ function Onboarding({
         title="اختر اسمك"
         description={`الغرفة ${step.code}`}
         submitLabel="الدخول للغرفة"
+        pending={pending}
         onBack={() =>
           step.source === "link"
             ? onCancelRoomLink()
@@ -884,12 +1065,14 @@ function UsernameStep({
   title,
   description,
   submitLabel,
+  pending,
   onBack,
   onSubmit,
 }: {
   title: string;
   description: string;
   submitLabel: string;
+  pending: boolean;
   onBack: () => void;
   onSubmit: (name: string) => void;
 }) {
@@ -915,13 +1098,14 @@ function UsernameStep({
       <input
         className="cn-field"
         value={name}
+        disabled={pending}
         onChange={(event) => setName(event.target.value)}
         placeholder="اسمك"
       />
-      <Button type="submit" disabled={name.trim().length === 0}>
+      <Button type="submit" disabled={pending || name.trim().length === 0}>
         {submitLabel}
       </Button>
-      <Button variant="secondary" onClick={onBack}>
+      <Button variant="secondary" onClick={onBack} disabled={pending}>
         رجوع
       </Button>
     </form>
@@ -990,8 +1174,9 @@ function errorMessage(code: string): string {
     HOST_REMOVE_FORBIDDEN: "انقل الاستضافة قبل حذف المضيف.",
     INVALID_NAME: "اكتب اسما صالحا.",
     ROOM_NOT_FOUND: "لم يتم العثور على الغرفة أو لم تعد عضوا فيها.",
-    ROOM_INVITE_INVALID: "رابط الدعوة غير صالح أو تم استبداله.",
-    ROOM_INVITE_UNAVAILABLE: "تعذر إنشاء رابط دعوة خاص.",
+    ROOM_INVITE_INVALID: "رابط الدعوة غير صالح.",
+    ROOM_INVITE_UNAVAILABLE: "رابط الدعوة الخاص غير متاح في هذا المتصفح.",
+    ROOM_FULL: "الغرفة ممتلئة.",
     ROOM_BANNED: "تم حظر هذه الهوية من الغرفة.",
     ROOM_ACCESS_REVOKED: "لم تعد عضوا في الغرفة.",
     ROOM_MEMBERSHIP_INVALID: "تعذر التحقق من عضوية الغرفة.",
@@ -1008,4 +1193,13 @@ function errorMessage(code: string): string {
       "تعذر الاتصال بخادم الغرف. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
   };
   return messages[code] ?? "حدث خطأ.";
+}
+
+function isTerminalRoomError(caught: unknown): boolean {
+  return (
+    caught instanceof Error &&
+    ["ROOM_BANNED", "ROOM_NOT_FOUND", "ROOM_NOT_MEMBER"].includes(
+      caught.message,
+    )
+  );
 }

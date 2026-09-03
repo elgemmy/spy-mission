@@ -72,7 +72,7 @@ describe("LocalRoomProvider lifecycle preview", () => {
     await host.mutate(created.id, afterBan.version, { type: "deleteRoom" });
   });
 
-  it("keeps invite tokens stable across visibility toggles and versions regeneration", async () => {
+  it("keeps one invite token valid for the room lifetime", async () => {
     const host = new LocalRoomProvider("local-host-invite");
     const oldLinkGuest = new LocalRoomProvider("local-old-link");
     const newLinkGuest = new LocalRoomProvider("local-new-link");
@@ -94,6 +94,7 @@ describe("LocalRoomProvider lifecycle preview", () => {
       visibility: "private",
     });
     const privateRoom = asSnapshot(privateResult);
+    expect(privateRoom.visibility).toBe("private");
     expect(host.getInviteToken(created.id)).toBe(originalToken);
     await oldLinkGuest.join({
       code: created.code,
@@ -101,27 +102,10 @@ describe("LocalRoomProvider lifecycle preview", () => {
       inviteToken: originalToken ?? undefined,
     });
 
-    const current = await host.load(created.id);
-    const regenerated = asSnapshot(
-      await host.mutate(created.id, current?.version ?? privateRoom.version, {
-        type: "regenerateInvite",
-      }),
-    );
-    const nextToken = host.getInviteToken(created.id);
-    expect(regenerated.version).toBeGreaterThan(privateRoom.version);
-    expect(nextToken).toBeTruthy();
-    expect(nextToken).not.toBe(originalToken);
-    await expect(
-      newLinkGuest.join({
-        code: created.code,
-        name: "Stale link",
-        inviteToken: originalToken ?? undefined,
-      }),
-    ).rejects.toThrow("ROOM_PRIVATE");
     const newest = await newLinkGuest.join({
       code: created.code,
       name: "New link",
-      inviteToken: nextToken ?? undefined,
+      inviteToken: originalToken ?? undefined,
     });
     await host.mutate(created.id, newest.version, { type: "deleteRoom" });
   });

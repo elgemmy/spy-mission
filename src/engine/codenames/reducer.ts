@@ -55,7 +55,11 @@ function checkWinAfterReveal(
   return state;
 }
 
-export function reducer(state: GameState, action: Action, playerId: string): GameState {
+export function reducer(
+  state: GameState,
+  action: Action,
+  playerId: string,
+): GameState {
   if (state.phase === "ended") {
     throw new IllegalMove("WRONG_PHASE");
   }
@@ -79,6 +83,9 @@ export function reducer(state: GameState, action: Action, playerId: string): Gam
     case "assignSelf": {
       assertPhase(state, "lobby");
       const me = getPlayer(state, playerId);
+      if (me.team === action.team && me.role === action.role) {
+        return state;
+      }
       return {
         ...state,
         players: {
@@ -91,6 +98,9 @@ export function reducer(state: GameState, action: Action, playerId: string): Gam
     case "setLang": {
       if (state.phase !== "lobby") {
         throw new IllegalMove("LANG_LOCKED");
+      }
+      if (state.lang === action.lang) {
+        return state;
       }
       return { ...state, lang: action.lang };
     }

@@ -78,7 +78,6 @@ const roomCommandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("leaveRoom") }),
   z.strictObject({ type: z.literal("banPlayer"), targetPlayerId: playerId }),
   z.strictObject({ type: z.literal("deleteRoom") }),
-  z.strictObject({ type: z.literal("regenerateInvite") }),
 ]);
 
 const requestSchema = z.discriminatedUnion("op", [
@@ -209,8 +208,7 @@ async function createRoom(
 ): Promise<RoomSnapshot> {
   const now = new Date().toISOString();
   const visibility = request.visibility ?? "public";
-  const inviteToken =
-    visibility === "private" ? createInviteToken() : undefined;
+  const inviteToken = createInviteToken();
   const room = createRoomRecord({
     id: `room-${randomUUID()}`,
     code: createRoomCode(),
@@ -233,7 +231,7 @@ async function createRoom(
         p_version: room.version,
         p_created_at: room.createdAt,
         p_updated_at: room.updatedAt,
-        p_invite_hash: inviteToken ? hashInvite(inviteToken) : null,
+        p_invite_hash: hashInvite(inviteToken),
       })
       .single();
     if (!error && data) {
@@ -291,6 +289,9 @@ async function joinRoom(
     const inviteValid = validInvite(request.inviteToken, stored.inviteHash);
     if (!activeMember && stored.room.visibility === "private" && !inviteValid) {
       throw new ApiError(403, "ROOM_INVITE_INVALID");
+    }
+    if (activeMember && !stored.room.state.players[userId]) {
+      throw new ApiError(503, "ROOM_MEMBERSHIP_INVALID");
     }
 
     const next = joinRoomRecord(
@@ -364,10 +365,6 @@ async function mutateRoom(
     );
     return toRoomSnapshot(updated.room, userId);
   }
-  if (command.type === "regenerateInvite") {
-    return rotateInvite(id, expectedVersion, userId, client);
-  }
-
   const seed =
     command.type === "startGame" ? randomInt(1, 2_147_483_647) : undefined;
   const next = applyRoomCommand(
@@ -377,6 +374,9 @@ async function mutateRoom(
     new Date().toISOString(),
     seed,
   );
+  if (next === stored.room) {
+    return toRoomSnapshot(stored.room, userId);
+  }
   let newInviteHash: string | null = null;
   let inviteToken: string | undefined;
   if (
@@ -396,36 +396,6 @@ async function mutateRoom(
     client,
   );
   return toRoomSnapshot(updated.room, userId, inviteToken);
-}
-
-async function rotateInvite(
-  id: string,
-  expectedVersion: number,
-  userId: string,
-  client: SupabaseClient,
-): Promise<RoomSnapshot> {
-  const stored = await loadForMember(id, userId, client);
-  if (!stored) {
-    throw new ApiError(404, "ROOM_NOT_FOUND");
-  }
-  if (stored.room.hostId !== userId) {
-    throw new ApiError(403, "NOT_HOST");
-  }
-  if (stored.room.version !== expectedVersion) {
-    throw new ApiError(409, "ROOM_VERSION_CONFLICT");
-  }
-  const inviteToken = createInviteToken();
-  const { data, error } = await client
-    .rpc("server_rotate_room_invite", {
-      p_room_id: id,
-      p_actor_id: userId,
-      p_expected_version: expectedVersion,
-      p_invite_hash: hashInvite(inviteToken),
-      p_updated_at: new Date().toISOString(),
-    })
-    .single();
-  throwDatabaseError(error);
-  return toRoomSnapshot(rowToStoredRoom(data).room, userId, inviteToken);
 }
 
 async function deleteRoom(
@@ -661,6 +631,7 @@ function throwDatabaseError(
     "ROOM_NOT_MEMBER",
     "ROOM_INVITE_INVALID",
     "ROOM_MEMBERSHIP_INVALID",
+    "ROOM_FULL",
     "WRONG_PHASE",
     "NOT_HOST",
     "HOST_LEAVE_FORBIDDEN",

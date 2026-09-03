@@ -11,6 +11,7 @@ interface PlayScreenProps {
   view: PlayerView;
   selectedCardIndex: number | null;
   isHost: boolean;
+  playerId: string;
   clueToast: ClueLogEntry | null;
   onVote: (cardIndex: number) => void;
   onGiveClue: (word: string, count: number) => void;
@@ -18,6 +19,7 @@ interface PlayScreenProps {
   onEndTurn: () => void;
   onReturnToLobby: () => void;
   onRegenerate: () => void;
+  onBanPlayer: (targetPlayerId: string) => void;
 }
 
 export function PlayScreen({
@@ -25,6 +27,7 @@ export function PlayScreen({
   view,
   selectedCardIndex,
   isHost,
+  playerId,
   clueToast,
   onVote,
   onGiveClue,
@@ -32,6 +35,7 @@ export function PlayScreen({
   onEndTurn,
   onReturnToLobby,
   onRegenerate,
+  onBanPlayer,
 }: PlayScreenProps) {
   return (
     <>
@@ -76,7 +80,13 @@ export function PlayScreen({
 
       <ClueHistory entries={room.ui.clueLog} />
 
-      <TeamRoster view={view} />
+      <TeamRoster
+        view={view}
+        isHost={isHost}
+        hostId={room.hostId}
+        playerId={playerId}
+        onBanPlayer={onBanPlayer}
+      />
 
       <ClueBar view={view} onGiveClue={onGiveClue} onEndTurn={onEndTurn} />
     </>
@@ -172,16 +182,56 @@ function ClueHistory({ entries }: { entries: ClueLogEntry[] }) {
   );
 }
 
-function TeamRoster({ view }: { view: PlayerView }) {
+function TeamRoster({
+  view,
+  isHost,
+  hostId,
+  playerId,
+  onBanPlayer,
+}: {
+  view: PlayerView;
+  isHost: boolean;
+  hostId: string;
+  playerId: string;
+  onBanPlayer: (targetPlayerId: string) => void;
+}) {
   return (
     <section className="cn-team-roster" aria-label="قوائم الفرق">
-      <RosterTeam team="red" view={view} />
-      <RosterTeam team="blue" view={view} />
+      <RosterTeam
+        team="red"
+        view={view}
+        isHost={isHost}
+        hostId={hostId}
+        playerId={playerId}
+        onBanPlayer={onBanPlayer}
+      />
+      <RosterTeam
+        team="blue"
+        view={view}
+        isHost={isHost}
+        hostId={hostId}
+        playerId={playerId}
+        onBanPlayer={onBanPlayer}
+      />
     </section>
   );
 }
 
-function RosterTeam({ team, view }: { team: Team; view: PlayerView }) {
+function RosterTeam({
+  team,
+  view,
+  isHost,
+  hostId,
+  playerId,
+  onBanPlayer,
+}: {
+  team: Team;
+  view: PlayerView;
+  isHost: boolean;
+  hostId: string;
+  playerId: string;
+  onBanPlayer: (targetPlayerId: string) => void;
+}) {
   const players = view.players.filter((player) => player.team === team);
 
   return (
@@ -200,10 +250,22 @@ function RosterTeam({ team, view }: { team: Team; view: PlayerView }) {
             className="cn-team-roster__player"
             data-active={String(player.id === view.me?.id)}
           >
-            <span className="cn-team-roster__name">{player.name}</span>
+            <span className="cn-team-roster__name">
+              {player.id === playerId ? "• " : ""}
+              {player.name}
+            </span>
             <span className="cn-team-roster__role">
               {roleLabel(player.role)}
             </span>
+            {isHost && player.id !== hostId ? (
+              <button
+                type="button"
+                className="cn-player-action"
+                onClick={() => onBanPlayer(player.id)}
+              >
+                حظر
+              </button>
+            ) : null}
           </li>
         ))}
       </ul>
