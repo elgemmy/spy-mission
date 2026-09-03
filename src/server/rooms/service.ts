@@ -11,16 +11,20 @@ import {
   type User,
 } from "@supabase/supabase-js";
 import { z } from "zod";
-import { isIllegalMove } from "../../engine";
-import { applyRoomCommand } from "../../room/commands";
+import { isIllegalMove } from "../../engine/index.js";
+import { applyRoomCommand } from "../../room/commands.js";
 import {
   RoomError,
   createRoomRecord,
   joinRoomRecord,
-} from "../../room/session";
-import { toRoomSnapshot } from "../../room/snapshot";
-import type { RoomCommand, RoomRecord, RoomSnapshot } from "../../room/types";
-import { normalizeRoomUi } from "../../room/uiState";
+} from "../../room/session.js";
+import { toRoomSnapshot } from "../../room/snapshot.js";
+import type {
+  RoomCommand,
+  RoomRecord,
+  RoomSnapshot,
+} from "../../room/types.js";
+import { normalizeRoomUi } from "../../room/uiState.js";
 
 const ROOM_COLUMNS =
   "id,code,host_id,visibility,state,ui,version,created_at,updated_at,invite_hash";

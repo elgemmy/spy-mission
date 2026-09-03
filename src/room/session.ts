@@ -1,13 +1,13 @@
-import { IllegalMove } from "../engine/contract";
-import { initialState, reducer } from "../engine/codenames";
-import type { Action, Concept, GameState, Lang } from "../engine";
+import { IllegalMove } from "../engine/contract.js";
+import { initialState, reducer } from "../engine/codenames/index.js";
+import type { Action, Concept, GameState, Lang } from "../engine/index.js";
 import type {
   CreateRoomInput,
   GameBanner,
   RoomRecord,
   RoomUiState,
   RoomVisibility,
-} from "./types";
+} from "./types.js";
 
 export type RoomErrorCode =
   | "NOT_HOST"

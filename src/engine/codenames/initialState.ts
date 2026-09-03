@@ -1,4 +1,4 @@
-import type { CodenamesConfig, GameState } from "./types";
+import type { CodenamesConfig, GameState } from "./types.js";
 
 export function initialState(config: CodenamesConfig): GameState {
   return {

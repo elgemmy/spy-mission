@@ -1,4 +1,11 @@
-import type { Clue, GameState, Lang, PlayerView, Role, Team } from "../engine";
+import type {
+  Clue,
+  GameState,
+  Lang,
+  PlayerView,
+  Role,
+  Team,
+} from "../engine/index.js";
 
 export type Unsubscribe = () => void;
 export type RoomVisibility = "public" | "private";

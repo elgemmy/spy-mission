@@ -1,4 +1,4 @@
-import type { RoomRecord, RoomUiState } from "./types";
+import type { RoomRecord, RoomUiState } from "./types.js";
 
 export function normalizeRoomRecord(room: RoomRecord): RoomRecord {
   return {

@@ -1,13 +1,13 @@
-import type { GameModule } from "../contract";
-import { initialState } from "./initialState";
-import { reducer } from "./reducer";
+import type { GameModule } from "../contract.js";
+import { initialState } from "./initialState.js";
+import { reducer } from "./reducer.js";
 import type {
   Action,
   CodenamesConfig,
   GameState,
   PlayerView,
-} from "./types";
-import { viewFor } from "./viewFor";
+} from "./types.js";
+import { viewFor } from "./viewFor.js";
 
 export type {
   Action,
@@ -24,11 +24,11 @@ export type {
   Role,
   Team,
   ViewCard,
-} from "./types";
+} from "./types.js";
 
-export { initialState } from "./initialState";
-export { reducer } from "./reducer";
-export { viewFor } from "./viewFor";
+export { initialState } from "./initialState.js";
+export { reducer } from "./reducer.js";
+export { viewFor } from "./viewFor.js";
 
 export const codenames: GameModule<GameState, Action, PlayerView, CodenamesConfig> =
   {

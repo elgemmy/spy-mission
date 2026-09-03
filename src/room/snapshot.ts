@@ -1,5 +1,5 @@
-import { viewFor } from "../engine";
-import type { RoomRecord, RoomSnapshot } from "./types";
+import { viewFor } from "../engine/index.js";
+import type { RoomRecord, RoomSnapshot } from "./types.js";
 
 export function toRoomSnapshot(
   room: RoomRecord,
