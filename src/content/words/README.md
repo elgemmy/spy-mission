@@ -6,6 +6,7 @@ That filename is a historical identifier.
 Spy Mission is an independent word-association game project.
 
 Provenance: [`ASSET_PROVENANCE.md`](../../../ASSET_PROVENANCE.md).
+License status: [`NOTICE.md`](NOTICE.md).
 
 ## Bilingual structure
 

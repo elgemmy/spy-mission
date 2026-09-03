@@ -1,7 +1,6 @@
 # Component specs (Warm Sand)
 
-Public product name: **Spy Mission**. Internal “Codename” wording below is the
-original spec title.
+Public product name: **Spy Mission**.
 
 Mobile-first, Arabic-first. **Design baseline 390px**; on desktop the same single
 column centers at **max-width 480px** (`.cn-shell`). All values reference
@@ -13,7 +12,8 @@ RTL is the default. Use logical properties everywhere (`inset-inline-start`,
 
 ---
 
-## Card  → see `Card.html` + `card.css` (the reference component)
+## Card → see `Card.html` + `card.css` (the reference component)
+
 The atom every other surface mirrors. Front/back faces inside `.cn-card__inner`;
 reveal = 190ms `rotateY(180deg)` with a slight overshoot (`--cn-flip-ease`).
 States: `data-view="operative|spymaster"` + `.is-revealed`. Glyph carries identity
@@ -22,7 +22,9 @@ so nothing depends on colour alone.
 ---
 
 ## TopBar
+
 **Anatomy** — three zones in one row: `[red count] · [turn indicator] · [blue count]`.
+
 - Count = `CountChip`: faction glyph + tabular DM-Mono number. The **active team's**
   chip is filled (`bg var(--cn-red)`, `text -on`, soft glow); the idle team's chip is
   tinted (`bg -tint`, `text -ink`).
@@ -38,6 +40,7 @@ Counts decrement as cards reveal. When a team hits 0 → win banner replaces the
 ---
 
 ## Board
+
 **Anatomy** — `display:grid; grid-template-columns: repeat(5,1fr); gap:6px`,
 25 `Card`s. Padding `6px 12px 12px`. At 390px each tile is ≈ 68px wide,
 aspect `1 / 0.92`.
@@ -53,6 +56,7 @@ spymaster until revealed.
 ---
 
 ## ClueBar
+
 **Anatomy** — a floating `--cn-surface` bar pinned to the bottom
 (`margin-top:auto`), radius `--cn-r-bar`, `shadow-bar`, padding `12px 14px`,
 plus `env(safe-area-inset-bottom)`.
@@ -68,7 +72,9 @@ plus `env(safe-area-inset-bottom)`.
 ---
 
 ## Lobby
+
 **Anatomy** (top → bottom):
+
 1. **Header** — 2×2 tile wordmark + product name + presence pill.
 2. **Room-code hero** — `--cn-surface` card, radius `--cn-r-bar`: `ROOM CODE`
    label, code in DM-Mono **34px** (`dir=ltr`, letter-spacing .06em), Copy

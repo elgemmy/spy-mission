@@ -39,7 +39,7 @@ replaces it as a source of truth.
 
 ## What this is
 
-An Arabic-first Codenames web game for family events, English as secondary. Built so it can later become a hub that hosts other games we make together. Arabic is the reason the project exists: existing Arabic versions are glitchy, desktop-first, lose the room mid-game, and the younger players don't read English.
+As written in the first planning pass: an Arabic-first word-association web game for family events, English as secondary. Built so it can later become a hub that hosts other games we make together. Arabic is the reason the project exists: existing Arabic versions are glitchy, desktop-first, lose the room mid-game, and the younger players don't read English.
 
 ## Priorities (in order)
 

@@ -5,15 +5,16 @@ Copyright (c) 2026 Ahmed Gamal (elgemmy)
 This license applies to first-party application source, design tokens and
 specs, and documentation in this repository. It does not apply to
 `src/content/words/codenames.json`. That file’s English-list lineage is
-unresolved; see `ASSET_PROVENANCE.md`.
-
+unresolved; see `ASSET_PROVENANCE.md` and
+`src/content/words/NOTICE.md`.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+of this software and associated documentation files (the "Software"), except
+for `src/content/words/codenames.json`, to deal in the Software without
+restriction, including without limitation the rights to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.

@@ -3,8 +3,8 @@
 Copyright (c) 2026 Ahmed Gamal (elgemmy)
 
 Spy Mission is an independent word-association game project. It is not
-affiliated with, endorsed by, or associated with the commercial Codenames
-product or its publishers.
+affiliated with, endorsed by, or associated with another publisher’s
+commercial product.
 
 This inventory records what is known about first-party and third-party assets
 in the repository. **Unresolved items are flagged rather than guessed.**
@@ -13,6 +13,8 @@ Companion files:
 
 - [`LICENSE`](LICENSE) — MIT grant for first-party application code and
   design; not the word pack
+- [`src/content/words/NOTICE.md`](src/content/words/NOTICE.md) — word-pack
+  license status
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — third-party package and font licenses
 - [`src/content/words/README.md`](src/content/words/README.md) — word-pack structure and duplicates
 

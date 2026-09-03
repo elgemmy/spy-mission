@@ -3,8 +3,8 @@
 Copyright (c) 2026 Ahmed Gamal (elgemmy)
 
 Spy Mission is an independent word-association game project. It is not
-affiliated with, endorsed by, or associated with the commercial Codenames
-product or its publishers.
+affiliated with, endorsed by, or associated with another publisher’s
+commercial product.
 
 This file lists third-party software and hosted typefaces used by the
 repository. First-party assets and unresolved provenance are recorded in
