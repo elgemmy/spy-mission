@@ -20,6 +20,14 @@ describe("toRoomSnapshot", () => {
       true,
     );
   });
+
+  it("never gives a non-member raw state or unrevealed card kinds", () => {
+    const snapshot = toRoomSnapshot(makeRoom(), "not-a-member");
+
+    expect(snapshot).not.toHaveProperty("state");
+    expect(snapshot.view.me).toBeNull();
+    expect(snapshot.view.board.every((card) => card.kind === null)).toBe(true);
+  });
 });
 
 function makeRoom(): RoomRecord {

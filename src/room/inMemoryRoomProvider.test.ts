@@ -1,24 +1,19 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { InMemoryRoomProvider } from "./inMemoryRoomProvider";
 import { createRoomRecord } from "./session";
 import type { RoomRecord } from "./types";
 
-const STORAGE_KEY = "codenames.localRooms.v1";
-
-afterEach(() => {
-  window.localStorage.removeItem(STORAGE_KEY);
-});
-
 describe("InMemoryRoomProvider", () => {
-  it("persists local rooms across provider instances", async () => {
+  it("does not persist local rooms across provider instances", async () => {
     const room = makeRoom();
     const first = new InMemoryRoomProvider();
 
     await first.create(room);
 
     const second = new InMemoryRoomProvider();
-    await expect(second.load(room.id)).resolves.toEqual(room);
-    await expect(second.loadByCode(room.code)).resolves.toEqual(room);
+    await expect(second.load(room.id)).resolves.toBeNull();
+    await expect(second.loadByCode(room.code)).resolves.toBeNull();
+    expect(window.localStorage.getItem("codenames.localRooms.v1")).toBeNull();
   });
 
   it("notifies subscribers when a room is deleted", async () => {

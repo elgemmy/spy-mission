@@ -8,14 +8,16 @@ interface LobbyProps {
   view: PlayerView;
   playerId: string;
   copied: boolean;
+  canCopyInvite: boolean;
   onCopyInvite: () => void;
   onSetLang: (lang: Lang) => void;
   onSetVisibility: (visibility: RoomVisibility) => void;
   onAssignSelf: (team: Team, role: Role) => void;
   onStartGame: () => void;
   onDeleteRoom: () => void;
+  onLeaveRoom: () => void;
   onTransferHost: (nextHostId: string) => void;
-  onRemovePlayer: (targetPlayerId: string) => void;
+  onBanPlayer: (targetPlayerId: string) => void;
 }
 
 const TEAM_LABEL: Record<Team, string> = {
@@ -28,14 +30,16 @@ export function Lobby({
   view,
   playerId,
   copied,
+  canCopyInvite,
   onCopyInvite,
   onSetLang,
   onSetVisibility,
   onAssignSelf,
   onStartGame,
   onDeleteRoom,
+  onLeaveRoom,
   onTransferHost,
-  onRemovePlayer,
+  onBanPlayer,
 }: LobbyProps) {
   const isHost = room.hostId === playerId;
 
@@ -73,11 +77,16 @@ export function Lobby({
           className="mt-cn-3 w-full"
           variant="secondary"
           onClick={onCopyInvite}
+          disabled={!canCopyInvite}
         >
           {copied ? "تم النسخ" : "نسخ الرابط"}
         </Button>
         <p className="mt-cn-2 text-ink-soft m-0 text-xs">
-          {room.visibility === "public" ? "غرفة عامة بالرابط" : "غرفة خاصة"}
+          {room.visibility === "public"
+            ? "غرفة عامة بالرابط"
+            : canCopyInvite
+              ? "غرفة خاصة"
+              : "رابط الدعوة الخاص غير متاح في هذا المتصفح."}
         </p>
       </section>
 
@@ -137,7 +146,7 @@ export function Lobby({
           playerId={playerId}
           onAssignSelf={onAssignSelf}
           onTransferHost={onTransferHost}
-          onRemovePlayer={onRemovePlayer}
+          onBanPlayer={onBanPlayer}
         />
         <TeamCard
           team="blue"
@@ -146,7 +155,7 @@ export function Lobby({
           playerId={playerId}
           onAssignSelf={onAssignSelf}
           onTransferHost={onTransferHost}
-          onRemovePlayer={onRemovePlayer}
+          onBanPlayer={onBanPlayer}
         />
       </section>
 
@@ -158,7 +167,11 @@ export function Lobby({
           <Button variant="secondary" onClick={onDeleteRoom}>
             حذف الغرفة
           </Button>
-        ) : null}
+        ) : (
+          <Button variant="secondary" onClick={onLeaveRoom}>
+            مغادرة الغرفة نهائيا
+          </Button>
+        )}
       </div>
     </>
   );
@@ -171,7 +184,7 @@ function TeamCard({
   playerId,
   onAssignSelf,
   onTransferHost,
-  onRemovePlayer,
+  onBanPlayer,
 }: {
   team: Team;
   view: PlayerView;
@@ -179,7 +192,7 @@ function TeamCard({
   playerId: string;
   onAssignSelf: (team: Team, role: Role) => void;
   onTransferHost: (nextHostId: string) => void;
-  onRemovePlayer: (targetPlayerId: string) => void;
+  onBanPlayer: (targetPlayerId: string) => void;
 }) {
   const isHost = room.hostId === playerId;
   const players = view.players.filter((player) => player.team === team);
@@ -215,7 +228,7 @@ function TeamCard({
             host={spymaster.id === room.hostId}
             isHost={isHost}
             onTransferHost={onTransferHost}
-            onRemovePlayer={onRemovePlayer}
+            onBanPlayer={onBanPlayer}
           />
         ))}
         {showSpymasterButton ? (
@@ -239,7 +252,7 @@ function TeamCard({
             host={player.id === room.hostId}
             isHost={isHost}
             onTransferHost={onTransferHost}
-            onRemovePlayer={onRemovePlayer}
+            onBanPlayer={onBanPlayer}
           />
         ))}
         {showOperativeButton ? (
@@ -262,7 +275,7 @@ function PlayerChip({
   host,
   isHost,
   onTransferHost,
-  onRemovePlayer,
+  onBanPlayer,
 }: {
   id: string;
   name: string;
@@ -270,7 +283,7 @@ function PlayerChip({
   host: boolean;
   isHost: boolean;
   onTransferHost: (nextHostId: string) => void;
-  onRemovePlayer: (targetPlayerId: string) => void;
+  onBanPlayer: (targetPlayerId: string) => void;
 }) {
   return (
     <div className="cn-player-chip">
@@ -286,14 +299,14 @@ function PlayerChip({
             className="cn-player-action"
             onClick={() => onTransferHost(id)}
           >
-            نقل
+            جعله المضيف
           </button>
           <button
             type="button"
             className="cn-player-action"
-            onClick={() => onRemovePlayer(id)}
+            onClick={() => onBanPlayer(id)}
           >
-            حذف
+            حظر
           </button>
         </div>
       ) : null}

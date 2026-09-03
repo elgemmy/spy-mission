@@ -9,6 +9,7 @@ import type {
 
 export type Unsubscribe = () => void;
 export type RoomVisibility = "public" | "private";
+export const MAX_ROOM_PLAYERS = 12;
 
 export interface ClueLogEntry {
   id: string;
@@ -86,7 +87,12 @@ export interface JoinSharedRoomInput {
   inviteToken?: string;
 }
 
-export type RoomCommand =
+export type ResumeRoomResult =
+  | { status: "active"; room: RoomSnapshot }
+  | { status: "join"; code: string }
+  | { status: "notFound" };
+
+export type RoomStateCommand =
   | { type: "assignSelf"; team: Team; role: Role }
   | { type: "setLang"; lang: Lang }
   | { type: "setVisibility"; visibility: RoomVisibility }
@@ -98,20 +104,31 @@ export type RoomCommand =
   | { type: "endTurn" }
   | { type: "returnToLobby" }
   | { type: "transferHost"; nextHostId: string }
-  | { type: "removePlayer"; targetPlayerId: string }
   | { type: "renamePlayer"; name: string };
+
+export type RoomCommand =
+  | RoomStateCommand
+  | { type: "leaveRoom" }
+  | { type: "banPlayer"; targetPlayerId: string }
+  | { type: "deleteRoom" };
+
+export type RoomMutationResult =
+  | RoomSnapshot
+  | { left: true }
+  | { deleted: true };
 
 export interface RoomProvider {
   create(input: CreateSharedRoomInput): Promise<RoomSnapshot>;
+  resume(code: string): Promise<ResumeRoomResult>;
   join(input: JoinSharedRoomInput): Promise<RoomSnapshot>;
   load(roomId: string): Promise<RoomSnapshot | null>;
   mutate(
     roomId: string,
     expectedVersion: number,
     command: RoomCommand,
-  ): Promise<RoomSnapshot>;
-  delete(roomId: string): Promise<void>;
-  ensureInvite(roomId: string, expectedVersion: number): Promise<string>;
+  ): Promise<RoomMutationResult>;
+  getInviteToken(roomId: string): string | null;
+  clearRoomStorage(roomId: string): void;
   subscribe(
     roomId: string,
     onChange: (room: RoomSnapshot | null) => void,

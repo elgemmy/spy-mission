@@ -3,22 +3,15 @@ import { normalizeRoomRecord } from "./uiState";
 
 type Listener = (room: RoomRecord | null) => void;
 
-const STORAGE_KEY = "codenames.localRooms.v1";
-
 export class InMemoryRoomProvider implements RoomStorage {
   private readonly rooms = new Map<string, RoomRecord>();
   private readonly codes = new Map<string, string>();
   private readonly listeners = new Map<string, Set<Listener>>();
 
-  constructor() {
-    this.hydrate();
-  }
-
   async create(room: RoomRecord): Promise<void> {
     const normalized = normalizeRoomRecord(room);
     this.rooms.set(normalized.id, normalized);
     this.codes.set(normalized.code, normalized.id);
-    this.persist();
     this.notify(normalized);
   }
 
@@ -28,7 +21,6 @@ export class InMemoryRoomProvider implements RoomStorage {
       this.codes.delete(room.code);
     }
     this.rooms.delete(roomId);
-    this.persist();
     this.notifyDelete(roomId);
     this.listeners.delete(roomId);
   }
@@ -50,7 +42,6 @@ export class InMemoryRoomProvider implements RoomStorage {
     const normalized = normalizeRoomRecord(room);
     this.rooms.set(normalized.id, normalized);
     this.codes.set(normalized.code, normalized.id);
-    this.persist();
     this.notify(normalized);
   }
 
@@ -92,44 +83,6 @@ export class InMemoryRoomProvider implements RoomStorage {
       }
     }
   }
-
-  private hydrate(): void {
-    const raw = readStorage(STORAGE_KEY);
-    if (!raw) {
-      return;
-    }
-
-    try {
-      const rooms = JSON.parse(raw) as RoomRecord[];
-      for (const room of rooms) {
-        const normalized = normalizeRoomRecord(room);
-        this.rooms.set(normalized.id, normalized);
-        this.codes.set(normalized.code, normalized.id);
-      }
-    } catch {
-      writeStorage(STORAGE_KEY, "[]");
-    }
-  }
-
-  private persist(): void {
-    writeStorage(STORAGE_KEY, JSON.stringify(Array.from(this.rooms.values())));
-  }
 }
 
 export const inMemoryRoomProvider = new InMemoryRoomProvider();
-
-function readStorage(key: string): string | null {
-  try {
-    return globalThis.localStorage?.getItem(key) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStorage(key: string, value: string): void {
-  try {
-    globalThis.localStorage?.setItem(key, value);
-  } catch {
-    return;
-  }
-}

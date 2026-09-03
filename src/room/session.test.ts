@@ -2,16 +2,22 @@ import { describe, expect, it } from "vitest";
 import { IllegalMove, reducer, type GameState } from "../engine";
 import { makeConcepts, startTestGame } from "../engine/codenames/testFixtures";
 import {
+  banPlayer,
+  clearVote,
   confirmGuess,
   createRoomRecord,
   dispatchRoomAction,
   joinRoomRecord,
+  leaveRoomRecord,
   renamePlayer,
   returnToLobby,
   startNewGame,
+  transferHost,
+  updateRoomSettings,
   voteCard,
 } from "./session";
-import type { RoomRecord } from "./types";
+import { applyRoomCommand } from "./commands";
+import { MAX_ROOM_PLAYERS, type RoomRecord } from "./types";
 
 const NOW = "2026-05-31T00:00:00.000Z";
 const LATER = "2026-05-31T00:00:01.000Z";
@@ -89,6 +95,171 @@ describe("room session orchestration", () => {
     expect(joined.state.players.host?.name).toBe("Same");
     expect(joined.state.players.guest?.name).toBe("Same");
     expect(joined.hostId).toBe("host");
+  });
+
+  it("resumes an existing identity without accepting a submitted rename", () => {
+    const room = createRoomRecord({
+      id: "room-resume",
+      code: "resume",
+      hostId: "host",
+      hostName: "Original",
+      lang: "ar",
+      now: NOW,
+    });
+
+    const resumed = joinRoomRecord(room, "host", "Impostor", LATER);
+
+    expect(resumed).toBe(room);
+    expect(resumed.state.players.host?.name).toBe("Original");
+  });
+
+  it("enforces the room player limit for new identities", () => {
+    let room = createRoomRecord({
+      id: "room-limit",
+      code: "limit",
+      hostId: "host",
+      hostName: "Host",
+      lang: "ar",
+      now: NOW,
+    });
+    for (let index = 1; index < MAX_ROOM_PLAYERS; index += 1) {
+      room = joinRoomRecord(room, `guest-${index}`, `Guest ${index}`, LATER);
+    }
+
+    expect(Object.keys(room.state.players)).toHaveLength(MAX_ROOM_PLAYERS);
+    expect(() =>
+      joinRoomRecord(room, "overflow", "Overflow", LATER),
+    ).toThrowError(expect.objectContaining({ code: "ROOM_FULL" }));
+    expect(joinRoomRecord(room, "host", "Replacement", LATER)).toBe(room);
+  });
+
+  it("assignSelf can only change the acting player and is lobby-only", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-self-role",
+        code: "self1",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+    const guestBefore = joined.state.players.guest;
+
+    const reassigned = applyRoomCommand(
+      joined,
+      "host",
+      { type: "assignSelf", team: "blue", role: "spymaster" },
+      LATER,
+    );
+
+    expect(reassigned.state.players.host).toMatchObject({
+      team: "blue",
+      role: "spymaster",
+    });
+    expect(reassigned.state.players.guest).toEqual(guestBefore);
+
+    const active = roomFromState(startTestGame());
+    expect(() =>
+      applyRoomCommand(
+        active,
+        "p-red-sm",
+        { type: "assignSelf", team: "blue", role: "operative" },
+        LATER,
+      ),
+    ).toThrowError(expect.objectContaining({ code: "WRONG_PHASE" }));
+  });
+
+  it("transfers host privileges immediately", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-transfer",
+        code: "host2",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+
+    const transferred = transferHost(joined, "host", "guest", LATER);
+
+    expect(transferred.hostId).toBe("guest");
+    expect(() =>
+      updateRoomSettings(transferred, "host", { visibility: "private" }, LATER),
+    ).toThrowError(expect.objectContaining({ code: "NOT_HOST" }));
+    expect(
+      updateRoomSettings(transferred, "guest", { visibility: "private" }, LATER)
+        .visibility,
+    ).toBe("private");
+  });
+
+  it("leaves by removing the player and vote while protecting host and phase", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-leave",
+        code: "leave",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+    const withVote = {
+      ...joined,
+      ui: { ...joined.ui, votes: { guest: 3 } },
+    };
+
+    const left = leaveRoomRecord(withVote, "guest", LATER);
+
+    expect(left.state.players.guest).toBeUndefined();
+    expect(left.ui.votes.guest).toBeUndefined();
+    expect(() => leaveRoomRecord(joined, "host", LATER)).toThrowError(
+      expect.objectContaining({ code: "HOST_LEAVE_FORBIDDEN" }),
+    );
+    expect(() =>
+      leaveRoomRecord(roomFromState(startTestGame()), "p-red-op", LATER),
+    ).toThrowError(expect.objectContaining({ code: "LEAVE_LOBBY_ONLY" }));
+  });
+
+  it("allows only the host to ban and removes the player and vote", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-ban",
+        code: "ban12",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+    const withVote = {
+      ...joined,
+      ui: { ...joined.ui, votes: { guest: 7 } },
+    };
+
+    const banned = banPlayer(withVote, "host", "guest", LATER);
+
+    expect(banned.state.players.guest).toBeUndefined();
+    expect(banned.ui.votes.guest).toBeUndefined();
+    expect(() => banPlayer(joined, "guest", "host", LATER)).toThrowError(
+      expect.objectContaining({ code: "NOT_HOST" }),
+    );
+    expect(() => banPlayer(joined, "host", "host", LATER)).toThrowError(
+      expect.objectContaining({ code: "HOST_REMOVE_FORBIDDEN" }),
+    );
   });
 
   it("does not reclaim active-game names when the match is ambiguous", () => {
@@ -172,6 +343,35 @@ describe("room session orchestration", () => {
     expect(second.ui.votes).toEqual({ [operativeId]: 7 });
   });
 
+  it("returns the original room for authorized unchanged commands", () => {
+    const room = roomFromState(giveActiveClue(startTestGame()));
+    const operativeId = activeOperativeId(room.state);
+    const voted = voteCard(room, operativeId, 3, LATER);
+
+    expect(voteCard(voted, operativeId, 3, LATER)).toBe(voted);
+    expect(clearVote(room, operativeId, LATER)).toBe(room);
+  });
+
+  it("validates actor, role, team, and phase before a clearVote no-op", () => {
+    const clueRoom = roomFromState(startTestGame());
+    expect(() => clearVote(clueRoom, "p-red-op", LATER)).toThrowError(
+      expect.objectContaining({ code: "WRONG_PHASE" }),
+    );
+
+    const room = roomFromState(giveActiveClue(startTestGame()));
+    expect(() => clearVote(room, "missing", LATER)).toThrowError(
+      expect.objectContaining({ code: "NOT_A_PLAYER" }),
+    );
+    expect(() =>
+      clearVote(room, activeSpymasterId(room.state), LATER),
+    ).toThrowError(expect.objectContaining({ code: "WRONG_ROLE" }));
+    const otherTeamOperative =
+      room.state.turn === "red" ? "p-blue-op" : "p-red-op";
+    expect(() => clearVote(room, otherTeamOperative, LATER)).toThrowError(
+      expect.objectContaining({ code: "NOT_YOUR_TURN" }),
+    );
+  });
+
   it("rejects invalid voters and stale targets", () => {
     const room = roomFromState(giveActiveClue(startTestGame()));
     const spymasterId = activeSpymasterId(room.state);
@@ -211,14 +411,14 @@ describe("room session orchestration", () => {
     expect(confirmed.ui.votes).toEqual({});
   });
 
-  it("makes duplicate confirms idempotent once a card is revealed", () => {
+  it("rejects duplicate confirms once a card is revealed", () => {
     const room = roomFromState(giveActiveClue(startTestGame()));
     const operativeId = activeOperativeId(room.state);
 
     const confirmed = confirmGuess(room, operativeId, 0, LATER);
-    const duplicate = confirmGuess(confirmed, operativeId, 0, LATER);
-
-    expect(duplicate).toBe(confirmed);
+    expect(() => confirmGuess(confirmed, operativeId, 0, LATER)).toThrowError(
+      expect.objectContaining({ code: "CARD_ALREADY_REVEALED" }),
+    );
   });
 
   it("preserves room state when confirmGuess is illegal", () => {
@@ -345,6 +545,22 @@ describe("room session orchestration", () => {
     expect(lobby.state.board).toEqual([]);
     expect(lobby.state.players).toEqual(room.state.players);
     expect(lobby.visibility).toBe(room.visibility);
+  });
+
+  it("does not churn a clean lobby version through returnToLobby", () => {
+    const lobby = createRoomRecord({
+      id: "room-lobby-noop",
+      code: "noop",
+      hostId: "host",
+      hostName: "Host",
+      lang: "ar",
+      now: NOW,
+    });
+
+    expect(returnToLobby(lobby, "host", LATER)).toBe(lobby);
+    expect(() => returnToLobby(lobby, "member", LATER)).toThrowError(
+      expect.objectContaining({ code: "NOT_HOST" }),
+    );
   });
 });
 

@@ -3,7 +3,6 @@ import {
   clearVote,
   confirmGuess,
   dispatchRoomAction,
-  removePlayer,
   renamePlayer,
   returnToLobby,
   startNewGame,
@@ -11,12 +10,12 @@ import {
   updateRoomSettings,
   voteCard,
 } from "./session.js";
-import type { RoomCommand, RoomRecord } from "./types.js";
+import type { RoomRecord, RoomStateCommand } from "./types.js";
 
 export function applyRoomCommand(
   room: RoomRecord,
   playerId: string,
-  command: RoomCommand,
+  command: RoomStateCommand,
   now: string,
   seed?: number,
 ): RoomRecord {
@@ -58,8 +57,6 @@ export function applyRoomCommand(
       return returnToLobby(room, playerId, now);
     case "transferHost":
       return transferHost(room, playerId, command.nextHostId, now);
-    case "removePlayer":
-      return removePlayer(room, playerId, command.targetPlayerId, now);
     case "renamePlayer":
       return renamePlayer(room, playerId, command.name, now);
   }

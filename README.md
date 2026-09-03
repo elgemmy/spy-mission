@@ -119,7 +119,8 @@ Local design preview does not require Supabase. Shared multiplayer requires:
   either secret with `VITE_`.
 - Anonymous Sign-Ins enabled under Supabase **Authentication → Providers**.
 - Every file in `supabase/migrations/` applied, including
-  `0003_secure_multiplayer.sql`.
+  `0004_room_lifecycle.sql`. Apply new migrations to local or staging first;
+  this repository does not apply them to production automatically.
 
 When configured, the browser authenticates each guest with Supabase Auth and
 calls `/api/rooms`. The Vercel Function is the only component allowed to read
@@ -128,8 +129,14 @@ a role-filtered snapshot, so operatives never receive unrevealed card kinds.
 Supabase Realtime broadcasts only a private `room_changed` signal to registered
 room members; clients then fetch their own authorized view.
 
+Room navigation is URL-driven: `/play/` always opens onboarding, while
+`/play/?room=CODE` resumes an active authenticated membership or offers a new
+join. Private invite tokens live only in the URL fragment and are stripped after
+a successful join. See [`docs/room-lifecycle-contract.md`](docs/room-lifecycle-contract.md).
+
 The local provider is used only when Supabase variables are absent. It is useful
-for UI development but is not shared between devices.
+for UI development, but it is in-memory, non-persistent, and not shared between
+devices.
 
 ### Production setup
 
@@ -140,7 +147,9 @@ for UI development but is not shared between devices.
 4. Add the four variables above to the matching Vercel environment. Keep
    preview deployments on a separate Supabase project from production.
 5. Configure a Vercel Firewall rate limit for `POST /api/rooms`, especially the
-   create and join traffic, and place the Function near the Supabase region.
+   create and join traffic. This deployment rule is required because the
+   server-authoritative 12-player cap is not a replacement for request-rate
+   limiting. Place the Function near the Supabase region.
 6. Deploy, then create a room on one device and join it from another using the
    room link or code. Refresh both devices and confirm they remain in sync.
 
@@ -153,13 +162,22 @@ adding client policies; direct room-table access must remain denied.
 
 ## Scripts
 
-| Command             | Description                  |
-| ------------------- | ---------------------------- |
-| `npm run dev`       | Dev server                   |
-| `npm run build`     | Typecheck + production build |
-| `npm run typecheck` | TypeScript                   |
-| `npm run lint`      | ESLint                       |
-| `npm run test`      | Vitest                       |
+| Command                 | Description                              |
+| ----------------------- | ---------------------------------------- |
+| `npm run dev`           | Dev server                               |
+| `npm run build`         | Typecheck + production build             |
+| `npm run typecheck`     | TypeScript                               |
+| `npm run lint`          | ESLint                                   |
+| `npm run test`          | Vitest                                   |
+| `npm run test:supabase` | Disposable local Supabase database suite |
+
+`npm run test:supabase` requires Docker and PostgreSQL's `psql` client. It
+starts the project-scoped local Supabase stack, resets that disposable database
+through migrations 0001→0004, runs the real API/Realtime/permission suite with
+no skips, then resets through 0003, loads representative room data, applies
+0004, and verifies the populated upgrade. The command stops and removes its
+local Supabase data when it finishes; it never connects to a linked or
+production project.
 
 ## Design system (handoff-canonical)
 

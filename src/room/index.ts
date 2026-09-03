@@ -5,14 +5,17 @@ export type {
   GameBanner,
   JoinSharedRoomInput,
   RoomCommand,
+  RoomMutationResult,
   RoomProvider,
   RoomRecord,
   RoomSnapshot,
   RoomStorage,
   RoomUiState,
   RoomVisibility,
+  ResumeRoomResult,
   Unsubscribe,
 } from "./types";
+export { MAX_ROOM_PLAYERS } from "./types";
 export {
   InMemoryRoomProvider,
   inMemoryRoomProvider,
@@ -28,7 +31,8 @@ export {
   createRoomRecord,
   dispatchRoomAction,
   joinRoomRecord,
-  removePlayer,
+  banPlayer,
+  leaveRoomRecord,
   renamePlayer,
   returnToLobby,
   RoomError,

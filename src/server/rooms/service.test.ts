@@ -64,6 +64,55 @@ describe("room server boundary", () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
+  it("does not persist an authorized command that changes nothing", async () => {
+    const client = fakeClient();
+    setAdminClientForTests(client);
+
+    const response = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: { type: "renamePlayer", name: "Red OP" },
+      }),
+    );
+    const payload = (await response.json()) as {
+      data: { version: number };
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.data.version).toBe(8);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects unauthorized and illegal no-ops before persistence", async () => {
+    const client = fakeClient();
+    setAdminClientForTests(client);
+
+    const unauthorized = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: { type: "setVisibility", visibility: "public" },
+      }),
+    );
+    expect(unauthorized.status).toBe(403);
+    await expect(unauthorized.json()).resolves.toEqual({ error: "NOT_HOST" });
+
+    const illegal = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: { type: "clearVote" },
+      }),
+    );
+    expect(illegal.status).toBe(409);
+    await expect(illegal.json()).resolves.toEqual({ error: "WRONG_PHASE" });
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
   it("rejects requests without a player access token", async () => {
     setAdminClientForTests(fakeClient());
     const response = await handleRoomsRequest(
@@ -77,27 +126,127 @@ describe("room server boundary", () => {
     await expect(response.json()).resolves.toEqual({ error: "UNAUTHORIZED" });
     expect(response.status).toBe(401);
   });
+
+  it("rejects invalid access tokens", async () => {
+    setAdminClientForTests(fakeClient({ authError: true }));
+
+    const response = await handleRoomsRequest(
+      request({ op: "get", roomId: ROOM_ID }),
+    );
+
+    await expect(response.json()).resolves.toEqual({ error: "UNAUTHORIZED" });
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects malformed JSON, unknown operations, and extra fields", async () => {
+    setAdminClientForTests(fakeClient());
+
+    const malformed = await handleRoomsRequest(requestText("{"));
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toEqual({
+      error: "INVALID_REQUEST",
+    });
+
+    const unknown = await handleRoomsRequest(request({ op: "destroy" }));
+    expect(unknown.status).toBe(400);
+
+    const extra = await handleRoomsRequest(
+      request({ op: "get", roomId: ROOM_ID, state: { secret: true } }),
+    );
+    expect(extra.status).toBe(400);
+  });
+
+  it("enforces actual request size when Content-Length is absent or false", async () => {
+    setAdminClientForTests(fakeClient());
+    const oversized = JSON.stringify({
+      op: "get",
+      roomId: ROOM_ID,
+      padding: "x".repeat(17_000),
+    });
+
+    const absent = await handleRoomsRequest(requestText(oversized));
+    expect(absent.status).toBe(413);
+    await expect(absent.json()).resolves.toEqual({
+      error: "REQUEST_TOO_LARGE",
+    });
+
+    const falseLength = await handleRoomsRequest(
+      requestText(oversized, { "Content-Length": "1" }),
+    );
+    expect(falseLength.status).toBe(413);
+  });
+
+  it("rejects attempts to assign another player's team or role", async () => {
+    const client = fakeClient();
+    setAdminClientForTests(client);
+
+    const response = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: {
+          type: "assignSelf",
+          team: "blue",
+          role: "spymaster",
+          targetPlayerId: "00000000-0000-4000-8000-000000000099",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "INVALID_REQUEST",
+    });
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("returns no room projection to a non-member", async () => {
+    setAdminClientForTests(fakeClient({ member: false }));
+
+    const response = await handleRoomsRequest(
+      request({ op: "get", roomId: ROOM_ID }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ data: null });
+  });
 });
 
 function request(body: unknown): Request {
+  return requestText(JSON.stringify(body));
+}
+
+function requestText(
+  body: string,
+  extraHeaders: Record<string, string> = {},
+): Request {
   return new Request("https://game.example/api/rooms", {
     method: "POST",
     headers: {
       Authorization: "Bearer valid-player-token",
       "Content-Type": "application/json",
+      ...extraHeaders,
     },
-    body: JSON.stringify(body),
+    body,
   });
 }
 
-function fakeClient(): SupabaseClient {
+function fakeClient(
+  options: { authError?: boolean; member?: boolean } = {},
+): SupabaseClient {
   const row = storedRoomRow();
   const from = vi.fn((table: string) => {
     const builder = {
       select: vi.fn(() => builder),
       eq: vi.fn(() => builder),
       maybeSingle: vi.fn(async () => ({
-        data: table === "room_members" ? { room_id: ROOM_ID } : row,
+        data:
+          table === "room_members"
+            ? options.member === false
+              ? null
+              : { room_id: ROOM_ID, status: "active" }
+            : row,
         error: null,
       })),
     };
@@ -106,8 +255,8 @@ function fakeClient(): SupabaseClient {
   return {
     auth: {
       getUser: vi.fn(async () => ({
-        data: { user: { id: USER_ID } },
-        error: null,
+        data: { user: options.authError ? null : { id: USER_ID } },
+        error: options.authError ? new Error("invalid token") : null,
       })),
     },
     from,
