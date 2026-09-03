@@ -1,4 +1,4 @@
-import { sampleConceptsForBoard } from "../content/words/sampler";
+import { sampleConceptsForBoard } from "../content/words/sampler.js";
 import {
   clearVote,
   confirmGuess,
@@ -10,8 +10,8 @@ import {
   transferHost,
   updateRoomSettings,
   voteCard,
-} from "./session";
-import type { RoomCommand, RoomRecord } from "./types";
+} from "./session.js";
+import type { RoomCommand, RoomRecord } from "./types.js";
 
 export function applyRoomCommand(
   room: RoomRecord,

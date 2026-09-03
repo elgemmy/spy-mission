@@ -1,7 +1,7 @@
-import { shuffleWithSeed } from "../../engine/codenames/seeded";
-import type { Concept } from "../../engine";
-import wordCategories from "./codenames.json";
-import type { WordCategory } from "./types";
+import { shuffleWithSeed } from "../../engine/codenames/seeded.js";
+import type { Concept } from "../../engine/index.js";
+import wordCategories from "./codenames.json" with { type: "json" };
+import type { WordCategory } from "./types.js";
 
 export const WORD_CATEGORIES = wordCategories satisfies WordCategory[];
 
