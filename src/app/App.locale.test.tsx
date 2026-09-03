@@ -158,6 +158,24 @@ describe("Spy Mission locale runtime", () => {
     expect(document.documentElement.dir).toBe("rtl");
   });
 
+  it("keeps the interface language options in a fixed order in Arabic", () => {
+    render(<App />);
+    const group = screen.getByRole("group", { name: en.interfaceLanguage });
+    const labels = () =>
+      within(group)
+        .getAllByRole("button")
+        .map((button) => button.textContent);
+
+    expect(labels()).toEqual(["EN", "عربي"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "عربي" }));
+    expect(document.documentElement.dir).toBe("rtl");
+    expect(
+      screen.getByRole("group", { name: ar.interfaceLanguage }),
+    ).toHaveAttribute("dir", "ltr");
+    expect(labels()).toEqual(["EN", "عربي"]);
+  });
+
   it("creates a fresh room with English board language", async () => {
     mocks.create.mockResolvedValue(snapshot());
     render(<App />);

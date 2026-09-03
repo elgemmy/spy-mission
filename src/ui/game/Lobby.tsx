@@ -107,15 +107,7 @@ export function Lobby({
             {view.lang === "ar" ? t.boardLanguageAr : t.boardLanguageEn}
           </span>
         </div>
-        <div className="cn-segmented">
-          <button
-            type="button"
-            aria-pressed={view.lang === "ar"}
-            disabled={!isHost || !view.can.setLang}
-            onClick={() => onSetLang("ar")}
-          >
-            {t.boardLanguageAr}
-          </button>
+        <div className="cn-segmented" dir="ltr">
           <button
             type="button"
             aria-pressed={view.lang === "en"}
@@ -123,6 +115,14 @@ export function Lobby({
             onClick={() => onSetLang("en")}
           >
             {t.boardLanguageEn}
+          </button>
+          <button
+            type="button"
+            aria-pressed={view.lang === "ar"}
+            disabled={!isHost || !view.can.setLang}
+            onClick={() => onSetLang("ar")}
+          >
+            {t.boardLanguageAr}
           </button>
         </div>
       </section>
