@@ -2,13 +2,15 @@
 
 **Status:** accepted · **Date:** 2026-08-23 · **Branch:** `feat/landing-page-and-play-route`
 
+**2026-09 note:** The public product name is **Spy Mission**. The canonical
+landing design spec is
+[`../handoff/landing/landing-spec.md`](../handoff/landing/landing-spec.md).
+Hosting is Vercel (`vercel.json`).
+
 ## Context
 
-Until now the game shell lived at the site root. The product now ships a public
-landing page (design source: Claude Design project `Awesome Codenames` →
-`Spymaster Mission Landing.html`, mirrored under `docs/handoff/landing/`).
-The integration retains the existing Codenames Hub product identity; the
-reference artifact's proposed name is not adopted here. Requirements:
+The game shell originally lived at the site root. Spy Mission now ships a
+public landing page while keeping the game on a stable route. Requirements:
 
 1. The base domain is reserved for the landing page.
 2. The game moves to a route on the same origin: **`/play/`**.
@@ -42,6 +44,8 @@ would have coupled the two surfaces and complicated PWA scoping.
 | `injectRegister`               | `null` — the game registers via `virtual:pwa-register` |
 | `navigateFallback`             | `/play/index.html`, allow-list `^/play(/|$)` |
 | `globIgnores`                  | landing entry (`index.html`, `assets/landing-*`) |
+
+Manifest and install metadata use the **Spy Mission** public name.
 
 `vite-plugin-pwa` injects `<link rel="manifest">` into **both** pages. That is
 intentional: a browser install initiated from the landing page (Chromium
