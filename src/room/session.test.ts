@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 import { IllegalMove, reducer, type GameState } from "../engine";
 import { makeConcepts, startTestGame } from "../engine/codenames/testFixtures";
 import {
+  banPlayer,
   confirmGuess,
   createRoomRecord,
   dispatchRoomAction,
   joinRoomRecord,
+  leaveRoomRecord,
   renamePlayer,
   returnToLobby,
   startNewGame,
+  transferHost,
+  updateRoomSettings,
   voteCard,
 } from "./session";
+import { applyRoomCommand } from "./commands";
 import type { RoomRecord } from "./types";
 
 const NOW = "2026-05-31T00:00:00.000Z";
@@ -89,6 +94,151 @@ describe("room session orchestration", () => {
     expect(joined.state.players.host?.name).toBe("Same");
     expect(joined.state.players.guest?.name).toBe("Same");
     expect(joined.hostId).toBe("host");
+  });
+
+  it("resumes an existing identity without accepting a submitted rename", () => {
+    const room = createRoomRecord({
+      id: "room-resume",
+      code: "resume",
+      hostId: "host",
+      hostName: "Original",
+      lang: "ar",
+      now: NOW,
+    });
+
+    const resumed = joinRoomRecord(room, "host", "Impostor", LATER);
+
+    expect(resumed).toBe(room);
+    expect(resumed.state.players.host?.name).toBe("Original");
+  });
+
+  it("assignSelf can only change the acting player and is lobby-only", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-self-role",
+        code: "self1",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+    const guestBefore = joined.state.players.guest;
+
+    const reassigned = applyRoomCommand(
+      joined,
+      "host",
+      { type: "assignSelf", team: "blue", role: "spymaster" },
+      LATER,
+    );
+
+    expect(reassigned.state.players.host).toMatchObject({
+      team: "blue",
+      role: "spymaster",
+    });
+    expect(reassigned.state.players.guest).toEqual(guestBefore);
+
+    const active = roomFromState(startTestGame());
+    expect(() =>
+      applyRoomCommand(
+        active,
+        "p-red-sm",
+        { type: "assignSelf", team: "blue", role: "operative" },
+        LATER,
+      ),
+    ).toThrowError(expect.objectContaining({ code: "WRONG_PHASE" }));
+  });
+
+  it("transfers host privileges immediately", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-transfer",
+        code: "host2",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+
+    const transferred = transferHost(joined, "host", "guest", LATER);
+
+    expect(transferred.hostId).toBe("guest");
+    expect(() =>
+      updateRoomSettings(transferred, "host", { visibility: "private" }, LATER),
+    ).toThrowError(expect.objectContaining({ code: "NOT_HOST" }));
+    expect(
+      updateRoomSettings(transferred, "guest", { visibility: "private" }, LATER)
+        .visibility,
+    ).toBe("private");
+  });
+
+  it("leaves by removing the player and vote while protecting host and phase", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-leave",
+        code: "leave",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+    const withVote = {
+      ...joined,
+      ui: { ...joined.ui, votes: { guest: 3 } },
+    };
+
+    const left = leaveRoomRecord(withVote, "guest", LATER);
+
+    expect(left.state.players.guest).toBeUndefined();
+    expect(left.ui.votes.guest).toBeUndefined();
+    expect(() => leaveRoomRecord(joined, "host", LATER)).toThrowError(
+      expect.objectContaining({ code: "HOST_LEAVE_FORBIDDEN" }),
+    );
+    expect(() =>
+      leaveRoomRecord(roomFromState(startTestGame()), "p-red-op", LATER),
+    ).toThrowError(expect.objectContaining({ code: "LEAVE_LOBBY_ONLY" }));
+  });
+
+  it("allows only the host to ban and removes the player and vote", () => {
+    const joined = joinRoomRecord(
+      createRoomRecord({
+        id: "room-ban",
+        code: "ban12",
+        hostId: "host",
+        hostName: "Host",
+        lang: "ar",
+        now: NOW,
+      }),
+      "guest",
+      "Guest",
+      LATER,
+    );
+    const withVote = {
+      ...joined,
+      ui: { ...joined.ui, votes: { guest: 7 } },
+    };
+
+    const banned = banPlayer(withVote, "host", "guest", LATER);
+
+    expect(banned.state.players.guest).toBeUndefined();
+    expect(banned.ui.votes.guest).toBeUndefined();
+    expect(() => banPlayer(joined, "guest", "host", LATER)).toThrowError(
+      expect.objectContaining({ code: "NOT_HOST" }),
+    );
+    expect(() => banPlayer(joined, "host", "host", LATER)).toThrowError(
+      expect.objectContaining({ code: "HOST_REMOVE_FORBIDDEN" }),
+    );
   });
 
   it("does not reclaim active-game names when the match is ambiguous", () => {
