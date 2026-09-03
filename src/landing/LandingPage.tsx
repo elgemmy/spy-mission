@@ -1,4 +1,7 @@
+import { useEffect } from "react";
 import { GlyphDefs } from "../ui/card/glyphs";
+import { UiLocaleProvider } from "../locale/UiLocaleProvider";
+import { PRODUCT_NAME } from "../locale/messages";
 import "./Landing.css";
 import { useHostLabel } from "./hostLabel";
 import { ClosingCta } from "./sections/ClosingCta";
@@ -12,10 +15,14 @@ import { Screens } from "./sections/Screens";
 import { STR } from "./strings";
 import { useLang } from "./useLang";
 
-export function LandingPage() {
+function LandingPageInner() {
   const { lang, dir, setLang } = useLang();
   const t = STR[lang];
   const hostLabel = useHostLabel();
+
+  useEffect(() => {
+    document.title = `${PRODUCT_NAME} — ${t.h1Before} ${t.h1Highlight} ${t.h1After}`;
+  }, [t]);
 
   return (
     <div className="cn-lp" data-lang={lang} dir={dir}>
@@ -31,5 +38,13 @@ export function LandingPage() {
       </main>
       <Footer t={t} hostLabel={hostLabel} />
     </div>
+  );
+}
+
+export function LandingPage() {
+  return (
+    <UiLocaleProvider>
+      <LandingPageInner />
+    </UiLocaleProvider>
   );
 }

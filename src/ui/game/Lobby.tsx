@@ -1,6 +1,11 @@
 import { Button } from "../components/Button";
+import { LocaleToggle } from "../components/LocaleToggle";
 import { GlyphIcon } from "../card/glyphs";
 import type { Lang, PlayerView, Role, Team } from "../../engine";
+import { startReadiness } from "../../locale/startReadiness";
+import { roleLabel, teamLabel } from "../../locale/messages";
+import { useUiLocale } from "../../locale/uiLocale";
+import { useMessages } from "../../locale/useMessages";
 import type { RoomSnapshot, RoomVisibility } from "../../room";
 
 interface LobbyProps {
@@ -20,11 +25,6 @@ interface LobbyProps {
   onBanPlayer: (targetPlayerId: string) => void;
 }
 
-const TEAM_LABEL: Record<Team, string> = {
-  red: "الأحمر",
-  blue: "الأزرق",
-};
-
 export function Lobby({
   room,
   view,
@@ -41,35 +41,41 @@ export function Lobby({
   onTransferHost,
   onBanPlayer,
 }: LobbyProps) {
+  const { locale } = useUiLocale();
+  const t = useMessages().play;
   const isHost = room.hostId === playerId;
+  const readiness = startReadiness(view, isHost);
+  const startDisabled = !readiness.canStart;
 
   return (
     <>
       <header className="gap-cn-3 flex items-center justify-between">
-        <div className="gap-cn-3 flex items-center">
+        <div className="gap-cn-3 flex min-w-0 items-center">
           <div className="cn-wordmark" aria-hidden="true">
             <span />
             <span />
             <span />
             <span />
           </div>
-          <div>
-            <h1 className="text-ink m-0 text-lg font-bold">كودنيمز</h1>
+          <div className="min-w-0">
+            <h1 className="text-ink m-0 text-lg font-bold">{t.productName}</h1>
             <p className="text-ink-soft m-0 text-xs font-semibold">
-              {view.players.length} في الغرفة
+              {t.inRoom(view.players.length)}
             </p>
           </div>
         </div>
-        <span className="rounded-chip bg-surface-2 px-cn-3 py-cn-2 text-ink-soft text-xs font-semibold">
-          {isHost ? "المضيف" : "لاعب"}
+        <span className="rounded-chip bg-surface-2 px-cn-3 py-cn-2 text-ink-soft shrink-0 text-xs font-semibold">
+          {isHost ? t.hostBadge : t.playerBadge}
         </span>
       </header>
 
       <section
         className="cn-card-panel p-cn-4 text-center"
-        aria-label="رمز الغرفة"
+        aria-label={t.roomCodeEyebrow}
       >
-        <p className="text-ink-soft m-0 text-xs font-semibold">ROOM CODE</p>
+        <p className="text-ink-soft m-0 text-xs font-semibold">
+          {t.roomCodeEyebrow}
+        </p>
         <p className="cn-room-code mt-cn-1 m-0" dir="ltr">
           {room.code}
         </p>
@@ -79,22 +85,26 @@ export function Lobby({
           onClick={onCopyInvite}
           disabled={!canCopyInvite}
         >
-          {copied ? "تم النسخ" : "نسخ الرابط"}
+          {copied ? t.copied : t.copyLink}
         </Button>
         <p className="mt-cn-2 text-ink-soft m-0 text-xs">
           {room.visibility === "public"
-            ? "غرفة عامة بالرابط"
+            ? t.publicRoomHint
             : canCopyInvite
-              ? "غرفة خاصة"
-              : "رابط الدعوة الخاص غير متاح في هذا المتصفح."}
+              ? t.privateRoomHint
+              : t.inviteUnavailable}
         </p>
       </section>
 
-      <section className="gap-cn-2 flex flex-col" aria-label="لغة اللوحة">
+      <LocaleToggle />
+
+      <section className="gap-cn-2 flex flex-col" aria-label={t.boardLanguage}>
         <div className="flex items-center justify-between">
-          <span className="text-ink text-sm font-semibold">لغة اللوحة</span>
+          <span className="text-ink text-sm font-semibold">
+            {t.boardLanguage}
+          </span>
           <span className="text-ink-soft text-xs font-semibold">
-            {view.lang === "ar" ? "العربية" : "English"}
+            {view.lang === "ar" ? t.boardLanguageAr : t.boardLanguageEn}
           </span>
         </div>
         <div className="cn-segmented">
@@ -104,7 +114,7 @@ export function Lobby({
             disabled={!isHost || !view.can.setLang}
             onClick={() => onSetLang("ar")}
           >
-            العربية
+            {t.boardLanguageAr}
           </button>
           <button
             type="button"
@@ -112,12 +122,12 @@ export function Lobby({
             disabled={!isHost || !view.can.setLang}
             onClick={() => onSetLang("en")}
           >
-            English
+            {t.boardLanguageEn}
           </button>
         </div>
       </section>
 
-      <section className="gap-cn-2 flex flex-col" aria-label="ظهور الغرفة">
+      <section className="gap-cn-2 flex flex-col" aria-label={t.roomVisibility}>
         <div className="cn-segmented">
           <button
             type="button"
@@ -125,7 +135,7 @@ export function Lobby({
             disabled={!isHost}
             onClick={() => onSetVisibility("public")}
           >
-            عامة
+            {t.publicVisibility}
           </button>
           <button
             type="button"
@@ -133,12 +143,12 @@ export function Lobby({
             disabled={!isHost}
             onClick={() => onSetVisibility("private")}
           >
-            خاصة
+            {t.privateVisibility}
           </button>
         </div>
       </section>
 
-      <section className="gap-cn-3 grid grid-cols-2" aria-label="الفرق">
+      <section className="gap-cn-3 grid grid-cols-2" aria-label={t.teams}>
         <TeamCard
           team="red"
           view={view}
@@ -160,16 +170,44 @@ export function Lobby({
       </section>
 
       <div className="gap-cn-2 flex flex-col">
-        <Button disabled={!isHost || !view.can.startGame} onClick={onStartGame}>
-          بدء الجولة
+        <Button
+          disabled={startDisabled}
+          onClick={onStartGame}
+          aria-describedby={startDisabled ? "start-readiness" : undefined}
+        >
+          {t.startRound}
         </Button>
+        {startDisabled ? (
+          <p
+            id="start-readiness"
+            className="text-ink-soft m-0 text-sm font-semibold"
+            role="status"
+          >
+            {readiness.missing.length > 0 ? t.startNeedSeats : null}
+            {readiness.missing.length > 0 ? " " : null}
+            {readiness.missing
+              .map((seat) =>
+                t.missingSeat(
+                  teamLabel(locale, seat.team),
+                  roleLabel(locale, seat.role),
+                ),
+              )
+              .join(" · ")}
+            {!isHost ? (
+              <>
+                {readiness.missing.length > 0 ? " " : null}
+                {t.startNeedHost}
+              </>
+            ) : null}
+          </p>
+        ) : null}
         {isHost ? (
           <Button variant="secondary" onClick={onDeleteRoom}>
-            حذف الغرفة
+            {t.deleteRoom}
           </Button>
         ) : (
           <Button variant="secondary" onClick={onLeaveRoom}>
-            مغادرة الغرفة نهائيا
+            {t.leaveRoom}
           </Button>
         )}
       </div>
@@ -194,6 +232,8 @@ function TeamCard({
   onTransferHost: (nextHostId: string) => void;
   onBanPlayer: (targetPlayerId: string) => void;
 }) {
+  const { locale } = useUiLocale();
+  const t = useMessages().play;
   const isHost = room.hostId === playerId;
   const players = view.players.filter((player) => player.team === team);
   const spymasters = players.filter((player) => player.role === "spymaster");
@@ -210,7 +250,7 @@ function TeamCard({
       <header className="gap-cn-2 flex items-center justify-between">
         <span className="gap-cn-2 flex items-center text-sm font-bold">
           <GlyphIcon role={team} className="h-4 w-4" />
-          {TEAM_LABEL[team]}
+          {teamLabel(locale, team)}
         </span>
         <span className="text-ink-soft font-mono text-sm">
           {players.length}
@@ -218,7 +258,9 @@ function TeamCard({
       </header>
 
       <div className="bg-surface-2 p-cn-2 rounded-sm">
-        <p className="text-ink-soft m-0 text-xs font-semibold">SPYMASTER</p>
+        <p className="text-ink-soft m-0 text-xs font-semibold">
+          {t.missionLead}
+        </p>
         {spymasters.map((spymaster) => (
           <PlayerChip
             key={spymaster.id}
@@ -237,7 +279,7 @@ function TeamCard({
             variant="secondary"
             onClick={() => onAssignSelf(team, "spymaster")}
           >
-            انضم كقائد
+            {t.joinMissionLead}
           </Button>
         ) : null}
       </div>
@@ -260,7 +302,7 @@ function TeamCard({
             variant="secondary"
             onClick={() => onAssignSelf(team, "operative")}
           >
-            انضم كلاعب
+            {t.joinFieldAgent}
           </Button>
         ) : null}
       </div>
@@ -285,12 +327,13 @@ function PlayerChip({
   onTransferHost: (nextHostId: string) => void;
   onBanPlayer: (targetPlayerId: string) => void;
 }) {
+  const t = useMessages().play;
   return (
     <div className="cn-player-chip">
       <span className="cn-player-name">
         {active ? "• " : ""}
         {name}
-        {host ? " · مضيف" : ""}
+        {host ? t.hostSuffix : ""}
       </span>
       {isHost && !host ? (
         <div className="cn-player-actions">
@@ -299,14 +342,14 @@ function PlayerChip({
             className="cn-player-action"
             onClick={() => onTransferHost(id)}
           >
-            جعله المضيف
+            {t.makeHost}
           </button>
           <button
             type="button"
             className="cn-player-action"
             onClick={() => onBanPlayer(id)}
           >
-            حظر
+            {t.ban}
           </button>
         </div>
       ) : null}

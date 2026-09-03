@@ -1,5 +1,5 @@
 /* ============================================================
-   Landing page — "Codenames Hub"
+   Landing page — "Spy Mission"
    Design source: docs/handoff/landing/ · spec: landing-spec.md
    All classes are prefixed `cn-lp-`; values come from --cn-* tokens.
    ============================================================ */
@@ -206,6 +206,8 @@
   margin-inline-start: auto;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -1241,9 +1243,14 @@
   padding: 22px 24px;
 }
 
+.cn-lp-footer__sep,
 .cn-lp-footer__credit {
   font-size: 13px;
   color: var(--cn-ink-soft);
+}
+
+.cn-lp-footer__sep {
+  padding-inline-end: 0.35em;
 }
 
 .cn-lp-footer__legal {
@@ -1295,6 +1302,15 @@
 @media (max-width: 520px) {
   .cn-lp-feats {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cn-lp-nav__inner {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .cn-lp-nav__actions {
+    flex: 1 1 100%;
   }
 
   .cn-lp-nav__inner,

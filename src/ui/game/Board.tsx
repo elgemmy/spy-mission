@@ -1,6 +1,7 @@
 import { cn } from "../../lib/cn";
 import { WordCard, type CardRole, type CardView } from "../card";
 import type { PlayerView } from "../../engine";
+import { useMessages } from "../../locale/useMessages";
 
 interface BoardProps {
   view: PlayerView;
@@ -17,6 +18,7 @@ export function Board({
   onVote,
   onConfirm,
 }: BoardProps) {
+  const t = useMessages().play;
   const cardView: CardView =
     view.me?.role === "spymaster" || view.phase === "ended"
       ? "spymaster"
@@ -24,7 +26,7 @@ export function Board({
   const voteCounts = countVotes(votes);
 
   return (
-    <section aria-label="لوحة الكلمات" className="cn-board">
+    <section aria-label={t.wordBoard} className="cn-board">
       {view.board.map((card, index) => {
         const role: CardRole = card.kind ?? "neutral";
         const voteCount = voteCounts[index] ?? 0;
@@ -43,7 +45,7 @@ export function Board({
               <button
                 type="button"
                 className="cn-board__confirm"
-                aria-label="كشف البطاقة"
+                aria-label={t.revealCard}
                 onClick={() => onConfirm(index)}
               >
                 ✓

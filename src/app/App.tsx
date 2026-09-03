@@ -18,9 +18,15 @@ import {
 import { absolutePlayUrl, playUrl, readPlayParams } from "../config/routes";
 import { useInstallPrompt } from "../lib/pwa/installPrompt";
 import { useServiceWorkerStatus } from "../lib/pwa/serviceWorker";
+import type { PlayMessages } from "../locale/messages";
+import { UiLocaleProvider } from "../locale/UiLocaleProvider";
+import { useUiLocale } from "../locale/uiLocale";
+import { useMessages } from "../locale/useMessages";
 import { GlyphDefs } from "../ui/card";
+import { AppDialog } from "../ui/components/AppDialog";
 import { Button } from "../ui/components/Button";
 import { InstallSheet } from "../ui/components/InstallSheet";
+import { LocaleToggle } from "../ui/components/LocaleToggle";
 import { UpdateToast } from "../ui/components/UpdateToast";
 import { Lobby, PlayScreen } from "../ui/game";
 import "../ui/game/Game.css";
@@ -49,6 +55,20 @@ interface ConfirmRequest {
 const roomProvider = getRoomProvider();
 
 export function App() {
+  return (
+    <UiLocaleProvider>
+      <AppShell />
+    </UiLocaleProvider>
+  );
+}
+
+function AppShell() {
+  const { locale, dir } = useUiLocale();
+  const t = useMessages().play;
+  const messagesRef = useRef(t);
+  useEffect(() => {
+    messagesRef.current = t;
+  }, [t]);
   const [initialPlayParams] = useState(() =>
     readPlayParams(window.location.search),
   );
@@ -164,10 +184,11 @@ export function App() {
 
   useEffect(() => {
     initTheme("default");
+    document.title = t.documentTitle;
     localStorageSafe.remove(ROOM_ID_KEY);
     localStorageSafe.remove(LEGACY_LOCAL_ROOM_KEY);
     localStorageSafe.remove(LEGACY_LOCAL_PLAYER_KEY);
-  }, []);
+  }, [t.documentTitle]);
 
   useEffect(() => {
     if (!readPlayParams(window.location.search).install) {
@@ -229,7 +250,10 @@ export function App() {
         }
         teardownRoomContext({
           clearInvite: true,
-          nextError: messageForError(new Error("ROOM_NOT_FOUND")),
+          nextError: messageForError(
+            new Error("ROOM_NOT_FOUND"),
+            messagesRef.current,
+          ),
         });
       })
       .catch((caught: unknown) => {
@@ -242,11 +266,11 @@ export function App() {
         if (isTerminalRoomError(caught)) {
           teardownRoomContext({
             clearInvite: true,
-            nextError: messageForError(caught),
+            nextError: messageForError(caught, messagesRef.current),
           });
         } else {
           setStep({ type: "roomRetry", code: requestedCode });
-          setError(messageForError(caught));
+          setError(messageForError(caught, messagesRef.current));
         }
       });
 
@@ -282,7 +306,10 @@ export function App() {
       teardownRoomContext({
         expectedRoomId: activeRoomId,
         clearInvite: true,
-        nextError: messageForError(new Error("ROOM_ACCESS_REVOKED")),
+        nextError: messageForError(
+          new Error("ROOM_ACCESS_REVOKED"),
+          messagesRef.current,
+        ),
       });
     });
   }, [activeRoomId, teardownRoomContext]);
@@ -333,11 +360,11 @@ export function App() {
       teardownRoomContext({
         expectedRoomId: room?.id,
         clearInvite: true,
-        nextError: messageForError(caught),
+        nextError: messageForError(caught, t),
       });
       return;
     }
-    setError(messageForError(caught));
+    setError(messageForError(caught, t));
   };
 
   const createRoom = async (name: string) => {
@@ -346,7 +373,7 @@ export function App() {
       const next = await runPending("create", () =>
         roomProvider.create({
           name,
-          lang: "ar",
+          lang: "en",
         }),
       );
       if (next && lifecycleGenerationRef.current === generation) {
@@ -616,36 +643,36 @@ export function App() {
 
   const confirmStartGame = () => {
     requestConfirm({
-      title: "بدء الجولة؟",
-      body: "سيتم تثبيت الفرق وفتح لوحة جديدة.",
-      confirmLabel: "بدء",
+      title: t.confirmStartTitle,
+      body: t.confirmStartBody,
+      confirmLabel: t.confirmStartAction,
       onConfirm: startGame,
     });
   };
 
   const confirmRegenerate = () => {
     requestConfirm({
-      title: "لوحة جديدة؟",
-      body: "سيتم استبدال اللوحة الحالية وتصفير التلميحات والتصويتات.",
-      confirmLabel: "تجديد",
+      title: t.confirmRegenTitle,
+      body: t.confirmRegenBody,
+      confirmLabel: t.confirmRegenAction,
       onConfirm: startGame,
     });
   };
 
   const confirmReturnToLobby = () => {
     requestConfirm({
-      title: "العودة للردهة؟",
-      body: "ستنتهي الجولة الحالية وسيعود اللاعبون لاختيار الفرق.",
-      confirmLabel: "عودة",
+      title: t.confirmLobbyTitle,
+      body: t.confirmLobbyBody,
+      confirmLabel: t.confirmLobbyAction,
       onConfirm: backToLobby,
     });
   };
 
   const confirmDeleteRoom = () => {
     requestConfirm({
-      title: "حذف الغرفة؟",
-      body: "سيتم حذف الغرفة وإخراج اللاعبين منها.",
-      confirmLabel: "حذف",
+      title: t.confirmDeleteTitle,
+      body: t.confirmDeleteBody,
+      confirmLabel: t.confirmDeleteAction,
       onConfirm: deleteRoom,
     });
   };
@@ -653,11 +680,11 @@ export function App() {
   const confirmChangeHost = (nextHostId: string) => {
     const name =
       room?.view.players.find((player) => player.id === nextHostId)?.name ??
-      "اللاعب";
+      t.playerFallback;
     requestConfirm({
-      title: "نقل الاستضافة؟",
-      body: `سيصبح ${name} مضيف الغرفة.`,
-      confirmLabel: "نقل",
+      title: t.confirmHostTitle,
+      body: t.confirmHostBody(name),
+      confirmLabel: t.confirmHostAction,
       onConfirm: () => changeHost(nextHostId),
     });
   };
@@ -665,20 +692,20 @@ export function App() {
   const confirmBanPlayer = (targetPlayerId: string) => {
     const name =
       room?.view.players.find((player) => player.id === targetPlayerId)?.name ??
-      "اللاعب";
+      t.playerFallback;
     requestConfirm({
-      title: "حظر اللاعب؟",
-      body: `سيتم إخراج ${name} ومنعه من العودة بهذه الهوية.`,
-      confirmLabel: "حظر",
+      title: t.confirmBanTitle,
+      body: t.confirmBanBody(name),
+      confirmLabel: t.confirmBanAction,
       onConfirm: () => banPlayer(targetPlayerId),
     });
   };
 
   const confirmExitToHome = () => {
     requestConfirm({
-      title: "العودة للرئيسية؟",
-      body: "ستغادر هذه الشاشة فقط، وستبقى عضوا في الغرفة.",
-      confirmLabel: "خروج",
+      title: t.confirmExitTitle,
+      body: t.confirmExitBody,
+      confirmLabel: t.confirmExitAction,
       onConfirm: () => {
         teardownRoomContext({
           expectedRoomId: room?.id,
@@ -690,15 +717,19 @@ export function App() {
 
   const confirmPermanentLeave = () => {
     requestConfirm({
-      title: "مغادرة الغرفة نهائيا؟",
-      body: "سيتم حذف مقعدك من الغرفة. يمكنك الانضمام من جديد ما دامت الغرفة مفتوحة.",
-      confirmLabel: "مغادرة",
+      title: t.confirmLeaveTitle,
+      body: t.confirmLeaveBody,
+      confirmLabel: t.confirmLeaveAction,
       onConfirm: permanentlyLeaveRoom,
     });
   };
 
   return (
-    <div className="cn-shell font-ui text-ink">
+    <div
+      className={`cn-shell text-ink ${locale === "ar" ? "font-ar" : "font-ui"}`}
+      data-lang={locale}
+      dir={dir}
+    >
       <GlyphDefs />
       <main className="cn-app">
         {room && view ? (
@@ -748,7 +779,7 @@ export function App() {
               />
             )}
             <Button variant="secondary" onClick={confirmExitToHome}>
-              الخروج من هذه الشاشة
+              {t.exitScreen}
             </Button>
           </>
         ) : (
@@ -768,7 +799,10 @@ export function App() {
           />
         )}
         {error ? (
-          <p className="cn-card-panel p-cn-3 text-ink m-0 text-center text-sm font-semibold">
+          <p
+            className="cn-card-panel p-cn-3 text-ink m-0 text-center text-sm font-semibold"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}
@@ -799,15 +833,16 @@ export function App() {
 }
 
 function PlayerBar({ name, onRename }: { name: string; onRename: () => void }) {
+  const t = useMessages().play;
   return (
-    <section className="cn-player-bar" aria-label="بيانات اللاعب">
+    <section className="cn-player-bar" aria-label={t.playerBar}>
       <span className="cn-player-bar__name">{name}</span>
       <Button
         className="cn-player-bar__button"
         variant="secondary"
         onClick={onRename}
       >
-        تغيير الاسم
+        {t.rename}
       </Button>
     </section>
   );
@@ -822,6 +857,7 @@ function RenameDialog({
   onCancel: () => void;
   onSubmit: (name: string) => void;
 }) {
+  const t = useMessages().play;
   const [name, setName] = useState(currentName);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -833,33 +869,31 @@ function RenameDialog({
   };
 
   return (
-    <div className="cn-dialog-backdrop" role="presentation">
-      <form
-        className="cn-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="rename-title"
-        onSubmit={submit}
-      >
+    <AppDialog titleId="rename-title" onClose={onCancel}>
+      <form className="gap-cn-4 flex flex-col" onSubmit={submit}>
         <h2 id="rename-title" className="text-ink m-0 text-lg font-bold">
-          تغيير الاسم
+          {t.renameTitle}
         </h2>
+        <label className="text-ink text-sm font-semibold" htmlFor="rename-name">
+          {t.newNameLabel}
+        </label>
         <input
+          id="rename-name"
           className="cn-field"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          aria-label="الاسم الجديد"
+          aria-label={t.newNameLabel}
         />
         <div className="gap-cn-2 grid grid-cols-2">
           <Button variant="secondary" onClick={onCancel}>
-            إلغاء
+            {t.cancel}
           </Button>
           <Button type="submit" disabled={name.trim().length === 0}>
-            حفظ
+            {t.save}
           </Button>
         </div>
       </form>
-    </div>
+    </AppDialog>
   );
 }
 
@@ -872,29 +906,27 @@ function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useMessages().play;
   return (
-    <div className="cn-dialog-backdrop" role="presentation">
-      <section
-        className="cn-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
-        aria-describedby="confirm-body"
-      >
-        <h2 id="confirm-title" className="text-ink m-0 text-lg font-bold">
-          {request.title}
-        </h2>
-        <p id="confirm-body" className="text-ink-soft m-0 text-sm">
-          {request.body}
-        </p>
-        <div className="gap-cn-2 grid grid-cols-2">
-          <Button variant="secondary" onClick={onCancel}>
-            إلغاء
-          </Button>
-          <Button onClick={onConfirm}>{request.confirmLabel}</Button>
-        </div>
-      </section>
-    </div>
+    <AppDialog
+      role="alertdialog"
+      titleId="confirm-title"
+      describedBy="confirm-body"
+      onClose={onCancel}
+    >
+      <h2 id="confirm-title" className="text-ink m-0 text-lg font-bold">
+        {request.title}
+      </h2>
+      <p id="confirm-body" className="text-ink-soft m-0 text-sm">
+        {request.body}
+      </p>
+      <div className="gap-cn-2 grid grid-cols-2">
+        <Button variant="secondary" onClick={onCancel}>
+          {t.cancel}
+        </Button>
+        <Button onClick={onConfirm}>{request.confirmLabel}</Button>
+      </div>
+    </AppDialog>
   );
 }
 
@@ -917,10 +949,12 @@ function Onboarding({
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
   onInstall: () => void;
 }) {
+  const t = useMessages().play;
+
   if (step.type === "loadingRoom") {
     return (
       <section className="cn-card-panel p-cn-4 text-center" aria-live="polite">
-        <p className="text-ink m-0 text-sm font-semibold">جار فتح الغرفة…</p>
+        <p className="text-ink m-0 text-sm font-semibold">{t.openingRoom}</p>
       </section>
     );
   }
@@ -928,9 +962,9 @@ function Onboarding({
   if (step.type === "roomRetry") {
     return (
       <section className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col">
-        <Button onClick={onRetryRoom}>متابعة</Button>
+        <Button onClick={onRetryRoom}>{t.retry}</Button>
         <Button variant="secondary" onClick={onCancelRoomLink}>
-          رجوع
+          {t.back}
         </Button>
       </section>
     );
@@ -939,9 +973,12 @@ function Onboarding({
   if (step.type === "createName") {
     return (
       <UsernameStep
-        title="اختر اسمك"
-        description="سيظهر هذا الاسم في الغرفة."
-        submitLabel="إنشاء الغرفة"
+        title={t.chooseName}
+        description={t.nameCreateHint}
+        submitLabel={pending ? t.createPending : t.createSubmit}
+        nameLabel={t.nameLabel}
+        namePlaceholder={t.namePlaceholder}
+        backLabel={t.back}
         pending={pending}
         onBack={() => onStep({ type: "landing" })}
         onSubmit={onCreateRoom}
@@ -952,9 +989,12 @@ function Onboarding({
   if (step.type === "joinName") {
     return (
       <UsernameStep
-        title="اختر اسمك"
-        description={`الغرفة ${step.code}`}
-        submitLabel="الدخول للغرفة"
+        title={t.chooseName}
+        description={t.nameJoinHint(step.code)}
+        submitLabel={pending ? t.joinPending : t.joinSubmit}
+        nameLabel={t.nameLabel}
+        namePlaceholder={t.namePlaceholder}
+        backLabel={t.back}
         pending={pending}
         onBack={() =>
           step.source === "link"
@@ -993,27 +1033,35 @@ function Landing({
   onJoin: () => void;
   onInstall: () => void;
 }) {
+  const t = useMessages().play;
   const { isStandalone } = useInstallPrompt();
 
   return (
     <>
       <header className="cn-landing-hero">
-        <img className="cn-landing-logo" src="/pwa-icon.svg" alt="كودنيمز" />
-        <h1 className="text-ink m-0 text-xl font-bold">كودنيمز</h1>
-        <p className="text-ink-soft m-0 text-sm">لعبة كلمات عربية أولا</p>
+        <img
+          className="cn-landing-logo"
+          src="/pwa-icon.svg"
+          alt={t.productName}
+        />
+        <h1 className="text-ink m-0 text-xl font-bold">{t.productName}</h1>
+        <p className="text-ink-soft m-0 text-sm">{t.subtitle}</p>
       </header>
 
+      <LocaleToggle />
+
       <div className="gap-cn-3 flex flex-col">
-        <Button onClick={onCreate}>إنشاء غرفة جديدة</Button>
+        <Button onClick={onCreate}>{t.createRoom}</Button>
         <Button variant="secondary" onClick={onJoin}>
-          الانضمام برمز
+          {t.joinByCode}
         </Button>
         {isStandalone ? null : (
           <Button variant="secondary" onClick={onInstall}>
-            تثبيت التطبيق
+            {t.installApp}
           </Button>
         )}
       </div>
+      <p className="text-ink-soft m-0 text-center text-xs">{t.credit}</p>
     </>
   );
 }
@@ -1025,6 +1073,7 @@ function JoinCodeStep({
   onBack: () => void;
   onSubmit: (code: string) => void;
 }) {
+  const t = useMessages().play;
   const [code, setCode] = useState("");
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -1041,21 +1090,21 @@ function JoinCodeStep({
       onSubmit={submit}
     >
       <label className="text-ink text-sm font-semibold" htmlFor="join-code">
-        رمز الغرفة
+        {t.roomCodeLabel}
       </label>
       <input
         id="join-code"
         className="cn-field font-mono"
         value={code}
         onChange={(event) => setCode(event.target.value)}
-        placeholder="ROOM CODE"
+        placeholder={t.roomCodePlaceholder}
         dir="ltr"
       />
       <Button type="submit" disabled={code.trim().length === 0}>
-        متابعة
+        {t.continue}
       </Button>
       <Button variant="secondary" onClick={onBack}>
-        رجوع
+        {t.back}
       </Button>
     </form>
   );
@@ -1065,6 +1114,9 @@ function UsernameStep({
   title,
   description,
   submitLabel,
+  nameLabel,
+  namePlaceholder,
+  backLabel,
   pending,
   onBack,
   onSubmit,
@@ -1072,16 +1124,30 @@ function UsernameStep({
   title: string;
   description: string;
   submitLabel: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  backLabel: string;
   pending: boolean;
   onBack: () => void;
   onSubmit: (name: string) => void;
 }) {
   const [name, setName] = useState("");
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (!pending) {
+      submittedRef.current = false;
+    }
+  }, [pending]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (pending || submittedRef.current) {
+      return;
+    }
     const trimmed = name.trim();
     if (trimmed.length > 0) {
+      submittedRef.current = true;
       onSubmit(trimmed);
     }
   };
@@ -1090,23 +1156,28 @@ function UsernameStep({
     <form
       className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
       onSubmit={submit}
+      aria-busy={pending}
     >
       <div>
         <h1 className="text-ink m-0 text-lg font-bold">{title}</h1>
         <p className="text-ink-soft mt-cn-1 m-0 text-sm">{description}</p>
       </div>
+      <label className="text-ink text-sm font-semibold" htmlFor="player-name">
+        {nameLabel}
+      </label>
       <input
+        id="player-name"
         className="cn-field"
         value={name}
         disabled={pending}
         onChange={(event) => setName(event.target.value)}
-        placeholder="اسمك"
+        placeholder={namePlaceholder}
       />
       <Button type="submit" disabled={pending || name.trim().length === 0}>
         {submitLabel}
       </Button>
       <Button variant="secondary" onClick={onBack} disabled={pending}>
-        رجوع
+        {backLabel}
       </Button>
     </form>
   );
@@ -1137,62 +1208,24 @@ function readInviteToken(): string | null {
   }
 }
 
-function messageForError(caught: unknown): string {
+function messageForError(caught: unknown, t: PlayMessages): string {
   if (isIllegalMove(caught) || caught instanceof RoomError) {
-    return errorMessage(caught.code);
+    return errorMessage(caught.code, t);
   }
   if (caught instanceof Error) {
     if (
       caught.message.includes("Failed to fetch") ||
       caught.message.includes("NetworkError")
     ) {
-      return errorMessage("NETWORK_ERROR");
+      return errorMessage("NETWORK_ERROR", t);
     }
-    return errorMessage(caught.message);
+    return errorMessage(caught.message, t);
   }
-  return "حدث خطأ غير متوقع.";
+  return t.unexpectedError;
 }
 
-function errorMessage(code: string): string {
-  const messages: Record<string, string> = {
-    WRONG_PHASE: "هذه الحركة غير متاحة الآن.",
-    NOT_YOUR_TURN: "ليس دور فريقك.",
-    WRONG_ROLE: "هذا الدور لا يملك هذا الخيار.",
-    NOT_A_PLAYER: "انضم للغرفة أولا.",
-    ALREADY_JOINED: "أنت موجود في الغرفة.",
-    CARD_ALREADY_REVEALED: "هذه البطاقة مكشوفة.",
-    CARD_OUT_OF_RANGE: "البطاقة غير موجودة.",
-    INVALID_CLUE: "التلميح لا يمكن أن يكون فارغا ويحتاج رقما صحيحا.",
-    MUST_GUESS_ONCE: "يجب كشف بطاقة واحدة قبل إنهاء الدور.",
-    LANG_LOCKED: "تغيير اللغة متاح في الردهة فقط.",
-    ALREADY_STARTED: "الجولة بدأت بالفعل.",
-    NOT_ENOUGH_PLAYERS: "كل فريق يحتاج قائدا ولاعبا.",
-    BAD_DEAL: "قائمة الكلمات غير كافية.",
-    NOT_HOST: "هذا الخيار للمضيف فقط.",
-    ROOM_PRIVATE: "هذه الغرفة خاصة.",
-    PLAYER_NOT_FOUND: "اللاعب غير موجود.",
-    HOST_REMOVE_FORBIDDEN: "انقل الاستضافة قبل حذف المضيف.",
-    INVALID_NAME: "اكتب اسما صالحا.",
-    ROOM_NOT_FOUND: "لم يتم العثور على الغرفة أو لم تعد عضوا فيها.",
-    ROOM_INVITE_INVALID: "رابط الدعوة غير صالح.",
-    ROOM_INVITE_UNAVAILABLE: "رابط الدعوة الخاص غير متاح في هذا المتصفح.",
-    ROOM_FULL: "الغرفة ممتلئة.",
-    ROOM_BANNED: "تم حظر هذه الهوية من الغرفة.",
-    ROOM_ACCESS_REVOKED: "لم تعد عضوا في الغرفة.",
-    ROOM_MEMBERSHIP_INVALID: "تعذر التحقق من عضوية الغرفة.",
-    HOST_LEAVE_FORBIDDEN: "انقل الاستضافة أو احذف الغرفة أولا.",
-    LEAVE_LOBBY_ONLY: "المغادرة النهائية متاحة في الردهة فقط.",
-    ANONYMOUS_AUTH_DISABLED:
-      "الدخول كضيف غير مفعل في Supabase. فعّل Anonymous Sign-Ins ثم أعد المحاولة.",
-    ROOM_SESSION_EXPIRED: "انتهت جلسة اللاعب. ادخل إلى الغرفة من جديد.",
-    ROOM_API_ERROR: "تعذر تنفيذ الطلب على خادم الغرف.",
-    SUPABASE_ENV_MISSING:
-      "إعدادات Supabase غير موجودة في هذا النشر. أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY في Vercel ثم أعد النشر.",
-    ROOM_VERSION_CONFLICT: "تغيرت الغرفة للتو. أعد المحاولة.",
-    NETWORK_ERROR:
-      "تعذر الاتصال بخادم الغرف. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
-  };
-  return messages[code] ?? "حدث خطأ.";
+function errorMessage(code: string, t: PlayMessages): string {
+  return t.errors[code] ?? t.unknownError;
 }
 
 function isTerminalRoomError(caught: unknown): boolean {

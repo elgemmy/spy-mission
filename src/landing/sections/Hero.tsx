@@ -91,6 +91,12 @@ export function Hero({ lang, t, hostLabel }: HeroProps) {
           </a>
           <a
             className="cn-lp-btn cn-lp-btn--secondary cn-lp-btn--hero-2"
+            href={playUrl()}
+          >
+            {t.join}
+          </a>
+          <a
+            className="cn-lp-btn cn-lp-btn--secondary cn-lp-btn--hero-2"
             href="#how"
           >
             {t.how}

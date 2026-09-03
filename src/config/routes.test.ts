@@ -56,15 +56,15 @@ describe("playUrl", () => {
 
 describe("absolutePlayUrl", () => {
   it("prefixes the origin", () => {
-    expect(absolutePlayUrl("https://codenames.example.com")).toBe(
-      "https://codenames.example.com/play/",
+    expect(absolutePlayUrl("https://spymission.dev")).toBe(
+      "https://spymission.dev/play/",
     );
   });
 
   it("carries options through", () => {
-    expect(
-      absolutePlayUrl("https://codenames.example.com", { room: "abc12" }),
-    ).toBe("https://codenames.example.com/play/?room=ABC12");
+    expect(absolutePlayUrl("https://spymission.dev", { room: "abc12" })).toBe(
+      "https://spymission.dev/play/?room=ABC12",
+    );
   });
 
   it("does not double the slash when the origin has a trailing one", () => {
@@ -131,15 +131,11 @@ describe("readPlayParams", () => {
 
 describe("playHostLabel", () => {
   it("appends the play path without a trailing slash", () => {
-    expect(playHostLabel("codenames.example.com")).toBe(
-      "codenames.example.com/play",
-    );
+    expect(playHostLabel("spymission.dev")).toBe("spymission.dev/play");
   });
 
   it("tolerates a trailing slash on the host", () => {
-    expect(playHostLabel("codenames.example.com/")).toBe(
-      "codenames.example.com/play",
-    );
+    expect(playHostLabel("spymission.dev/")).toBe("spymission.dev/play");
   });
 
   it("keeps a port", () => {

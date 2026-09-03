@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/verify-public-identity.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "vitest run --exclude src/server/rooms/service.integration.test.ts",

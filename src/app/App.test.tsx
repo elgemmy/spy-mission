@@ -46,7 +46,10 @@ vi.mock("../lib/pwa/serviceWorker", () => ({
   useServiceWorkerStatus: () => ({ needRefresh: false }),
 }));
 
+import { MESSAGES } from "../locale/messages";
 import { App } from "./App";
+
+const en = MESSAGES.en.play;
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/play/");
@@ -80,7 +83,7 @@ describe("App room lifecycle", () => {
     render(<App />);
 
     expect(
-      screen.getByRole("button", { name: "إنشاء غرفة جديدة" }),
+      screen.getByRole("button", { name: en.createRoom }),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(localStorage.getItem("codenames.roomId")).toBeNull(),
@@ -107,14 +110,14 @@ describe("App room lifecycle", () => {
     mocks.create.mockResolvedValue(snapshot());
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "إنشاء غرفة جديدة" }));
-    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+    fireEvent.click(screen.getByRole("button", { name: en.createRoom }));
+    fireEvent.change(screen.getByPlaceholderText(en.namePlaceholder), {
       target: { value: "Host" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "إنشاء الغرفة" }));
+    fireEvent.click(screen.getByRole("button", { name: en.createSubmit }));
 
     await screen.findByText("TESTROOM");
-    expect(mocks.create).toHaveBeenCalledWith({ name: "Host", lang: "ar" });
+    expect(mocks.create).toHaveBeenCalledWith({ name: "Host", lang: "en" });
     expect(window.location.pathname + window.location.search).toBe(
       "/play/?room=TESTROOM",
     );
@@ -129,11 +132,11 @@ describe("App room lifecycle", () => {
         }),
     );
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "إنشاء غرفة جديدة" }));
-    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+    fireEvent.click(screen.getByRole("button", { name: en.createRoom }));
+    fireEvent.change(screen.getByPlaceholderText(en.namePlaceholder), {
       target: { value: "Host" },
     });
-    const submit = screen.getByRole("button", { name: "إنشاء الغرفة" });
+    const submit = screen.getByRole("button", { name: en.createSubmit });
 
     fireEvent.click(submit);
     fireEvent.click(submit);
@@ -148,15 +151,15 @@ describe("App room lifecycle", () => {
     mocks.join.mockResolvedValue(snapshot());
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "الانضمام برمز" }));
-    fireEvent.change(screen.getByLabelText("رمز الغرفة"), {
+    fireEvent.click(screen.getByRole("button", { name: en.joinByCode }));
+    fireEvent.change(screen.getByLabelText(en.roomCodeLabel), {
       target: { value: "testroom" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "متابعة" }));
-    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+    fireEvent.click(screen.getByRole("button", { name: en.continue }));
+    fireEvent.change(screen.getByPlaceholderText(en.namePlaceholder), {
       target: { value: "Guest" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "الدخول للغرفة" }));
+    fireEvent.click(screen.getByRole("button", { name: en.joinSubmit }));
 
     await screen.findByText("TESTROOM");
     expect(mocks.join).toHaveBeenCalledWith({
@@ -177,15 +180,15 @@ describe("App room lifecycle", () => {
         }),
     );
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "الانضمام برمز" }));
-    fireEvent.change(screen.getByLabelText("رمز الغرفة"), {
+    fireEvent.click(screen.getByRole("button", { name: en.joinByCode }));
+    fireEvent.change(screen.getByLabelText(en.roomCodeLabel), {
       target: { value: "TESTROOM" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "متابعة" }));
-    fireEvent.change(screen.getByPlaceholderText("اسمك"), {
+    fireEvent.click(screen.getByRole("button", { name: en.continue }));
+    fireEvent.change(screen.getByPlaceholderText(en.namePlaceholder), {
       target: { value: "Guest" },
     });
-    const submit = screen.getByRole("button", { name: "الدخول للغرفة" });
+    const submit = screen.getByRole("button", { name: en.joinSubmit });
 
     fireEvent.click(submit);
     fireEvent.click(submit);
@@ -210,9 +213,9 @@ describe("App room lifecycle", () => {
 
     render(<App />);
 
-    const name = await screen.findByPlaceholderText("اسمك");
+    const name = await screen.findByPlaceholderText(en.namePlaceholder);
     fireEvent.change(name, { target: { value: "Guest" } });
-    fireEvent.click(screen.getByRole("button", { name: "الدخول للغرفة" }));
+    fireEvent.click(screen.getByRole("button", { name: en.joinSubmit }));
 
     await waitFor(() =>
       expect(mocks.join).toHaveBeenCalledWith({
@@ -237,11 +240,11 @@ describe("App room lifecycle", () => {
 
     render(<App />);
 
-    expect(await screen.findByText(/تعذر الاتصال/)).toBeInTheDocument();
+    expect(await screen.findByText(en.errors.NETWORK_ERROR)).toBeInTheDocument();
     expect(window.location.href).toBe(
       "http://localhost/play/?room=TESTROOM#invite=stable-private-token",
     );
-    fireEvent.click(screen.getByRole("button", { name: "متابعة" }));
+    fireEvent.click(screen.getByRole("button", { name: en.retry }));
 
     await screen.findByText("TESTROOM");
     expect(mocks.resume).toHaveBeenCalledTimes(2);
@@ -259,10 +262,10 @@ describe("App room lifecycle", () => {
 
     render(<App />);
 
-    fireEvent.change(await screen.findByPlaceholderText("اسمك"), {
+    fireEvent.change(await screen.findByPlaceholderText(en.namePlaceholder), {
       target: { value: "Guest" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "الدخول للغرفة" }));
+    fireEvent.click(screen.getByRole("button", { name: en.joinSubmit }));
 
     await waitFor(() =>
       expect(mocks.join).toHaveBeenCalledWith({
@@ -281,10 +284,10 @@ describe("App room lifecycle", () => {
     mocks.resume.mockResolvedValue({ status: "join", code: "TESTROOM" });
 
     render(<App />);
-    await screen.findByPlaceholderText("اسمك");
-    fireEvent.click(screen.getByRole("button", { name: "رجوع" }));
+    await screen.findByPlaceholderText(en.namePlaceholder);
+    fireEvent.click(screen.getByRole("button", { name: en.back }));
 
-    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    await screen.findByRole("button", { name: en.createRoom });
     expect(window.location.href).toBe("http://localhost/play/");
   });
 
@@ -295,11 +298,11 @@ describe("App room lifecycle", () => {
     await screen.findByText("TESTROOM");
 
     fireEvent.click(
-      screen.getByRole("button", { name: "الخروج من هذه الشاشة" }),
+      screen.getByRole("button", { name: en.exitScreen }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "خروج" }));
+    fireEvent.click(screen.getByRole("button", { name: en.confirmExitAction }));
 
-    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    await screen.findByRole("button", { name: en.createRoom });
     expect(mocks.mutate).not.toHaveBeenCalled();
     expect(mocks.clearRoomStorage).not.toHaveBeenCalled();
     expect(window.location.pathname + window.location.search).toBe("/play/");
@@ -313,7 +316,7 @@ describe("App room lifecycle", () => {
 
     act(() => mocks.onChange?.(null));
 
-    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    await screen.findByRole("button", { name: en.createRoom });
     expect(mocks.clearRoomStorage).toHaveBeenCalledWith(snapshot().id);
     expect(window.location.pathname + window.location.search).toBe("/play/");
   });
@@ -330,19 +333,19 @@ describe("App room lifecycle", () => {
     );
     render(<App />);
     await screen.findByText("TESTROOM");
-    fireEvent.click(screen.getByRole("button", { name: "نسخ الرابط" }));
+    fireEvent.click(screen.getByRole("button", { name: en.copyLink }));
     expect(
-      screen.getByRole("button", { name: "تم النسخ" }),
+      screen.getByRole("button", { name: en.copied }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "تغيير الاسم" }));
-    fireEvent.change(screen.getByLabelText("الاسم الجديد"), {
+    fireEvent.click(screen.getByRole("button", { name: en.rename }));
+    fireEvent.change(screen.getByLabelText(en.newNameLabel), {
       target: { value: "Renamed" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    fireEvent.click(screen.getByRole("button", { name: en.save }));
 
     act(() => mocks.onChange?.(null));
     const create = await screen.findByRole("button", {
-      name: "إنشاء غرفة جديدة",
+      name: en.createRoom,
     });
     expect(create).toBeEnabled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -371,10 +374,10 @@ describe("App room lifecycle", () => {
       render(<App />);
       await screen.findByText("TESTROOM");
 
-      fireEvent.click(screen.getByRole("button", { name: "نسخ الرابط" }));
+      fireEvent.click(screen.getByRole("button", { name: en.copyLink }));
       await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
       act(() => mocks.onChange?.(null));
-      await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+      await screen.findByRole("button", { name: en.createRoom });
 
       await act(async () => {
         resolveClipboard?.();
@@ -382,7 +385,7 @@ describe("App room lifecycle", () => {
       });
 
       expect(
-        screen.queryByRole("button", { name: "تم النسخ" }),
+        screen.queryByRole("button", { name: en.copied }),
       ).not.toBeInTheDocument();
     } finally {
       if (descriptor) {
@@ -398,12 +401,12 @@ describe("App room lifecycle", () => {
     mocks.resume.mockResolvedValue({ status: "active", room: snapshot() });
     render(<App />);
     await screen.findByText("TESTROOM");
-    fireEvent.click(screen.getByRole("button", { name: "حذف الغرفة" }));
+    fireEvent.click(screen.getByRole("button", { name: en.deleteRoom }));
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
 
     act(() => mocks.onChange?.(null));
 
-    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    await screen.findByRole("button", { name: en.createRoom });
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
@@ -452,7 +455,7 @@ describe("App room lifecycle", () => {
     render(<App />);
     await screen.findByText("Guest");
 
-    fireEvent.click(screen.getByRole("button", { name: "حظر" }));
+    fireEvent.click(screen.getByRole("button", { name: en.ban }));
     fireEvent.click(
       screen.getByRole("alertdialog").querySelectorAll("button")[1]!,
     );
@@ -473,9 +476,9 @@ describe("App room lifecycle", () => {
     render(<App />);
 
     expect(
-      await screen.findByText("رابط الدعوة الخاص غير متاح في هذا المتصفح."),
+      await screen.findByText(en.inviteUnavailable),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "نسخ الرابط" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: en.copyLink })).toBeDisabled();
     expect(screen.queryByText("تجديد رابط الدعوة")).not.toBeInTheDocument();
   });
 
@@ -490,11 +493,11 @@ describe("App room lifecycle", () => {
     await screen.findByText("TESTROOM");
 
     fireEvent.click(
-      screen.getByRole("button", { name: "مغادرة الغرفة نهائيا" }),
+      screen.getByRole("button", { name: en.leaveRoom }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "مغادرة" }));
+    fireEvent.click(screen.getByRole("button", { name: en.confirmLeaveAction }));
 
-    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    await screen.findByRole("button", { name: en.createRoom });
     expect(mocks.mutate).toHaveBeenCalledWith(guestRoom.id, 1, {
       type: "leaveRoom",
     });
@@ -510,10 +513,10 @@ describe("App room lifecycle", () => {
     render(<App />);
     await screen.findByText("TESTROOM");
 
-    fireEvent.click(screen.getByRole("button", { name: "حذف الغرفة" }));
-    fireEvent.click(screen.getByRole("button", { name: "حذف" }));
+    fireEvent.click(screen.getByRole("button", { name: en.deleteRoom }));
+    fireEvent.click(screen.getByRole("button", { name: en.confirmDeleteAction }));
 
-    await screen.findByRole("button", { name: "إنشاء غرفة جديدة" });
+    await screen.findByRole("button", { name: en.createRoom });
     expect(mocks.mutate).toHaveBeenCalledWith(hostRoom.id, 1, {
       type: "deleteRoom",
     });
@@ -537,7 +540,7 @@ function snapshot(
     visibility: "public",
     view: {
       roomId: "room-00000000-0000-4000-8000-000000000000",
-      lang: "ar",
+      lang: "en",
       phase: "lobby",
       board: [],
       turn: "red",

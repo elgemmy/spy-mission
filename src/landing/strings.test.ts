@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CREDIT_NAME, PRODUCT_NAME } from "../locale/messages";
 import { STR, type LandingStrings } from "./strings";
 
 /** Type-level parity: both locales must satisfy the same contract. */
@@ -35,10 +36,16 @@ describe("landing strings", () => {
     expect(keyShape(STR.ar)).toEqual(keyShape(STR.en));
   });
 
-  it("keeps the canonical Arabic copy", () => {
+  it("uses Spy Mission public terminology", () => {
+    expect(STR.en.productName).toBe(PRODUCT_NAME);
+    expect(STR.ar.productName).toBe(PRODUCT_NAME);
+    expect(STR.en.h1Before).toBe("One signal.");
     expect(STR.ar.h1Highlight).toBe("٢٥ كلمة.");
-    expect(STR.ar.lobby.spymasterLabel).toBe("سيّد التجسس");
-    expect(STR.ar.lobby.red.join).toBe("+ انضمّ كعميل");
+    expect(STR.ar.lobby.spymasterLabel).toBe("قائد المهمة");
+    expect(STR.en.lobby.spymasterLabel).toBe("MISSION LEAD");
+    expect(STR.ar.lobby.red.join).toBe("+ انضم كعميل ميداني");
+    expect(STR.en.credit).toBe(CREDIT_NAME);
+    expect(STR.ar.credit).toBe(CREDIT_NAME);
   });
 
   it("has no empty strings", () => {

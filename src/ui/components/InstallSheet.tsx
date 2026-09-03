@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "../../lib/useFocusTrap";
 import { useInstallPrompt } from "../../lib/pwa/installPrompt";
+import { useMessages } from "../../locale/useMessages";
 import { Button } from "./Button";
 
 export interface InstallSheetProps {
@@ -12,6 +13,7 @@ export interface InstallSheetProps {
  * chrome (`.cn-dialog-backdrop` / `.cn-dialog`).
  */
 export function InstallSheet({ onClose }: InstallSheetProps) {
+  const t = useMessages().play;
   const { canPrompt, prompt, isStandalone, platform } = useInstallPrompt();
   const [dismissedHint, setDismissedHint] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -62,51 +64,44 @@ export function InstallSheet({ onClose }: InstallSheetProps) {
         tabIndex={-1}
       >
         <h2 id="install-sheet-title" className="text-ink m-0 text-lg font-bold">
-          ثبّت اللعبة على جهازك
+          {t.installTitle}
         </h2>
 
         {isStandalone ? (
           <>
             <p id="install-sheet-body" className="text-ink-soft m-0 text-sm">
-              التطبيق مثبّت بالفعل ✓
+              {t.installAlready}
             </p>
-            <Button onClick={onClose}>إغلاق</Button>
+            <Button onClick={onClose}>{t.installClose}</Button>
           </>
         ) : (
           <>
             <p id="install-sheet-body" className="text-ink-soft m-0 text-sm">
-              تعمل اللعبة كتطبيق بلا متجر: تفتح بلمسة واحدة وتعمل بسرعة.
+              {t.installBody}
             </p>
 
             {canPrompt ? (
               <>
-                <Button onClick={handlePrompt}>تثبيت الآن</Button>
+                <Button onClick={handlePrompt}>{t.installNow}</Button>
                 {dismissedHint ? (
                   <p className="text-ink-soft m-0 text-xs">
-                    يمكنك التثبيت لاحقا من هذه القائمة.
+                    {t.installLaterHint}
                   </p>
                 ) : null}
               </>
             ) : platform === "ios" ? (
               <p className="text-ink gap-cn-2 m-0 flex items-center text-sm">
                 <ShareIcon />
-                افتح قائمة المشاركة في Safari ثم اختر «إضافة إلى الشاشة
-                الرئيسية»
+                {t.installIos}
               </p>
             ) : platform === "android" ? (
-              <p className="text-ink m-0 text-sm">
-                من قائمة المتصفح (⋮) اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة
-                الرئيسية»
-              </p>
+              <p className="text-ink m-0 text-sm">{t.installAndroid}</p>
             ) : (
-              <p className="text-ink m-0 text-sm">
-                اضغط أيقونة التثبيت في شريط العنوان، أو من قائمة المتصفح اختر
-                «تثبيت Codenames»
-              </p>
+              <p className="text-ink m-0 text-sm">{t.installDesktop}</p>
             )}
 
             <Button variant="secondary" onClick={onClose}>
-              إغلاق
+              {t.installClose}
             </Button>
           </>
         )}

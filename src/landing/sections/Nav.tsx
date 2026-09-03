@@ -18,7 +18,7 @@ export function Nav({ lang, onLangChange, t }: NavProps) {
     <nav className="cn-lp-nav" aria-label={t.nav}>
       <div className="cn-lp-wrap cn-lp-nav__inner">
         <Mark size={30} />
-        <span className="cn-lp-wordmark">Codenames Hub</span>
+        <span className="cn-lp-wordmark">{t.productName}</span>
         <div className="cn-lp-nav__actions">
           <div className="cn-lp-lang" role="group" aria-label={t.langGroup}>
             {OPTIONS.map((option) => (
@@ -33,6 +33,12 @@ export function Nav({ lang, onLangChange, t }: NavProps) {
               </button>
             ))}
           </div>
+          <a
+            className="cn-lp-btn cn-lp-btn--secondary cn-lp-btn--nav"
+            href={playUrl()}
+          >
+            {t.join}
+          </a>
           <a
             className="cn-lp-btn cn-lp-btn--primary cn-lp-btn--nav"
             href={playUrl({ create: true })}

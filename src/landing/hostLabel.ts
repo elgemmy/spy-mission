@@ -1,7 +1,7 @@
 import { playHostLabel } from "../config/routes";
 
 /**
- * The visible text for links into the game, e.g. `codenames.example.com/play`.
+ * The visible text for links into the game, e.g. `spymission.dev/play`.
  * Safe during SSR/prerender, where there is no `window`.
  */
 export function useHostLabel(): string {

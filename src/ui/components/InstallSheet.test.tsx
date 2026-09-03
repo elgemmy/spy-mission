@@ -1,9 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MESSAGES } from "../../locale/messages";
+import { UiLocaleProvider } from "../../locale/UiLocaleProvider";
 import { InstallSheet } from "./InstallSheet";
 
 const IOS_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15";
+const en = MESSAGES.en.play;
+const ar = MESSAGES.ar.play;
 
 function setUserAgent(value: string) {
   Object.defineProperty(window.navigator, "userAgent", {
@@ -35,7 +39,7 @@ const originalUserAgent = window.navigator.userAgent;
 
 afterEach(() => {
   setUserAgent(originalUserAgent);
-  // Clear any event still held by the module-level capture.
+  localStorage.clear();
   act(() => {
     window.dispatchEvent(new Event("appinstalled"));
   });
@@ -45,28 +49,38 @@ describe("InstallSheet", () => {
   it("renders iOS instructions when the platform is iOS", () => {
     setUserAgent(IOS_UA);
 
-    render(<InstallSheet onClose={vi.fn()} />);
+    render(
+      <UiLocaleProvider>
+        <InstallSheet onClose={vi.fn()} />
+      </UiLocaleProvider>,
+    );
 
+    expect(screen.getByText(en.installIos)).toBeInTheDocument();
     expect(
-      screen.getByText(/افتح قائمة المشاركة في Safari/),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "تثبيت الآن" }),
+      screen.queryByRole("button", { name: en.installNow }),
     ).not.toBeInTheDocument();
   });
 
   it("renders the prompt button when a beforeinstallprompt event was captured", () => {
-    render(<InstallSheet onClose={vi.fn()} />);
+    render(
+      <UiLocaleProvider>
+        <InstallSheet onClose={vi.fn()} />
+      </UiLocaleProvider>,
+    );
     fireBeforeInstallPrompt();
 
     expect(
-      screen.getByRole("button", { name: "تثبيت الآن" }),
+      screen.getByRole("button", { name: en.installNow }),
     ).toBeInTheDocument();
   });
 
   it("closes on Escape", () => {
     const onClose = vi.fn();
-    render(<InstallSheet onClose={onClose} />);
+    render(
+      <UiLocaleProvider>
+        <InstallSheet onClose={onClose} />
+      </UiLocaleProvider>,
+    );
 
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -74,11 +88,26 @@ describe("InstallSheet", () => {
   });
 
   it("has dialog semantics", () => {
-    render(<InstallSheet onClose={vi.fn()} />);
+    render(
+      <UiLocaleProvider>
+        <InstallSheet onClose={vi.fn()} />
+      </UiLocaleProvider>,
+    );
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(dialog).toHaveAttribute("aria-labelledby", "install-sheet-title");
     expect(dialog).toHaveAttribute("aria-describedby", "install-sheet-body");
+  });
+
+  it("renders Arabic install copy when the UI locale is Arabic", () => {
+    localStorage.setItem("sm-lang", "ar");
+    render(
+      <UiLocaleProvider>
+        <InstallSheet onClose={vi.fn()} />
+      </UiLocaleProvider>,
+    );
+
+    expect(screen.getByText(ar.installTitle)).toBeInTheDocument();
   });
 });
