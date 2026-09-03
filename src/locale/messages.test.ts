@@ -78,4 +78,12 @@ describe("locale catalog", () => {
       expect(text).not.toMatch(/Supabase|Vercel|VITE_/i);
     });
   });
+
+  it("contains no legacy terminology in English public copy", () => {
+    walkStrings(MESSAGES.en, (text, path) => {
+      expect(text, path).not.toMatch(
+        /\bCodenames?\b|\bSpymaster\b|\bOperative\b|\bAssassin\b|\bClue\b/i,
+      );
+    });
+  });
 });

@@ -85,7 +85,7 @@ export function readPlayParams(search: string): PlayParams {
   }
 }
 
-/** Display label for the game URL, e.g. `codenames.example.com/play`. */
+/** Display label for the game URL, e.g. `spymission.dev/play`. */
 export function playHostLabel(host: string): string {
   return `${host.replace(/\/+$/, "")}${PLAY_PATH.replace(/\/+$/, "")}`;
 }

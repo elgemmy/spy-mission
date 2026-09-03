@@ -53,7 +53,7 @@ const en = MESSAGES.en.play;
 const ar = MESSAGES.ar.play;
 
 const LEGACY_ENGLISH = [
-  /Codenames/i,
+  /\bCodenames?\b/i,
   /Spymaster/i,
   /\bOperative\b/,
   /\bAssassin\b/,
@@ -231,7 +231,7 @@ describe("Spy Mission locale runtime", () => {
     expect(screen.getByRole("status")).toHaveTextContent(ar.startNeedSeats);
   });
 
-  it("does not show legacy public terminology on the English golden path", async () => {
+  it("keeps rendered English landing and play surfaces on public terminology", async () => {
     mocks.create.mockResolvedValue(snapshot());
     const landing = render(<LandingPage />);
     const landingText = landing.container.textContent ?? "";
@@ -252,6 +252,8 @@ describe("Spy Mission locale runtime", () => {
     for (const term of LEGACY_ENGLISH) {
       expect(playText).not.toMatch(term);
     }
+    expect(landingText).toContain("Spy Mission");
+    expect(playText).toContain("Spy Mission");
     expect(playText).toContain("Mission Lead");
     expect(playText).toContain("Field Agent");
   });
