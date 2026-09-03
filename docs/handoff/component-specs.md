@@ -8,8 +8,9 @@ column centers at **max-width 480px** (`.cn-shell`). All values reference
 and persisted. Interface and board language are independent, and new rooms
 default the board to English.
 
-RTL is the default. Use logical properties everywhere (`inset-inline-start`,
-`margin-inline`, `padding-inline`) so the LTR variant is free.
+Direction follows the selected interface locale: default English uses LTR;
+Arabic uses RTL. Use logical properties everywhere (`inset-inline-start`,
+`margin-inline`, `padding-inline`) so both directions remain correct.
 
 ---
 

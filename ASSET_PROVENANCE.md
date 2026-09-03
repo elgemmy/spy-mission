@@ -49,8 +49,9 @@ Known facts:
 Unresolved: whether any English label was taken from another published list.
 
 The repository MIT license covers the first-party application code and design
-listed above. It does **not** license this pack. This file does not claim
-third-party clearance for the pack.
+listed above. It does **not** license this pack or word-list entries reproduced
+from it in documentation. This file does not claim third-party clearance for
+the pack.
 
 Do not replace or regenerate the pack in documentation-only work. Duplicate
 rendered English labels are listed in

@@ -67,7 +67,8 @@ Known facts:
 
 English-list lineage is unresolved. This README does not claim a third-party
 source or clearance, and does not place the pack under the repository MIT
-grant. See [`ASSET_PROVENANCE.md`](../../../ASSET_PROVENANCE.md).
+grant. Word-list entries reproduced below are also outside that grant. See
+[`ASSET_PROVENANCE.md`](../../../ASSET_PROVENANCE.md).
 
 ## Normalization rules (documentation only)
 
