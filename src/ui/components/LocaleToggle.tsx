@@ -8,7 +8,10 @@ export function LocaleToggle() {
   return (
     <section className="gap-cn-2 flex flex-col">
       <div className="flex items-center justify-between">
-        <span id="locale-toggle-heading" className="text-ink text-sm font-semibold">
+        <span
+          id="locale-toggle-heading"
+          className="text-ink text-sm font-semibold"
+        >
           {t.interfaceLanguage}
         </span>
       </div>

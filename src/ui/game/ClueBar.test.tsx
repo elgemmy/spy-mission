@@ -37,7 +37,9 @@ const guessView: PlayerView = {
 
 describe("ClueBar", () => {
   it("keeps the typed Signal when the view has not changed after submit", () => {
-    render(<ClueBar view={clueView} onGiveClue={vi.fn()} onEndTurn={vi.fn()} />);
+    render(
+      <ClueBar view={clueView} onGiveClue={vi.fn()} onEndTurn={vi.fn()} />,
+    );
 
     const input = screen.getByLabelText("Signal text");
     fireEvent.change(input, { target: { value: "water" } });
@@ -56,13 +58,17 @@ describe("ClueBar", () => {
     fireEvent.submit(input.closest("form")!);
     expect(input).toHaveValue("water");
 
-    rerender(<ClueBar view={guessView} onGiveClue={vi.fn()} onEndTurn={vi.fn()} />);
+    rerender(
+      <ClueBar view={guessView} onGiveClue={vi.fn()} onEndTurn={vi.fn()} />,
+    );
 
     expect(screen.getByLabelText("Signal text")).toHaveValue("");
   });
 
   it("disables Send while the Signal text is empty or blank", () => {
-    render(<ClueBar view={clueView} onGiveClue={vi.fn()} onEndTurn={vi.fn()} />);
+    render(
+      <ClueBar view={clueView} onGiveClue={vi.fn()} onEndTurn={vi.fn()} />,
+    );
 
     const send = screen.getByRole("button", { name: "Send" });
     expect(send).toBeDisabled();

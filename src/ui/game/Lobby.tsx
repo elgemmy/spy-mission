@@ -133,7 +133,11 @@ export function Lobby({
       </section>
 
       <section className="gap-cn-2 flex flex-col">
-        <div className="cn-segmented" role="group" aria-label={t.roomVisibility}>
+        <div
+          className="cn-segmented"
+          role="group"
+          aria-label={t.roomVisibility}
+        >
           <button
             type="button"
             aria-pressed={room.visibility === "public"}

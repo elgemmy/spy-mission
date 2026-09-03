@@ -61,7 +61,9 @@ function SpymasterClueForm({
   return (
     <form className="gap-cn-3 flex flex-col" onSubmit={submit}>
       <div>
-        <p className="text-ink-soft m-0 text-xs font-semibold">{t.giveSignal}</p>
+        <p className="text-ink-soft m-0 text-xs font-semibold">
+          {t.giveSignal}
+        </p>
         <p className="mt-cn-1 text-ink m-0 text-sm font-semibold">
           {view.can.giveClue ? t.yourTeamTurn : t.waitTeamTurn}
         </p>
