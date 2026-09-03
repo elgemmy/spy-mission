@@ -1,5 +1,5 @@
-import { IllegalMove } from "../contract";
-import { buildBoard } from "./deal";
+import { IllegalMove } from "../contract.js";
+import { buildBoard } from "./deal.js";
 import {
   allTeamCardsRevealed,
   flipTurn,
@@ -8,8 +8,8 @@ import {
   isValidClue,
   otherTeam,
   smallerTeamForJoin,
-} from "./helpers";
-import type { Action, GameState, Team } from "./types";
+} from "./helpers.js";
+import type { Action, GameState, Team } from "./types.js";
 
 function assertPhase(state: GameState, phase: GameState["phase"]): void {
   if (state.phase !== phase) {

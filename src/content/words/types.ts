@@ -1,4 +1,4 @@
-import type { Concept } from "../../engine";
+import type { Concept } from "../../engine/index.js";
 
 export interface WordCategory {
   category: string;

@@ -20,6 +20,11 @@ const REQUIRED_TOKENS = [
   "--cn-shadow-tile",
   "--cn-flip-dur",
   "--cn-flip-ease",
+  "--cn-shadow-float",
+  "--cn-shadow-phone",
+  "--cn-phone-frame",
+  "--cn-max-w-shell",
+  "--cn-max-w-landing",
 ];
 
 describe("tokens.css", () => {

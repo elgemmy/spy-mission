@@ -1,44 +1,24 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { sampleConceptsForBoard } from "../content/words/sampler";
+import { useEffect, useState, type FormEvent } from "react";
+import { isIllegalMove, type Lang, type Role, type Team } from "../engine";
 import {
-  isIllegalMove,
-  viewFor,
-  type Lang,
-  type Role,
-  type Team,
-} from "../engine";
-import {
-  clearVote,
-  confirmGuess,
-  createRoomRecord,
-  dispatchRoomAction,
   getRoomProvider,
-  joinRoomRecord,
-  removePlayer,
-  renamePlayer,
-  returnToLobby,
   RoomError,
-  startNewGame,
-  transferHost,
-  updateRoomSettings,
-  voteCard,
   type ClueLogEntry,
-  type RoomRecord,
+  type RoomCommand,
+  type RoomSnapshot,
   type RoomVisibility,
 } from "../room";
-import {
-  createClientId,
-  createRoomCode,
-  createRoomId,
-  createSeed,
-} from "../room/ids";
+import { absolutePlayUrl, readPlayParams } from "../config/routes";
+import { useInstallPrompt } from "../lib/pwa/installPrompt";
+import { useServiceWorkerStatus } from "../lib/pwa/serviceWorker";
 import { GlyphDefs } from "../ui/card";
 import { Button } from "../ui/components/Button";
+import { InstallSheet } from "../ui/components/InstallSheet";
+import { UpdateToast } from "../ui/components/UpdateToast";
 import { Lobby, PlayScreen } from "../ui/game";
 import "../ui/game/Game.css";
 import { initTheme } from "./theme";
 
-const PLAYER_ID_KEY = "codenames.playerId";
 const ROOM_ID_KEY = "codenames.roomId";
 
 type JoinSource = "code" | "link";
@@ -58,29 +38,42 @@ interface ConfirmRequest {
 const roomProvider = getRoomProvider();
 
 export function App() {
-  const inviteCode = readInviteCode();
-  const [playerId] = useState(() => loadOrCreatePlayerId());
+  const playParams = readPlayParams(window.location.search);
+  const inviteCode = playParams.room;
+  const inviteToken = readInviteToken();
   const [roomId, setRoomId] = useState(() => localStorageSafe.get(ROOM_ID_KEY));
-  const [room, setRoom] = useState<RoomRecord | null>(null);
-  const [step, setStep] = useState<OnboardingStep>(() =>
-    inviteCode
-      ? { type: "joinName", code: inviteCode, source: "link" }
-      : { type: "landing" },
-  );
+  const [room, setRoom] = useState<RoomSnapshot | null>(null);
+  const [step, setStep] = useState<OnboardingStep>(() => {
+    if (inviteCode) {
+      return { type: "joinName", code: inviteCode, source: "link" };
+    }
+    return playParams.create ? { type: "createName" } : { type: "landing" };
+  });
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
     null,
   );
   const [renameOpen, setRenameOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(() => playParams.install);
+  const { needRefresh } = useServiceWorkerStatus();
 
   useEffect(() => {
     initTheme("default");
   }, []);
 
   useEffect(() => {
-    localStorageSafe.set(PLAYER_ID_KEY, playerId);
-  }, [playerId]);
+    if (!readPlayParams(window.location.search).install) {
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("install");
+    window.history.replaceState(
+      null,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, []);
 
   useEffect(() => {
     if (!roomId) {
@@ -88,7 +81,7 @@ export function App() {
     }
 
     let mounted = true;
-    const acceptRoom = (next: RoomRecord | null) => {
+    const acceptRoom = (next: RoomSnapshot | null) => {
       if (!next) {
         localStorageSafe.remove(ROOM_ID_KEY);
         setRoomId(null);
@@ -107,7 +100,7 @@ export function App() {
         return;
       }
 
-      if (!next.state.players[playerId]) {
+      if (!next.view.me) {
         localStorageSafe.remove(ROOM_ID_KEY);
         setRoomId(null);
         setRoom(null);
@@ -119,12 +112,19 @@ export function App() {
       setRoom(next);
     };
 
-    void roomProvider.load(roomId).then((loaded) => {
-      if (!mounted) {
-        return;
-      }
-      acceptRoom(loaded);
-    });
+    void roomProvider
+      .load(roomId)
+      .then((loaded) => {
+        if (!mounted) {
+          return;
+        }
+        acceptRoom(loaded);
+      })
+      .catch((caught: unknown) => {
+        if (mounted) {
+          setError(messageForError(caught));
+        }
+      });
 
     const unsubscribe = roomProvider.subscribe(roomId, (next) => {
       acceptRoom(next);
@@ -134,58 +134,34 @@ export function App() {
       mounted = false;
       unsubscribe();
     };
-  }, [inviteCode, playerId, roomId]);
+  }, [inviteCode, roomId]);
 
-  const view = useMemo(
-    () => (room ? viewFor(room.state, playerId) : null),
-    [room, playerId],
-  );
+  const view = room?.view ?? null;
+  const playerId = view?.me?.id ?? "";
   const isHost = Boolean(room && room.hostId === playerId);
   const selectedCardIndex = room?.ui.votes[playerId] ?? null;
   const clueToast: ClueLogEntry | null =
     room?.ui.clueLog[room.ui.clueLog.length - 1] ?? null;
 
-  const commit = async (next: RoomRecord, expectedVersion = room?.version) => {
-    await roomProvider.save(next, expectedVersion);
+  const commit = async (command: RoomCommand) => {
+    if (!room) {
+      return;
+    }
+    const next = await roomProvider.mutate(room.id, room.version, command);
     setRoom(next);
     setError(null);
   };
 
   const handleError = (caught: unknown) => {
-    if (isIllegalMove(caught)) {
-      setError(errorMessage(caught.code));
-      return;
-    }
-    if (caught instanceof RoomError) {
-      setError(errorMessage(caught.code));
-      return;
-    }
-    if (caught instanceof Error) {
-      if (
-        caught.message.includes("Failed to fetch") ||
-        caught.message.includes("NetworkError")
-      ) {
-        setError(errorMessage("NETWORK_ERROR"));
-        return;
-      }
-      setError(errorMessage(caught.message));
-      return;
-    }
-    setError("حدث خطأ غير متوقع.");
+    setError(messageForError(caught));
   };
 
   const createRoom = async (name: string) => {
     try {
-      const now = new Date().toISOString();
-      const next = createRoomRecord({
-        id: createRoomId(),
-        code: createRoomCode(),
-        hostId: playerId,
-        hostName: name,
+      const next = await roomProvider.create({
+        name,
         lang: "ar",
-        now,
       });
-      await roomProvider.create(next);
       enterRoom(next);
     } catch (caught) {
       handleError(caught);
@@ -194,28 +170,18 @@ export function App() {
 
   const joinRoom = async (code: string, name: string, source: JoinSource) => {
     try {
-      const found = await roomProvider.loadByCode(code);
-      if (!found) {
-        setError(errorMessage("ROOM_NOT_FOUND"));
-        return;
-      }
-      const next = joinRoomRecord(
-        found,
-        playerId,
+      const next = await roomProvider.join({
+        code,
         name,
-        new Date().toISOString(),
-        {
-          allowPrivate: source === "link",
-        },
-      );
-      await roomProvider.save(next, found.version);
+        ...(source === "link" && inviteToken ? { inviteToken } : {}),
+      });
       enterRoom(next);
     } catch (caught) {
       handleError(caught);
     }
   };
 
-  const enterRoom = (next: RoomRecord) => {
+  const enterRoom = (next: RoomSnapshot) => {
     localStorageSafe.set(ROOM_ID_KEY, next.id);
     setRoomId(next.id);
     setRoom(next);
@@ -227,14 +193,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        dispatchRoomAction(
-          room,
-          { type: "assignSelf", team, role },
-          playerId,
-          new Date().toISOString(),
-        ),
-      );
+      await commit({ type: "assignSelf", team, role });
     } catch (caught) {
       handleError(caught);
     }
@@ -245,9 +204,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        updateRoomSettings(room, playerId, { lang }, new Date().toISOString()),
-      );
+      await commit({ type: "setLang", lang });
     } catch (caught) {
       handleError(caught);
     }
@@ -258,14 +215,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        updateRoomSettings(
-          room,
-          playerId,
-          { visibility },
-          new Date().toISOString(),
-        ),
-      );
+      await commit({ type: "setVisibility", visibility });
     } catch (caught) {
       handleError(caught);
     }
@@ -276,16 +226,7 @@ export function App() {
       return;
     }
     try {
-      const seed = createSeed();
-      await commit(
-        startNewGame(
-          room,
-          playerId,
-          sampleConceptsForBoard(seed),
-          seed,
-          new Date().toISOString(),
-        ),
-      );
+      await commit({ type: "startGame" });
     } catch (caught) {
       handleError(caught);
     }
@@ -296,14 +237,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        dispatchRoomAction(
-          room,
-          { type: "giveClue", word, count },
-          playerId,
-          new Date().toISOString(),
-        ),
-      );
+      await commit({ type: "giveClue", word, count });
     } catch (caught) {
       handleError(caught);
     }
@@ -314,11 +248,11 @@ export function App() {
       return;
     }
     try {
-      const next =
+      await commit(
         selectedCardIndex === cardIndex
-          ? clearVote(room, playerId, new Date().toISOString())
-          : voteCard(room, playerId, cardIndex, new Date().toISOString());
-      await commit(next);
+          ? { type: "clearVote" }
+          : { type: "vote", cardIndex },
+      );
     } catch (caught) {
       handleError(caught);
     }
@@ -329,9 +263,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        confirmGuess(room, playerId, cardIndex, new Date().toISOString()),
-      );
+      await commit({ type: "confirmGuess", cardIndex });
     } catch (caught) {
       handleError(caught);
     }
@@ -342,14 +274,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        dispatchRoomAction(
-          room,
-          { type: "endTurn" },
-          playerId,
-          new Date().toISOString(),
-        ),
-      );
+      await commit({ type: "endTurn" });
     } catch (caught) {
       handleError(caught);
     }
@@ -360,7 +285,7 @@ export function App() {
       return;
     }
     try {
-      await commit(returnToLobby(room, playerId, new Date().toISOString()));
+      await commit({ type: "returnToLobby" });
     } catch (caught) {
       handleError(caught);
     }
@@ -370,16 +295,23 @@ export function App() {
     if (!room) {
       return;
     }
-    const url = `${window.location.origin}${window.location.pathname}?room=${room.code}`;
-    if ("clipboard" in navigator) {
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        setError(url);
+    try {
+      const invitation = new URL(
+        absolutePlayUrl(window.location.origin, { room: room.code }),
+      );
+      if (room.visibility === "private") {
+        const token = await roomProvider.ensureInvite(room.id, room.version);
+        invitation.hash = new URLSearchParams({ invite: token }).toString();
       }
+      const url = invitation.toString();
+      if ("clipboard" in navigator) {
+        await navigator.clipboard.writeText(url);
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch (caught) {
+      handleError(caught);
     }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
   };
 
   const deleteRoom = async () => {
@@ -399,9 +331,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        transferHost(room, playerId, nextHostId, new Date().toISOString()),
-      );
+      await commit({ type: "transferHost", nextHostId });
     } catch (caught) {
       handleError(caught);
     }
@@ -412,9 +342,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        removePlayer(room, playerId, targetPlayerId, new Date().toISOString()),
-      );
+      await commit({ type: "removePlayer", targetPlayerId });
     } catch (caught) {
       handleError(caught);
     }
@@ -425,9 +353,7 @@ export function App() {
       return;
     }
     try {
-      await commit(
-        renamePlayer(room, playerId, name, new Date().toISOString()),
-      );
+      await commit({ type: "renamePlayer", name });
       setRenameOpen(false);
     } catch (caught) {
       handleError(caught);
@@ -488,7 +414,9 @@ export function App() {
   };
 
   const confirmChangeHost = (nextHostId: string) => {
-    const name = room?.state.players[nextHostId]?.name ?? "اللاعب";
+    const name =
+      room?.view.players.find((player) => player.id === nextHostId)?.name ??
+      "اللاعب";
     requestConfirm({
       title: "نقل الاستضافة؟",
       body: `سيصبح ${name} مضيف الغرفة.`,
@@ -498,7 +426,9 @@ export function App() {
   };
 
   const confirmKickPlayer = (targetPlayerId: string) => {
-    const name = room?.state.players[targetPlayerId]?.name ?? "اللاعب";
+    const name =
+      room?.view.players.find((player) => player.id === targetPlayerId)?.name ??
+      "اللاعب";
     requestConfirm({
       title: "حذف اللاعب؟",
       body: `سيتم حذف ${name} من الغرفة.`,
@@ -531,10 +461,13 @@ export function App() {
         {room && view ? (
           <>
             <PlayerBar
-              name={room.state.players[playerId]?.name ?? ""}
+              name={
+                room.view.players.find((player) => player.id === playerId)
+                  ?.name ?? ""
+              }
               onRename={() => setRenameOpen(true)}
             />
-            {room.state.phase === "lobby" ? (
+            {room.view.phase === "lobby" ? (
               <Lobby
                 room={room}
                 view={view}
@@ -574,6 +507,7 @@ export function App() {
             onStep={setStep}
             onCreateRoom={createRoom}
             onJoinRoom={joinRoom}
+            onInstall={() => setInstallOpen(true)}
           />
         )}
         {error ? (
@@ -590,11 +524,18 @@ export function App() {
         ) : null}
         {renameOpen && room ? (
           <RenameDialog
-            currentName={room.state.players[playerId]?.name ?? ""}
+            currentName={
+              room.view.players.find((player) => player.id === playerId)
+                ?.name ?? ""
+            }
             onCancel={() => setRenameOpen(false)}
             onSubmit={renameSelf}
           />
         ) : null}
+        {installOpen ? (
+          <InstallSheet onClose={() => setInstallOpen(false)} />
+        ) : null}
+        {needRefresh ? <UpdateToast /> : null}
       </main>
     </div>
   );
@@ -705,11 +646,13 @@ function Onboarding({
   onStep,
   onCreateRoom,
   onJoinRoom,
+  onInstall,
 }: {
   step: OnboardingStep;
   onStep: (step: OnboardingStep) => void;
   onCreateRoom: (name: string) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
+  onInstall: () => void;
 }) {
   if (step.type === "createName") {
     return (
@@ -752,6 +695,7 @@ function Onboarding({
     <Landing
       onCreate={() => onStep({ type: "createName" })}
       onJoin={() => onStep({ type: "joinCode" })}
+      onInstall={onInstall}
     />
   );
 }
@@ -759,10 +703,14 @@ function Onboarding({
 function Landing({
   onCreate,
   onJoin,
+  onInstall,
 }: {
   onCreate: () => void;
   onJoin: () => void;
+  onInstall: () => void;
 }) {
+  const { isStandalone } = useInstallPrompt();
+
   return (
     <>
       <header className="cn-landing-hero">
@@ -776,6 +724,11 @@ function Landing({
         <Button variant="secondary" onClick={onJoin}>
           الانضمام برمز
         </Button>
+        {isStandalone ? null : (
+          <Button variant="secondary" onClick={onInstall}>
+            تثبيت التطبيق
+          </Button>
+        )}
       </div>
     </>
   );
@@ -896,18 +849,34 @@ const localStorageSafe = {
   },
 };
 
-function readInviteCode(): string | null {
+function readInviteToken(): string | null {
   try {
-    const code = new URLSearchParams(window.location.search).get("room");
-    return code?.trim().toUpperCase() || null;
+    const fragment = window.location.hash.startsWith("#")
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    return (
+      new URLSearchParams(fragment).get("invite") ??
+      new URLSearchParams(window.location.search).get("invite")
+    );
   } catch {
     return null;
   }
 }
 
-function loadOrCreatePlayerId(): string {
-  const existing = localStorageSafe.get(PLAYER_ID_KEY);
-  return existing ?? createClientId();
+function messageForError(caught: unknown): string {
+  if (isIllegalMove(caught) || caught instanceof RoomError) {
+    return errorMessage(caught.code);
+  }
+  if (caught instanceof Error) {
+    if (
+      caught.message.includes("Failed to fetch") ||
+      caught.message.includes("NetworkError")
+    ) {
+      return errorMessage("NETWORK_ERROR");
+    }
+    return errorMessage(caught.message);
+  }
+  return "حدث خطأ غير متوقع.";
 }
 
 function errorMessage(code: string): string {
@@ -930,15 +899,18 @@ function errorMessage(code: string): string {
     PLAYER_NOT_FOUND: "اللاعب غير موجود.",
     HOST_REMOVE_FORBIDDEN: "انقل الاستضافة قبل حذف المضيف.",
     INVALID_NAME: "اكتب اسما صالحا.",
-    ROOM_NOT_FOUND:
-      "لم يتم العثور على الغرفة. إذا كان المضيف يرى الغرفة، فتأكد من تشغيل SQL migration وسياسات RLS في Supabase ثم أعد النشر.",
-    ROOM_STORAGE_NOT_READABLE:
-      "تم إنشاء الغرفة لكن Supabase لا يعيدها عند البحث. شغل SQL migration وسياسات RLS من جديد في Supabase.",
+    ROOM_NOT_FOUND: "لم يتم العثور على الغرفة أو لم تعد عضوا فيها.",
+    ROOM_INVITE_INVALID: "رابط الدعوة غير صالح أو تم استبداله.",
+    ROOM_INVITE_UNAVAILABLE: "تعذر إنشاء رابط دعوة خاص.",
+    ANONYMOUS_AUTH_DISABLED:
+      "الدخول كضيف غير مفعل في Supabase. فعّل Anonymous Sign-Ins ثم أعد المحاولة.",
+    ROOM_SESSION_EXPIRED: "انتهت جلسة اللاعب. ادخل إلى الغرفة من جديد.",
+    ROOM_API_ERROR: "تعذر تنفيذ الطلب على خادم الغرف.",
     SUPABASE_ENV_MISSING:
       "إعدادات Supabase غير موجودة في هذا النشر. أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY في Vercel ثم أعد النشر.",
     ROOM_VERSION_CONFLICT: "تغيرت الغرفة للتو. أعد المحاولة.",
     NETWORK_ERROR:
-      "تعذر الاتصال بالخادم. تحقق من اتصال الإنترنت ومن أن رابط Supabase ومفتاحه صحيحان في Vercel.",
+      "تعذر الاتصال بخادم الغرف. تحقق من اتصال الإنترنت وحاول مرة أخرى.",
   };
   return messages[code] ?? "حدث خطأ.";
 }

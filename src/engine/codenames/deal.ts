@@ -1,5 +1,5 @@
-import type { Card, CardKind, Concept, Team } from "./types";
-import { shuffleWithSeed } from "./seeded";
+import type { Card, CardKind, Concept, Team } from "./types.js";
+import { shuffleWithSeed } from "./seeded.js";
 
 export function buildBoard(concepts: Concept[], seed: number): {
   board: Card[];

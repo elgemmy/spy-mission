@@ -4,9 +4,10 @@ Mobile-first Arabic-first Codenames web app. Design system: **Warm Sand** (`docs
 
 ## Stack
 
-- React + Vite + TypeScript
+- React + Vite + TypeScript, multi-page build (landing at `/`, game at `/play/`)
 - Tailwind CSS v4 (`@theme` maps `--cn-*` tokens)
-- Supabase (client placeholder; Phase 4)
+- `vite-plugin-pwa` — installable PWA scoped to `/play/`
+- Supabase Auth + server-authoritative room API
 - Pure game engine in `src/engine`
 
 ## Quick start
@@ -16,18 +17,139 @@ npm install
 npm run dev
 ```
 
+Then open <http://localhost:5173/> for the landing page and
+<http://localhost:5173/play/> for the game.
+
+## Routes & PWA
+
+Two HTML entries, one origin — see
+[`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md).
+
+| URL      | Entry HTML        | Entry module           | Purpose                      |
+| -------- | ----------------- | ---------------------- | ---------------------------- |
+| `/`      | `index.html`      | `src/landing/main.tsx` | Marketing landing            |
+| `/play/` | `play/index.html` | `src/main.tsx`         | The game (`src/app/App.tsx`) |
+
+### Deep-link params
+
+Every `/play/` URL is produced by `src/config/routes.ts` (`playUrl`,
+`absolutePlayUrl`, `readPlayParams`). Never hardcode `/play/` in a component.
+
+| Param     | Values                           | Behaviour                                        |
+| --------- | -------------------------------- | ------------------------------------------------ |
+| `room`    | room code (trimmed, upper-cased) | Invite link — jumps to "enter your name" to join |
+| `create`  | `1` / `true` / bare              | Jumps straight to the create-room name step      |
+| `install` | `1` / `true` / bare              | Opens the install sheet                          |
+
+Example: `/play/?room=ABC12&create=1&install=1` (params are emitted in that
+stable order). When both `room` and `create` are present, `room` wins and
+`create` is ignored — the invite flow takes precedence.
+
+Private invite links use `/play/?room=CODE#invite=TOKEN`. The opaque invite
+token stays in the URL fragment so it is not sent in the page request; the game
+passes it only in the authenticated room-join request.
+
+### PWA
+
+Only the game is installable. `manifest.webmanifest` uses `id`, `start_url`
+and `scope` of `/play/`; the service worker ships at `/sw.js` but is registered
+by `src/main.tsx` (`virtual:pwa-register`) with `scope: "/play/"`. The landing
+page never registers a service worker, so it is never cached or installed —
+but it does carry `<link rel="manifest">`, so a browser install started from
+the landing page installs the **game**. Workbox precache excludes the root
+`index.html` and `assets/landing-*`; `navigateFallback` is `/play/index.html`,
+allow-listed to `^/play(/|$)`.
+
+**Install flow.** `src/lib/pwa/installPrompt.ts` captures `beforeinstallprompt`
+at module load and exposes `useInstallPrompt()` (`canPrompt`, `prompt`,
+`isStandalone`, `platform`). The game's onboarding screen shows a "تثبيت
+التطبيق" button when not already installed; the landing page's own Install
+CTA either triggers the native prompt directly or, when the browser can't
+(iOS, Firefox), navigates to `playUrl({ install: true })` — `/play/?install=1`
+— which opens `InstallSheet` (`src/ui/components/InstallSheet.tsx`) on arrival
+and then strips the `install` param via `history.replaceState` so a refresh
+doesn't reopen it. `InstallSheet` shows the native prompt button when
+available, or platform-specific instructions (iOS Share sheet, Android
+browser menu, desktop address-bar icon) otherwise.
+
+**Update flow.** `vite.config.ts` sets `registerType: "prompt"` — a waiting
+service worker never force-reloads the page mid-game. `src/main.tsx` wires
+`registerSW`'s `onNeedRefresh`/`onOfflineReady` callbacks into the small store
+in `src/lib/pwa/serviceWorker.ts` (`useServiceWorkerStatus`, `applyUpdate`,
+`dismissRefresh`); when an update is waiting, `App` renders `UpdateToast`
+(`src/ui/components/UpdateToast.tsx`), a non-modal `role="status"` toast with
+"تحديث" (applies the update) and "لاحقًا" (dismiss) actions. The service
+worker only ever controls `/play/` — it never controls `/`.
+
+### Hosting (`vercel.json`)
+
+- Rewrites `/play/:path*` → `/play/index.html` (Vercel serves real
+  static files such as `/assets/*` before rewrites, so they are unaffected).
+- Redirects a hand-typed `/play` → `/play/` (permanent), so it lands inside
+  the PWA scope.
+- Redirects legacy invite links `/?room=CODE` → `/play/?room=CODE` (temporary).
+- Serves `/sw.js` and `/manifest.webmanifest` with `Cache-Control: no-cache`.
+
+Any static host can replicate these rules.
+
+### Build output
+
+`npm run build` emits:
+
+```
+dist/index.html            landing
+dist/play/index.html       game
+dist/assets/landing-*.js   landing entry
+dist/assets/play-*.js      game entry
+dist/manifest.webmanifest  scope /play/
+dist/sw.js                 service worker
+```
+
 ## Environment variables
 
 ```bash
 cp .env.example .env.local
 ```
 
-Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Local design preview does not require Supabase.
+Local design preview does not require Supabase. Shared multiplayer requires:
 
-The app currently keeps rooms in memory even when these variables are present.
-The Supabase provider remains disabled until a backend authorization boundary
-can return player-specific views without exposing hidden game state. Apply all
-files in `supabase/migrations/` to revoke legacy anonymous room access.
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the browser build.
+- `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as server-only Vercel Function
+  variables. A legacy `SUPABASE_SERVICE_ROLE_KEY` also works. Never prefix
+  either secret with `VITE_`.
+- Anonymous Sign-Ins enabled under Supabase **Authentication → Providers**.
+- Every file in `supabase/migrations/` applied, including
+  `0003_secure_multiplayer.sql`.
+
+When configured, the browser authenticates each guest with Supabase Auth and
+calls `/api/rooms`. The Vercel Function is the only component allowed to read
+complete room state. It validates each action with the game engine and returns
+a role-filtered snapshot, so operatives never receive unrevealed card kinds.
+Supabase Realtime broadcasts only a private `room_changed` signal to registered
+room members; clients then fetch their own authorized view.
+
+The local provider is used only when Supabase variables are absent. It is useful
+for UI development but is not shared between devices.
+
+### Production setup
+
+1. Apply the migrations to each Supabase project.
+2. Enable Anonymous Sign-Ins in Supabase Auth.
+3. In Realtime Settings, disable public channel access so only private channels
+   are accepted.
+4. Add the four variables above to the matching Vercel environment. Keep
+   preview deployments on a separate Supabase project from production.
+5. Configure a Vercel Firewall rate limit for `POST /api/rooms`, especially the
+   create and join traffic, and place the Function near the Supabase region.
+6. Deploy, then create a room on one device and join it from another using the
+   room link or code. Refresh both devices and confirm they remain in sync.
+
+Use `vercel dev` for local end-to-end multiplayer testing because plain
+`npm run dev` serves the Vite frontend but not the `/api/rooms` function.
+
+`public.rooms` intentionally has RLS enabled with no browser policies. Do not
+resolve the Security Advisor's “RLS Enabled No Policy” information item by
+adding client policies; direct room-table access must remain denied.
 
 ## Scripts
 
@@ -68,16 +190,19 @@ For any UI work, follow **`docs/handoff/*` first**. Do not mix legacy planning t
 
 ## Module boundaries
 
-| Path                 | Responsibility                |
-| -------------------- | ----------------------------- |
-| `src/engine/`        | Pure rules                    |
-| `src/room/`          | `RoomProvider`                |
-| `src/ui/card/`       | Word tile (`WordCard`)        |
-| `src/ui/components/` | Shared chrome controls        |
-| `src/app/`           | App shell                     |
-| `src/styles/`        | Tokens + Tailwind bridge      |
-| `docs/handoff/`      | Canonical design specs        |
-| `docs/planning/`     | Engine, architecture, roadmap |
+| Path                   | Responsibility                |
+| ---------------------- | ----------------------------- |
+| `src/engine/`          | Pure rules                    |
+| `src/landing/`         | Marketing landing (`/`)       |
+| `src/config/routes.ts` | Canonical `/play/` URLs       |
+| `src/lib/pwa/`         | Install prompt primitives     |
+| `src/room/`            | `RoomProvider`                |
+| `src/ui/card/`         | Word tile (`WordCard`)        |
+| `src/ui/components/`   | Shared chrome controls        |
+| `src/app/`             | App shell                     |
+| `src/styles/`          | Tokens + Tailwind bridge      |
+| `docs/handoff/`        | Canonical design specs        |
+| `docs/planning/`       | Engine, architecture, roadmap |
 
 ## Doc precedence
 

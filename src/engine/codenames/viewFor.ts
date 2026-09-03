@@ -2,8 +2,8 @@ import {
   countRemaining,
   derivedGuessesRemaining,
   hasRequiredRoster,
-} from "./helpers";
-import type { GameState, PlayerView, ViewCard } from "./types";
+} from "./helpers.js";
+import type { GameState, PlayerView, ViewCard } from "./types.js";
 
 function mapBoard(state: GameState, playerId: string): ViewCard[] {
   const me = state.players[playerId];

@@ -54,7 +54,8 @@
   --spacing-cn-6: var(--cn-space-6);
   --spacing-cn-7: var(--cn-space-7);
 
-  --max-width-shell: 480px;
+  --max-width-shell: var(--cn-max-w-shell);
+  --max-width-landing: var(--cn-max-w-landing);
 }
 
 @layer base {

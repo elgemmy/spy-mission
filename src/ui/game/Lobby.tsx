@@ -1,10 +1,10 @@
 import { Button } from "../components/Button";
 import { GlyphIcon } from "../card/glyphs";
 import type { Lang, PlayerView, Role, Team } from "../../engine";
-import type { RoomRecord, RoomVisibility } from "../../room";
+import type { RoomSnapshot, RoomVisibility } from "../../room";
 
 interface LobbyProps {
-  room: RoomRecord;
+  room: RoomSnapshot;
   view: PlayerView;
   playerId: string;
   copied: boolean;
@@ -175,7 +175,7 @@ function TeamCard({
 }: {
   team: Team;
   view: PlayerView;
-  room: RoomRecord;
+  room: RoomSnapshot;
   playerId: string;
   onAssignSelf: (team: Team, role: Role) => void;
   onTransferHost: (nextHostId: string) => void;

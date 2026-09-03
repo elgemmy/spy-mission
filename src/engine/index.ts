@@ -1,11 +1,11 @@
-export type { GameModule, IllegalMoveCode } from "./contract";
-export { IllegalMove, isIllegalMove } from "./contract";
+export type { GameModule, IllegalMoveCode } from "./contract.js";
+export { IllegalMove, isIllegalMove } from "./contract.js";
 export {
   codenames,
   initialState,
   reducer,
   viewFor,
-} from "./codenames";
+} from "./codenames/index.js";
 export type {
   Action,
   Card,
@@ -21,4 +21,4 @@ export type {
   Role,
   Team,
   ViewCard,
-} from "./codenames";
+} from "./codenames/index.js";

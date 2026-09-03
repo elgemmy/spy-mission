@@ -1,4 +1,4 @@
-import type { Card, CardKind, GameState, Team } from "./types";
+import type { Card, CardKind, GameState, Team } from "./types.js";
 
 export function otherTeam(team: Team): Team {
   return team === "red" ? "blue" : "red";

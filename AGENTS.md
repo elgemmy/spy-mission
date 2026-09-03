@@ -68,10 +68,28 @@ If a value or pattern is not in handoff docs or tokens, **stop and ask** — do 
 
 Replace `src/styles/tokens.css` (handoff canonical). Update `src/styles/globals.css` `@theme` only if new token names are added. Keep `docs/handoff/` in sync when the design team ships updates.
 
+## Routing & surfaces
+
+Decision record: [`docs/planning/adr-001-landing-and-play-route.md`](docs/planning/adr-001-landing-and-play-route.md).
+
+- The site has two surfaces: the marketing landing at `/` (`index.html` →
+  `src/landing/main.tsx`) and the game at `/play/` (`play/index.html` →
+  `src/main.tsx`).
+- The landing lives in `src/landing/` and **must not** import from
+  `src/engine`, `src/room`, or `src/lib/supabase`.
+- **All `/play/` URLs come from `src/config/routes.ts`** (`playUrl`,
+  `absolutePlayUrl`, `readPlayParams`, `playHostLabel`). No literal `/play/`
+  strings in components.
+- Only the game is a PWA: manifest `id`/`start_url`/`scope` are `/play/`, and
+  the service worker is registered only from `src/main.tsx`.
+
 ## Room sync
 
-- Default provider: `inMemoryRoomProvider`.
-- Supabase provider is Phase 4; do not wire as default until backend exists.
+- With Supabase environment variables present, room access goes through the
+  authenticated `/api/rooms` server boundary. Never restore direct browser
+  CRUD on `public.rooms` or return raw `GameState` to clients.
+- Without Supabase environment variables, local design preview uses the
+  browser-persisted local provider and is not cross-device multiplayer.
 
 ## Tests
 
