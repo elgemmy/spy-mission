@@ -90,16 +90,6 @@ export function PartnerMissionLead({
         />
       ) : null}
 
-      {signal ? <CurrentSignal locale={locale} signal={signal} /> : null}
-
-      {!ended ? (
-        <SignalForm
-          locale={locale}
-          enabled={phase === "waiting_for_signal"}
-          onSendSignal={onSendSignal}
-        />
-      ) : null}
-
       <MissionLeadBoard
         cards={cards}
         locale={locale}
@@ -109,6 +99,16 @@ export function PartnerMissionLead({
         revealSequenceCardIds={presentation?.sequenceCardIds}
         visibleRevealCount={presentation?.visibleRevealCount}
       />
+
+      {signal ? <CurrentSignal locale={locale} signal={signal} /> : null}
+
+      {!ended ? (
+        <SignalForm
+          locale={locale}
+          enabled={phase === "waiting_for_signal"}
+          onSendSignal={onSendSignal}
+        />
+      ) : null}
 
       {lockedCardIds.length > 0 ? (
         <LockedGuessSummary
