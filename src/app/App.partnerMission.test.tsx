@@ -105,7 +105,7 @@ describe("AI Partner Mission App integration", () => {
       mode: "partner",
       visibility: "private",
     });
-    expect(screen.getByText(en.whatAgentSees)).toBeInTheDocument();
+    expect(screen.getByText(en.fieldAgentSeat)).toBeInTheDocument();
     expect(document.querySelectorAll("[data-card-id]")).toHaveLength(25);
   });
 

@@ -23,7 +23,7 @@ const fieldCards: FieldAgentCard[] = leadCards.map(({ id, word }) => ({
 }));
 
 describe("Partner Mission UI", () => {
-  it("renders a 25-card secret map and the exact agent visibility boundary for the lead", () => {
+  it("renders a 25-card secret map and the seat invite until the Field Agent joins", () => {
     const { container } = render(
       <PartnerMissionLead
         locale="en"
@@ -47,13 +47,37 @@ describe("Partner Mission UI", () => {
     expect(
       screen.getByRole("button", { name: "Word 1: Target" }),
     ).toHaveAttribute("data-role", "red");
-    expect(screen.getByText("✓ public words")).toBeInTheDocument();
-    expect(screen.getByText("✓ revealed card results")).toBeInTheDocument();
-    expect(screen.getByText("✓ current Signal and count")).toBeInTheDocument();
-    expect(screen.getByText("✕ secret mission map")).toBeInTheDocument();
     expect(
-      screen.getByText("✕ unrevealed classifications"),
+      screen.getByDisplayValue("https://example.test/#invite=private"),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/No guesses locked/i)).not.toBeInTheDocument();
+  });
+
+  it("collapses the seat invite into a compact status line once the Field Agent joins", () => {
+    render(
+      <PartnerMissionLead
+        locale="en"
+        boardLang="en"
+        phase="waiting_for_signal"
+        cards={leadCards}
+        targetsRemaining={8}
+        fieldAgentName="Cipher"
+        signal={null}
+        lockedCardIds={[]}
+        inviteUrl="https://example.test/#invite=private"
+        onCopyAgentInvite={vi.fn()}
+        onCopyAgentBriefing={vi.fn()}
+        onSendSignal={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Cipher is waiting for your Signal"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue("https://example.test/#invite=private"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/No guesses locked/i)).not.toBeInTheDocument();
   });
 
   it("keeps an unrevealed Field Agent card classification out of visible and accessible output", () => {
