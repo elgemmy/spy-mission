@@ -21,6 +21,7 @@ Optional environment variables:
 - `PLAY_SPYMISSION_HOME`: helper cache and dedicated Chrome profile
 - `PLAY_SPYMISSION_PORT`: Chrome remote-debugging port; default `9222`
 - `PLAY_SPYMISSION_CHROME`: Chrome or Chromium executable
+- `PLAY_SPYMISSION_PUPPETEER_VERSION`: helper version override; the tested default is pinned
 
 ## Join and call the page tools
 
