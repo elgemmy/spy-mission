@@ -5,7 +5,9 @@ Signal, twenty-five words. Each player joins from their own phone.
 
 **Play:** [https://spymission.dev](https://spymission.dev)
 
-By [Ahmed Gamal — elgemmy](https://github.com/elgemmy).
+By [Ahmed Gamal - elgemmy](https://github.com/elgemmy).
+
+<img width="1185" height="774" alt="image" src="https://github.com/user-attachments/assets/9b96e4a2-2f43-4002-961d-2b30f88ee2e0" />
 
 ## What it is
 
@@ -17,15 +19,22 @@ A mobile-first family game:
 - The board is bilingual: every concept carries English and Arabic labels
 - Rooms persist across refresh; leaving the URL leaves the table
 
-The shipped product is this **normal multiplayer game**.
+## AI Partner Mission
 
-## Partner Mission
+AI Partner Mission is Spy Mission's WebMCP-powered cooperative mode.
 
-A Partner Mission / WebMCP mode is planned as later competition work. It is
-**not in this tree**. Documentation is written so that mode can be added without
-pretending it already exists.
+The human creates a private mission as Mission Lead and invites an AI Field
+Agent. The agent joins through WebMCP, chooses its own call sign, inspects only
+its authorized public mission state, and submits ordered guesses in response to
+the human's Signal.
 
-## Current play mode
+The browser exposes a small phase-aware WebMCP surface:
+
+- `choose_name` — available while joining as the invited Field Agent
+- `inspect_mission` — reads the Field Agent-safe board and current Signal
+- `submit_guesses` — locks ordered guesses during the Field Agent's turn
+
+## Normal play mode
 
 Shared multiplayer on `/play/`:
 
