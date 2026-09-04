@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { playUrl } from "../../config/routes";
 import { useInstallPrompt } from "../../lib/pwa/installPrompt";
 import type { LandingStrings } from "../strings";
@@ -9,11 +10,17 @@ export interface ClosingCtaProps {
 
 export function ClosingCta({ t, hostLabel }: ClosingCtaProps) {
   const { canPrompt, prompt, isStandalone } = useInstallPrompt();
+  const [pending, setPending] = useState(false);
 
   // Installing from here installs the *game* (manifest scope `/play/`).
   const install = async () => {
     if (canPrompt) {
-      await prompt();
+      setPending(true);
+      try {
+        await prompt();
+      } finally {
+        setPending(false);
+      }
       return;
     }
     window.location.assign(playUrl({ install: true }));
@@ -41,6 +48,8 @@ export function ClosingCta({ t, hostLabel }: ClosingCtaProps) {
             type="button"
             className="cn-lp-btn cn-lp-btn--secondary cn-lp-btn--closing"
             onClick={() => void install()}
+            disabled={pending}
+            aria-busy={pending}
           >
             {t.install}
           </button>

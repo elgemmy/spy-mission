@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "../components/Button";
 import type { PlayerView } from "../../engine";
 import { useMessages } from "../../locale/useMessages";
@@ -38,20 +38,39 @@ function SpymasterClueForm({
   const t = useMessages().play;
   const [word, setWord] = useState("");
   const [count, setCount] = useState("1");
+  const [pending, setPending] = useState(false);
+  const lastView = useRef(view);
+
+  // The room state, not the submit handler, confirms the Signal was
+  // accepted: clear the field only once `can.giveClue` flips false (the
+  // clue phase has ended), so a rejected mutation leaves the typed word
+  // intact. A fresh `view` (any new snapshot — success or a post-failure
+  // refresh) also releases the Send guard below.
+  useEffect(() => {
+    if (lastView.current !== view) {
+      if (lastView.current.can.giveClue && !view.can.giveClue) {
+        setWord("");
+      }
+      setPending(false);
+      lastView.current = view;
+    }
+  }, [view]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!view.can.giveClue) {
+    if (!view.can.giveClue || word.trim().length === 0 || pending) {
       return;
     }
+    setPending(true);
     onGiveClue(word, Number(count));
-    setWord("");
   };
 
   return (
     <form className="gap-cn-3 flex flex-col" onSubmit={submit}>
       <div>
-        <p className="text-ink-soft m-0 text-xs font-semibold">{t.giveSignal}</p>
+        <p className="text-ink-soft m-0 text-xs font-semibold">
+          {t.giveSignal}
+        </p>
         <p className="mt-cn-1 text-ink m-0 text-sm font-semibold">
           {view.can.giveClue ? t.yourTeamTurn : t.waitTeamTurn}
         </p>
@@ -65,7 +84,10 @@ function SpymasterClueForm({
             id="signal-text"
             className="cn-field"
             value={word}
-            onChange={(event) => setWord(event.target.value)}
+            onChange={(event) => {
+              setWord(event.target.value);
+              setPending(false);
+            }}
             disabled={!view.can.giveClue}
             placeholder={t.signalText}
           />
@@ -78,7 +100,10 @@ function SpymasterClueForm({
             id="signal-count"
             className="cn-field font-mono"
             value={count}
-            onChange={(event) => setCount(event.target.value)}
+            onChange={(event) => {
+              setCount(event.target.value);
+              setPending(false);
+            }}
             disabled={!view.can.giveClue}
           >
             <option value="0">∞</option>
@@ -93,7 +118,8 @@ function SpymasterClueForm({
       <Button
         className="cn-clue-submit w-full"
         data-team={view.turn}
-        disabled={!view.can.giveClue || word.trim().length === 0}
+        disabled={!view.can.giveClue || word.trim().length === 0 || pending}
+        aria-busy={pending}
         type="submit"
       >
         {t.send}

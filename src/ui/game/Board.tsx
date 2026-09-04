@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { cn } from "../../lib/cn";
 import { WordCard, type CardRole, type CardView } from "../card";
 import type { PlayerView } from "../../engine";
@@ -25,11 +26,50 @@ export function Board({
       : "operative";
   const voteCounts = countVotes(votes);
 
+  // Guards against a second `confirmCard` mutation firing before the room
+  // state confirms the first one landed (a fast double-tap otherwise hits a
+  // version conflict on the server). Released once the board/guessesRemaining
+  // reflect a fresh view, or the player taps a tile (same or different).
+  const [pendingConfirmIndex, setPendingConfirmIndex] = useState<number | null>(
+    null,
+  );
+  const lastResolved = useRef({
+    board: view.board,
+    guessesRemaining: view.guessesRemaining,
+  });
+
+  useEffect(() => {
+    const moved =
+      lastResolved.current.board !== view.board ||
+      lastResolved.current.guessesRemaining !== view.guessesRemaining;
+    if (moved) {
+      setPendingConfirmIndex(null);
+    }
+    lastResolved.current = {
+      board: view.board,
+      guessesRemaining: view.guessesRemaining,
+    };
+  }, [view.board, view.guessesRemaining]);
+
+  const handleVote = (index: number) => {
+    setPendingConfirmIndex(null);
+    onVote(index);
+  };
+
+  const handleConfirm = (index: number) => {
+    if (pendingConfirmIndex === index) {
+      return;
+    }
+    setPendingConfirmIndex(index);
+    onConfirm(index);
+  };
+
   return (
     <section aria-label={t.wordBoard} className="cn-board">
       {view.board.map((card, index) => {
         const role: CardRole = card.kind ?? "neutral";
         const voteCount = voteCounts[index] ?? 0;
+        const confirmPending = pendingConfirmIndex === index;
         return (
           <div
             key={card.concept.id}
@@ -46,7 +86,9 @@ export function Board({
                 type="button"
                 className="cn-board__confirm"
                 aria-label={t.revealCard}
-                onClick={() => onConfirm(index)}
+                disabled={confirmPending}
+                aria-busy={confirmPending}
+                onClick={() => handleConfirm(index)}
               >
                 ✓
               </button>
@@ -58,7 +100,7 @@ export function Board({
               revealed={card.revealed}
               lang={view.lang}
               disabled={!view.can.guess || card.revealed}
-              onClick={() => onVote(index)}
+              onClick={() => handleVote(index)}
               aria-label={card.concept[view.lang]}
             />
           </div>

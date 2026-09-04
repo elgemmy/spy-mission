@@ -287,6 +287,11 @@ button:disabled {
   line-height: 1.25;
 }
 
+.cn-clue-log__word {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
 .cn-team-roster {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

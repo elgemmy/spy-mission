@@ -98,7 +98,7 @@ export function Lobby({
 
       <LocaleToggle />
 
-      <section className="gap-cn-2 flex flex-col" aria-label={t.boardLanguage}>
+      <section className="gap-cn-2 flex flex-col">
         <div className="flex items-center justify-between">
           <span className="text-ink text-sm font-semibold">
             {t.boardLanguage}
@@ -107,7 +107,12 @@ export function Lobby({
             {view.lang === "ar" ? t.boardLanguageAr : t.boardLanguageEn}
           </span>
         </div>
-        <div className="cn-segmented" dir="ltr">
+        <div
+          className="cn-segmented"
+          role="group"
+          aria-label={t.boardLanguage}
+          dir="ltr"
+        >
           <button
             type="button"
             aria-pressed={view.lang === "en"}
@@ -127,8 +132,12 @@ export function Lobby({
         </div>
       </section>
 
-      <section className="gap-cn-2 flex flex-col" aria-label={t.roomVisibility}>
-        <div className="cn-segmented">
+      <section className="gap-cn-2 flex flex-col">
+        <div
+          className="cn-segmented"
+          role="group"
+          aria-label={t.roomVisibility}
+        >
           <button
             type="button"
             aria-pressed={room.visibility === "public"}

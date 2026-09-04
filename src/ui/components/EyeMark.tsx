@@ -6,7 +6,7 @@ export interface EyeMarkProps {
   className?: string;
 }
 
-/** The spymaster eye. Decorative: always paired with a text label. */
+/** The Mission Lead eye. Decorative: always paired with a text label. */
 export function EyeMark({
   size = 16,
   color = "currentColor",

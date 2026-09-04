@@ -989,6 +989,7 @@
 .cn-lp-player {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 7px 10px;
   background: var(--cn-surface);
@@ -1011,6 +1012,8 @@
 }
 
 .cn-lp-player__name {
+  flex-shrink: 1;
+  min-inline-size: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--cn-ink);
