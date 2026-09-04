@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { selectSpyMissionPage } from "../.agents/skills/play-spymission/scripts/select-page.mjs";
 import { createMissionChangeDetector } from "../.agents/skills/play-spymission/scripts/watch-state.mjs";
 
 function mission(overrides = {}) {
@@ -69,6 +70,28 @@ test("the watcher reports terminal phases", () => {
   assert.equal(detector.observe(mission({ phase: "won" })).ended, true);
   detector.reset();
   assert.equal(detector.observe(mission({ phase: "lost" })).ended, true);
+});
+
+test("tab selection prefers the newest Spy Mission page with expected tools", () => {
+  const page = (url, tools = []) => ({
+    url: () => url,
+    webmcp: { tools: () => tools.map((name) => ({ name })) },
+  });
+  const older = page("https://spymission.dev/play/?room=OLD", [
+    "inspect_mission",
+  ]);
+  const newest = page("https://spymission.dev/play/?room=NEW#invite=secret", [
+    "choose_name",
+  ]);
+
+  assert.equal(
+    selectSpyMissionPage([
+      older,
+      page("https://example.com/", ["inspect_mission"]),
+      newest,
+    ]),
+    newest,
+  );
 });
 
 test("the stop helper removes its PID record and stops only watch.mjs", async () => {

@@ -18,7 +18,10 @@ describe("buildAgentBriefing", () => {
     expect(briefing).toContain("max_guesses");
     expect(briefing).toContain("Mission Lead is acting");
     expect(briefing).toContain("After each reveal");
-    expect(briefing).toContain("hidden card classifications");
+    expect(briefing).toContain("likely Targets");
+    expect(briefing).toContain("Previous Signals remain useful");
+    expect(briefing).toContain("current Signal's max_guesses");
+    expect(briefing).toContain("actual unrevealed Target/Decoy/Trap");
     expect(briefing).toContain("Do not replace them with DOM scraping");
   });
 

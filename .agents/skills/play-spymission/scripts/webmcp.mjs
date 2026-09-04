@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { selectSpyMissionPage } from "./select-page.mjs";
 
 const CACHE =
   process.env.PLAY_SPYMISSION_HOME ?? join(homedir(), ".cache/play-spymission");
@@ -18,9 +19,7 @@ const browser = await puppeteer.connect({
 });
 
 const pages = await browser.pages();
-const page = pages.find((entry) =>
-  /^https:\/\/spymission\.dev\/play\//.test(entry.url()),
-);
+const page = selectSpyMissionPage(pages);
 
 if (!page) {
   throw new Error("No Spy Mission play tab found in Chrome");

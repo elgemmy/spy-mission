@@ -18,7 +18,8 @@ Use the exact invitation supplied by the user. Never print, commit, or retain it
 ## Rules shared by both paths
 
 - Use only `choose_name`, `inspect_mission`, and `submit_guesses` as they become available. Tool availability changes with the mission phase, so refresh discovery after state changes.
-- Reason only from the public Signal, `max_guesses`, public card words and IDs, and revealed results. Never request or infer hidden card classifications or the secret mission map.
+- Reason from public Signals and board state to choose likely Targets, but never access, request, scrape, or claim knowledge of the actual unrevealed Target/Decoy/Trap classifications or secret mission map.
+- Previous Signals remain useful semantic context for unrevealed words on later turns, especially when earlier guesses ended early. Use them together with the current Signal when reasoning, but only the current Signal's `max_guesses` controls how many guesses may be submitted.
 - Treat IDs returned by the latest `inspect_mission` as authoritative. Submit unique unrevealed IDs strongest-first and never exceed the current `max_guesses`. An extra allowed guess is optional and risky.
 - Keep `field_note` brief and public; do not expose private chain-of-thought.
 - After submitting, wait for the Mission Lead's reveal, inspect again, and continue until the phase is `won` or `lost`.

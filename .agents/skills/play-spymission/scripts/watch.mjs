@@ -3,6 +3,7 @@ import { readFileSync, unlinkSync } from "node:fs";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { selectSpyMissionPage } from "./select-page.mjs";
 import { createMissionChangeDetector } from "./watch-state.mjs";
 
 const CACHE =
@@ -100,9 +101,7 @@ async function connect() {
     defaultViewport: null,
   });
   const pages = await browser.pages();
-  const page = pages.find((entry) =>
-    /^https:\/\/spymission\.dev\/play\//.test(entry.url()),
-  );
+  const page = selectSpyMissionPage(pages);
   if (!page) throw new Error("No Spy Mission play tab in Chrome");
   return { browser, page };
 }
