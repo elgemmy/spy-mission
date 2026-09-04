@@ -1,4 +1,9 @@
-export interface GameModule<S = unknown, A = unknown, V = unknown, C = unknown> {
+export interface GameModule<
+  S = unknown,
+  A = unknown,
+  V = unknown,
+  C = unknown,
+> {
   id: string;
   initialState(config: C): S;
   reducer(state: S, action: A, playerId: string): S;
@@ -18,7 +23,14 @@ export type IllegalMoveCode =
   | "LANG_LOCKED"
   | "ALREADY_STARTED"
   | "NOT_ENOUGH_PLAYERS"
-  | "BAD_DEAL";
+  | "BAD_DEAL"
+  | "INVALID_NAME"
+  | "FIELD_AGENT_SEAT_TAKEN"
+  | "INVALID_SIGNAL"
+  | "INVALID_GUESS_COUNT"
+  | "DUPLICATE_CARD"
+  | "CARD_NOT_FOUND"
+  | "FIELD_NOTE_TOO_LONG";
 
 export class IllegalMove extends Error {
   readonly code: IllegalMoveCode;

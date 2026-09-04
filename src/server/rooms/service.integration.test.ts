@@ -6,7 +6,9 @@ import { afterAll, describe, expect, it } from "vitest";
 import type {
   RoomCommand,
   RoomMutationResult,
+  PartnerRoomSnapshot,
   RoomSnapshot,
+  SharedRoomSnapshot,
   ResumeRoomResult,
 } from "../../room/types";
 import { handleRoomsRequest, resetAdminClientForTests } from "./service";
@@ -25,7 +27,11 @@ interface Identity {
   userId: string;
 }
 
-type ApiData = RoomSnapshot | RoomMutationResult | ResumeRoomResult | null;
+type ApiData =
+  | SharedRoomSnapshot
+  | RoomMutationResult
+  | ResumeRoomResult
+  | null;
 
 describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
   afterAll(() => {
@@ -56,6 +62,9 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       expect(resumed.status).toBe("active");
       if (resumed.status !== "active") {
         throw new Error("ACTIVE_RESUME_EXPECTED");
+      }
+      if (resumed.room.mode === "partner") {
+        throw new Error("CLASSIC_ROOM_EXPECTED");
       }
       expect(resumed.room.view.me?.id).toBe(first.userId);
       expect(joinedAgain.view.me?.id).toBe(first.userId);
@@ -714,6 +723,211 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
       await deleteIfPresent(host, created.id);
     }
   }, 30_000);
+
+  it("runs the identity-bound Partner Mission server path without hidden-state leaks", async () => {
+    const [lead, first, second] = await Promise.all([
+      anonymousIdentity(),
+      anonymousIdentity(),
+      anonymousIdentity(),
+    ]);
+    const created = await success<PartnerRoomSnapshot>(lead, {
+      op: "create",
+      name: "Mission Lead",
+      lang: "en",
+      visibility: "public",
+      mode: "partner",
+    });
+    expect(created.mode).toBe("partner");
+    expect(created.visibility).toBe("private");
+    expect(created.view.viewerRole).toBe("mission_lead");
+    expect(created.inviteToken).toBeTruthy();
+    if (created.view.viewerRole !== "mission_lead" || !created.inviteToken) {
+      throw new Error("PARTNER_LEAD_VIEW_EXPECTED");
+    }
+    expect(
+      created.view.board.filter((card) => card.kind === "target"),
+    ).toHaveLength(8);
+    expect(
+      created.view.board.filter((card) => card.kind === "decoy"),
+    ).toHaveLength(16);
+    expect(
+      created.view.board.filter((card) => card.kind === "trap"),
+    ).toHaveLength(1);
+
+    try {
+      expect(
+        await success<ResumeRoomResult>(first, {
+          op: "resume",
+          code: created.code,
+        }),
+      ).toEqual({ status: "join", code: created.code, mode: "partner" });
+
+      const denied = await call(first, {
+        op: "claimPartnerSeat",
+        code: created.code,
+        name: "Cipher",
+        inviteToken: "x".repeat(43),
+      });
+      expect(denied.response.status).toBe(403);
+      expect(denied.payload.error).toBe("ROOM_INVITE_INVALID");
+
+      const contenders = await Promise.all([
+        call(first, {
+          op: "claimPartnerSeat",
+          code: created.code,
+          name: "Cipher",
+          inviteToken: created.inviteToken,
+        }),
+        call(first, {
+          op: "claimPartnerSeat",
+          code: created.code,
+          name: "Cipher duplicate request",
+          inviteToken: created.inviteToken,
+        }),
+      ]);
+      const winner = first;
+      const loser = second;
+      expect(contenders.filter(({ response }) => response.ok)).toHaveLength(1);
+      const rejected = contenders.find(({ response }) => !response.ok);
+      expect(rejected?.response.status).toBe(409);
+      expect(rejected?.payload.error).toBe("WRONG_PHASE");
+
+      const occupied = await call(second, {
+        op: "claimPartnerSeat",
+        code: created.code,
+        name: "Vector",
+        inviteToken: created.inviteToken,
+      });
+      expect(occupied.response.status).toBe(409);
+      expect(occupied.payload.error).toBe("FIELD_AGENT_SEAT_TAKEN");
+
+      const field = await success<PartnerRoomSnapshot>(winner, {
+        op: "get",
+        roomId: created.id,
+      });
+      expect(field.view.viewerRole).toBe("field_agent");
+      if (field.view.viewerRole !== "field_agent") {
+        throw new Error("PARTNER_FIELD_VIEW_EXPECTED");
+      }
+      expect(field.view.board.every((card) => !("kind" in card))).toBe(true);
+      expect(JSON.stringify(field.view.board)).not.toMatch(
+        /"(?:kind|result)":/,
+      );
+      expect(
+        await success<ResumeRoomResult>(winner, {
+          op: "resume",
+          code: created.code,
+        }),
+      ).toMatchObject({ status: "active" });
+      expect(
+        await success<null>(loser, { op: "get", roomId: created.id }),
+      ).toBeNull();
+
+      const leadBeforeSignal = await success<PartnerRoomSnapshot>(lead, {
+        op: "get",
+        roomId: created.id,
+      });
+      const signalled = await success<PartnerRoomSnapshot>(lead, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: leadBeforeSignal.version,
+        command: { type: "giveSignal", word: "orbit", count: 2 },
+      });
+      expect(signalled.view.phase).toBe("field_agent_turn");
+
+      const fieldTurn = await success<PartnerRoomSnapshot>(winner, {
+        op: "get",
+        roomId: created.id,
+      });
+      if (fieldTurn.view.viewerRole !== "field_agent") {
+        throw new Error("PARTNER_FIELD_VIEW_EXPECTED");
+      }
+      const cardIds = fieldTurn.view.board.slice(0, 2).map((card) => card.id);
+      const locked = await success<PartnerRoomSnapshot>(winner, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: fieldTurn.version,
+        command: { type: "lockGuesses", cardIds, fieldNote: "Strongest first" },
+      });
+      expect(locked.view.phase).toBe("locked");
+      if (locked.view.viewerRole !== "field_agent") {
+        throw new Error("PARTNER_FIELD_VIEW_EXPECTED");
+      }
+      expect(locked.view.lockedCardIds).toEqual(cardIds);
+      expect(JSON.stringify(locked.view.board)).not.toMatch(
+        /"(?:kind|result)":/,
+      );
+
+      const repeated = await call(winner, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: locked.version,
+        command: { type: "lockGuesses", cardIds },
+      });
+      expect(repeated.response.status).toBe(409);
+      expect(repeated.payload.error).toBe("WRONG_PHASE");
+
+      const resolved = await success<PartnerRoomSnapshot>(lead, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: locked.version,
+        command: { type: "resolveLockedGuesses" },
+      });
+      expect(["waiting_for_signal", "won", "lost"]).toContain(
+        resolved.view.phase,
+      );
+    } finally {
+      await deleteIfPresent(lead, created.id);
+    }
+  }, 30_000);
+
+  it("serializes competing Partner identities so exactly one claims the seat", async () => {
+    const [lead, first, second] = await Promise.all([
+      anonymousIdentity(),
+      anonymousIdentity(),
+      anonymousIdentity(),
+    ]);
+    const created = await success<PartnerRoomSnapshot>(lead, {
+      op: "create",
+      name: "Mission Lead",
+      lang: "en",
+      mode: "partner",
+    });
+    if (!created.inviteToken) {
+      throw new Error("PARTNER_INVITE_EXPECTED");
+    }
+
+    try {
+      const contenders = await Promise.all(
+        [first, second].map((actor, index) =>
+          call(actor, {
+            op: "claimPartnerSeat",
+            code: created.code,
+            name: index === 0 ? "Cipher" : "Vector",
+            inviteToken: created.inviteToken,
+          }),
+        ),
+      );
+      expect(contenders.filter(({ response }) => response.ok)).toHaveLength(1);
+      expect(
+        contenders.find(({ response }) => !response.ok)?.payload.error,
+      ).toBe("FIELD_AGENT_SEAT_TAKEN");
+
+      const winner = contenders[0]!.response.ok ? first : second;
+      const loser = winner === first ? second : first;
+      const members = await rawMembers(created.id);
+      expect(members).toHaveLength(2);
+      expect(members.map(({ user_id }) => user_id)).toEqual(
+        expect.arrayContaining([lead.userId, winner.userId]),
+      );
+      expect(members.map(({ user_id }) => user_id)).not.toContain(loser.userId);
+      expect(
+        await success<null>(loser, { op: "get", roomId: created.id }),
+      ).toBeNull();
+    } finally {
+      await deleteIfPresent(lead, created.id);
+    }
+  }, 20_000);
 });
 
 function serverRpcProbes(
@@ -749,6 +963,7 @@ function serverRpcProbes(
         p_created_at: now,
         p_updated_at: now,
         p_invite_hash: "0".repeat(64),
+        p_mode: "classic",
       },
     },
     {
@@ -761,6 +976,7 @@ function serverRpcProbes(
         p_expected_version: 1,
         p_updated_at: now,
         p_invite_hash: null,
+        p_partner_claim: false,
       },
     },
     {

@@ -5,15 +5,23 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { isIllegalMove, type Lang, type Role, type Team } from "../engine";
+import {
+  isIllegalMove,
+  type Lang,
+  type PartnerFieldAgentView,
+  type PartnerMissionLeadView,
+  type Role,
+  type Team,
+} from "../engine";
 import {
   getRoomProvider,
   RoomError,
   type ClueLogEntry,
+  type PartnerRoomSnapshot,
   type RoomCommand,
   type RoomMutationResult,
-  type RoomSnapshot,
   type RoomVisibility,
+  type SharedRoomSnapshot,
 } from "../room";
 import { absolutePlayUrl, playUrl, readPlayParams } from "../config/routes";
 import { useInstallPrompt } from "../lib/pwa/installPrompt";
@@ -29,6 +37,23 @@ import { InstallSheet } from "../ui/components/InstallSheet";
 import { LocaleToggle } from "../ui/components/LocaleToggle";
 import { UpdateToast } from "../ui/components/UpdateToast";
 import { Lobby, PlayScreen } from "../ui/game";
+import {
+  PARTNER_MESSAGES,
+  PartnerFieldAgent,
+  PartnerFieldAgentOnboarding,
+  PartnerMissionLead,
+  type FieldAgentCard,
+  type MissionLeadCard,
+  type PartnerPreviousTurn,
+  type PartnerRevealPresentation,
+  type WebMcpCapability,
+} from "../ui/partner";
+import {
+  PartnerMissionWebMcpAdapter,
+  WebMcpToolError,
+  type FieldAgentMissionSnapshot,
+  type PartnerMissionWebMcpHandlers,
+} from "../webmcp";
 import "../ui/game/Game.css";
 import { initTheme } from "./theme";
 
@@ -42,6 +67,8 @@ type OnboardingStep =
   | { type: "loadingRoom" }
   | { type: "roomRetry"; code: string }
   | { type: "createName" }
+  | { type: "partnerCreateName" }
+  | { type: "partnerInvite"; code: string }
   | { type: "joinCode" }
   | { type: "joinName"; code: string; source: JoinSource };
 
@@ -53,6 +80,19 @@ interface ConfirmRequest {
 }
 
 const roomProvider = getRoomProvider();
+const webMcpHandlersCell: {
+  current: PartnerMissionWebMcpHandlers | null;
+} = { current: null };
+const partnerWebMcpAdapter = new PartnerMissionWebMcpAdapter({
+  getCurrentHandlers: () => {
+    if (!webMcpHandlersCell.current) {
+      throw new WebMcpToolError(
+        "The Field Agent mission is no longer active. Open the current invitation again.",
+      );
+    }
+    return webMcpHandlersCell.current;
+  },
+});
 
 export function App() {
   return (
@@ -74,7 +114,7 @@ function AppShell() {
   );
   const [routeRoomCode, setRouteRoomCode] = useState(initialPlayParams.room);
   const [pendingInviteToken, setPendingInviteToken] = useState(readInviteToken);
-  const [room, setRoom] = useState<RoomSnapshot | null>(null);
+  const [room, setRoom] = useState<SharedRoomSnapshot | null>(null);
   const [step, setStep] = useState<OnboardingStep>(() => {
     if (initialPlayParams.room) {
       return { type: "loadingRoom" };
@@ -85,6 +125,13 @@ function AppShell() {
   });
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [briefingCopied, setBriefingCopied] = useState(false);
+  const [webMcpStatus, setWebMcpStatus] = useState<WebMcpCapability>({
+    state: "checking",
+    toolCount: 0,
+  });
+  const [revealPresentation, setRevealPresentation] =
+    useState<PartnerRevealPresentation>();
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
     null,
   );
@@ -93,14 +140,52 @@ function AppShell() {
     null,
   );
   const [resumeAttempt, setResumeAttempt] = useState(0);
+  const [webMcpAttempt, setWebMcpAttempt] = useState(0);
   const [installOpen, setInstallOpen] = useState(
     () => initialPlayParams.install,
   );
   const { needRefresh } = useServiceWorkerStatus();
   const activeRoomRef = useRef<string | null>(null);
+  const roomRef = useRef<SharedRoomSnapshot | null>(null);
   const lifecycleGenerationRef = useRef(0);
   const pendingActionRef = useRef<{ key: string } | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
+  const briefingCopiedTimerRef = useRef<number | null>(null);
+  const waitersRef = useRef(
+    new Set<{ afterVersion: number; resolve: () => void }>(),
+  );
+  const publishRoom = useCallback((next: SharedRoomSnapshot | null) => {
+    const current = roomRef.current;
+    if (
+      next?.mode === "partner" &&
+      next.view.viewerRole !== null &&
+      next.view.phase !== "locked" &&
+      next.view.previousTurn &&
+      partnerTurnKey(next) !== partnerTurnKey(current)
+    ) {
+      const sequenceCardIds = next.view.previousTurn.reveals.map(
+        (reveal) => reveal.cardId,
+      );
+      if (sequenceCardIds.length > 0) {
+        setRevealPresentation({
+          sequenceCardIds,
+          visibleRevealCount: 0,
+          activeCardId: sequenceCardIds[0],
+          step: { current: 1, total: sequenceCardIds.length },
+        });
+      }
+    }
+    roomRef.current = next;
+    setRoom(next);
+    if (next) {
+      for (const waiter of waitersRef.current) {
+        if (next.version > waiter.afterVersion) {
+          waitersRef.current.delete(waiter);
+          waiter.resolve();
+        }
+      }
+    }
+  }, []);
 
   const teardownRoomContext = useCallback(
     ({
@@ -131,33 +216,42 @@ function AppShell() {
         setRouteRoomCode(null);
       }
       setPendingInviteToken(null);
-      setRoom(null);
+      publishRoom(null);
       setStep({ type: "landing" });
       setResumeAttempt(0);
       setError(nextError);
       setConfirmRequest(null);
       setRenameOpen(false);
       setCopied(false);
+      setBriefingCopied(false);
+      setRevealPresentation(undefined);
       if (copiedTimerRef.current !== null) {
         window.clearTimeout(copiedTimerRef.current);
         copiedTimerRef.current = null;
+      }
+      if (briefingCopiedTimerRef.current !== null) {
+        window.clearTimeout(briefingCopiedTimerRef.current);
+        briefingCopiedTimerRef.current = null;
       }
       pendingActionRef.current = null;
       setPendingRoomAction(null);
       return true;
     },
-    [],
+    [publishRoom],
   );
 
-  const enterRoom = useCallback((next: RoomSnapshot) => {
-    lifecycleGenerationRef.current += 1;
-    activeRoomRef.current = next.id;
-    replacePlayLocation(next.code);
-    setRouteRoomCode(next.code);
-    setPendingInviteToken(null);
-    setRoom(next);
-    setError(null);
-  }, []);
+  const enterRoom = useCallback(
+    (next: SharedRoomSnapshot) => {
+      lifecycleGenerationRef.current += 1;
+      activeRoomRef.current = next.id;
+      replacePlayLocation(next.code);
+      setRouteRoomCode(next.code);
+      setPendingInviteToken(null);
+      publishRoom(next);
+      setError(null);
+    },
+    [publishRoom],
+  );
 
   const runPending = useCallback(
     async <T,>(
@@ -244,7 +338,11 @@ function AppShell() {
           return;
         }
         if (result.status === "join") {
-          setStep({ type: "joinName", code: result.code, source: "link" });
+          setStep(
+            result.mode === "partner"
+              ? { type: "partnerInvite", code: result.code }
+              : { type: "joinName", code: result.code, source: "link" },
+          );
           setError(null);
           return;
         }
@@ -299,8 +397,13 @@ function AppShell() {
       ) {
         return;
       }
-      if (next?.view.me) {
-        setRoom(next);
+      if (
+        next &&
+        (next.mode === "partner"
+          ? next.view.viewerRole !== null
+          : next.view.me !== null)
+      ) {
+        publishRoom(next);
         return;
       }
       teardownRoomContext({
@@ -312,14 +415,15 @@ function AppShell() {
         ),
       });
     });
-  }, [activeRoomId, teardownRoomContext]);
+  }, [activeRoomId, publishRoom, teardownRoomContext]);
 
-  const view = room?.view ?? null;
+  const classicRoom = room?.mode === "partner" ? null : room;
+  const view = classicRoom?.view ?? null;
   const playerId = view?.me?.id ?? "";
-  const isHost = Boolean(room && room.hostId === playerId);
-  const selectedCardIndex = room?.ui.votes[playerId] ?? null;
+  const isHost = Boolean(classicRoom && classicRoom.hostId === playerId);
+  const selectedCardIndex = classicRoom?.ui.votes[playerId] ?? null;
   const clueToast: ClueLogEntry | null =
-    room?.ui.clueLog[room.ui.clueLog.length - 1] ?? null;
+    classicRoom?.ui.clueLog[classicRoom.ui.clueLog.length - 1] ?? null;
 
   const commit = async (command: RoomCommand) => {
     if (!room) {
@@ -349,7 +453,7 @@ function AppShell() {
       return result;
     }
     if ("id" in result) {
-      setRoom(result);
+      publishRoom(result);
     }
     setError(null);
     return result;
@@ -374,6 +478,27 @@ function AppShell() {
         roomProvider.create({
           name,
           lang: "en",
+        }),
+      );
+      if (next && lifecycleGenerationRef.current === generation) {
+        enterRoom(next);
+      }
+    } catch (caught) {
+      if (lifecycleGenerationRef.current === generation) {
+        handleError(caught);
+      }
+    }
+  };
+
+  const createPartnerMission = async (name: string, lang: Lang = "en") => {
+    const generation = lifecycleGenerationRef.current;
+    try {
+      const next = await runPending("createPartner", () =>
+        roomProvider.create({
+          name,
+          lang,
+          mode: "partner",
+          visibility: "private",
         }),
       );
       if (next && lifecycleGenerationRef.current === generation) {
@@ -463,6 +588,45 @@ function AppShell() {
     }
   };
 
+  const giveSignal = async (word: string, count: number) => {
+    if (room?.mode !== "partner") {
+      return;
+    }
+    try {
+      await commit({ type: "giveSignal", word, count });
+    } catch (caught) {
+      handleError(caught);
+    }
+  };
+
+  const resolveLockedGuesses = useCallback(async () => {
+    const current = roomRef.current;
+    if (
+      current?.mode !== "partner" ||
+      current.view.viewerRole !== "mission_lead" ||
+      current.view.phase !== "locked"
+    ) {
+      return;
+    }
+    try {
+      const result = await roomProvider.mutate(current.id, current.version, {
+        type: "resolveLockedGuesses",
+      });
+      if ("id" in result && activeRoomRef.current === current.id) {
+        publishRoom(result);
+        setError(null);
+      }
+    } catch (caught) {
+      if (
+        caught instanceof Error &&
+        caught.message === "ROOM_VERSION_CONFLICT"
+      ) {
+        return;
+      }
+      setError(messageForError(caught, messagesRef.current));
+    }
+  }, [publishRoom]);
+
   const vote = async (cardIndex: number) => {
     if (!room || !view?.can.guess) {
       return;
@@ -479,7 +643,7 @@ function AppShell() {
   };
 
   const confirmCard = async (cardIndex: number) => {
-    if (!room || room.ui.votes[playerId] !== cardIndex) {
+    if (!classicRoom || classicRoom.ui.votes[playerId] !== cardIndex) {
       return;
     }
     try {
@@ -556,15 +720,42 @@ function AppShell() {
     }
   };
 
+  const copyPartnerBriefing = async () => {
+    const current = roomRef.current;
+    if (current?.mode !== "partner") {
+      return;
+    }
+    try {
+      const inviteUrl = roomInviteUrl(current);
+      const briefing = [
+        "You are the Field Agent in an AI Partner Mission.",
+        `Open ${inviteUrl}`,
+        "Use choose_name to claim the seat, inspect_mission to read public state, and submit_guesses with ordered stable card IDs when a Signal is active.",
+        "Never request or infer the secret mission map.",
+      ].join("\n");
+      await navigator.clipboard.writeText(briefing);
+      setBriefingCopied(true);
+      if (briefingCopiedTimerRef.current !== null) {
+        window.clearTimeout(briefingCopiedTimerRef.current);
+      }
+      briefingCopiedTimerRef.current = window.setTimeout(() => {
+        briefingCopiedTimerRef.current = null;
+        setBriefingCopied(false);
+      }, 1600);
+    } catch (caught) {
+      handleError(caught);
+    }
+  };
+
   const deleteRoom = async () => {
-    if (!room || !isHost) {
+    if (!classicRoom || !isHost) {
       return;
     }
     try {
       const result = await commit({ type: "deleteRoom" });
       if (result && "deleted" in result) {
         teardownRoomContext({
-          expectedRoomId: room.id,
+          expectedRoomId: classicRoom.id,
           clearInvite: true,
         });
       }
@@ -596,14 +787,14 @@ function AppShell() {
   };
 
   const permanentlyLeaveRoom = async () => {
-    if (!room || isHost || room.view.phase !== "lobby") {
+    if (!classicRoom || isHost || classicRoom.view.phase !== "lobby") {
       return;
     }
     try {
       const result = await commit({ type: "leaveRoom" });
       if (result && "left" in result) {
         teardownRoomContext({
-          expectedRoomId: room.id,
+          expectedRoomId: classicRoom.id,
           clearInvite: true,
         });
       }
@@ -613,7 +804,7 @@ function AppShell() {
   };
 
   const renameSelf = async (name: string) => {
-    if (!room) {
+    if (!classicRoom) {
       return;
     }
     try {
@@ -679,8 +870,8 @@ function AppShell() {
 
   const confirmChangeHost = (nextHostId: string) => {
     const name =
-      room?.view.players.find((player) => player.id === nextHostId)?.name ??
-      t.playerFallback;
+      classicRoom?.view.players.find((player) => player.id === nextHostId)
+        ?.name ?? t.playerFallback;
     requestConfirm({
       title: t.confirmHostTitle,
       body: t.confirmHostBody(name),
@@ -691,8 +882,8 @@ function AppShell() {
 
   const confirmBanPlayer = (targetPlayerId: string) => {
     const name =
-      room?.view.players.find((player) => player.id === targetPlayerId)?.name ??
-      t.playerFallback;
+      classicRoom?.view.players.find((player) => player.id === targetPlayerId)
+        ?.name ?? t.playerFallback;
     requestConfirm({
       title: t.confirmBanTitle,
       body: t.confirmBanBody(name),
@@ -724,6 +915,252 @@ function AppShell() {
     });
   };
 
+  useEffect(() => {
+    webMcpHandlersCell.current = {
+      chooseName: async ({ name }) => {
+        const currentStep = step;
+        const inviteToken = pendingInviteToken;
+        if (currentStep.type !== "partnerInvite" || !inviteToken) {
+          throw new WebMcpToolError(
+            "This Field Agent invitation is no longer active. Ask the Mission Lead for a fresh invitation.",
+          );
+        }
+        try {
+          const next = await roomProvider.claimPartnerSeat({
+            code: currentStep.code,
+            name,
+            inviteToken,
+          });
+          if (
+            next.mode !== "partner" ||
+            next.view.viewerRole !== "field_agent"
+          ) {
+            throw new WebMcpToolError(
+              "The Field Agent seat could not be claimed. Ask the Mission Lead for a fresh invitation.",
+            );
+          }
+          enterRoom(next);
+          return { name: next.view.fieldAgentName ?? name };
+        } catch (caught) {
+          throw webMcpError(caught, "choose_name");
+        }
+      },
+      getLatestMission: () => {
+        const current = roomRef.current;
+        if (
+          current?.mode !== "partner" ||
+          current.view.viewerRole !== "field_agent"
+        ) {
+          throw new WebMcpToolError(
+            "The Field Agent mission is no longer active. Open the current invitation again.",
+          );
+        }
+        return toFieldAgentMissionSnapshot(current, current.view);
+      },
+      waitForMissionChange: ({ afterVersion, signal }) =>
+        new Promise<void>((resolve) => {
+          if (
+            (roomRef.current?.version ?? 0) > afterVersion ||
+            signal.aborted
+          ) {
+            resolve();
+            return;
+          }
+          const waiter = { afterVersion, resolve };
+          const finish = () => {
+            waitersRef.current.delete(waiter);
+            signal.removeEventListener("abort", finish);
+            resolve();
+          };
+          waiter.resolve = finish;
+          waitersRef.current.add(waiter);
+          signal.addEventListener("abort", finish, { once: true });
+        }),
+      submitGuesses: async ({ cardIds, fieldNote }, latest) => {
+        const current = roomRef.current;
+        if (
+          current?.mode !== "partner" ||
+          current.view.viewerRole !== "field_agent" ||
+          current.version !== latest.version
+        ) {
+          throw new WebMcpToolError(
+            "The mission changed. Call inspect_mission again before submitting.",
+          );
+        }
+        try {
+          const result = await roomProvider.mutate(
+            current.id,
+            current.version,
+            {
+              type: "lockGuesses",
+              cardIds: [...cardIds],
+              ...(fieldNote === undefined ? {} : { fieldNote }),
+            },
+          );
+          if (
+            !("id" in result) ||
+            result.mode !== "partner" ||
+            result.view.viewerRole !== "field_agent"
+          ) {
+            throw new WebMcpToolError(
+              "The guesses could not be locked. Inspect the mission and submit a fresh ordered selection.",
+            );
+          }
+          publishRoom(result);
+          return { lockedCount: result.view.lockedCardIds.length };
+        } catch (caught) {
+          throw webMcpError(caught, "submit_guesses");
+        }
+      },
+    };
+  });
+
+  const partnerInviteActive =
+    step.type === "partnerInvite" && Boolean(pendingInviteToken);
+  const fieldAgentPhase =
+    room?.mode === "partner" && room.view.viewerRole === "field_agent"
+      ? room.view.phase
+      : null;
+  const fieldAgentMaxGuesses =
+    room?.mode === "partner" && room.view.viewerRole === "field_agent"
+      ? room.view.maxGuesses
+      : null;
+
+  useEffect(() => {
+    let current = true;
+    const capability = partnerInviteActive
+      ? ({ kind: "pre_join" } as const)
+      : fieldAgentPhase
+        ? ({
+            kind: "joined",
+            phase: fieldAgentPhase,
+            ...(fieldAgentMaxGuesses
+              ? { maxGuesses: fieldAgentMaxGuesses }
+              : {}),
+          } as const)
+        : ({ kind: "inactive" } as const);
+    void Promise.resolve()
+      .then(() => {
+        if (current) {
+          setWebMcpStatus({ state: "checking", toolCount: 0 });
+        }
+        return partnerWebMcpAdapter.setCapability(capability);
+      })
+      .then((status) => {
+        if (!current) {
+          return;
+        }
+        setWebMcpStatus(
+          status.state === "ready"
+            ? { state: "ready", toolCount: status.toolCount }
+            : status.state === "registration_error"
+              ? { state: "error", toolCount: 0 }
+              : { state: "unavailable", toolCount: 0 },
+        );
+      });
+    return () => {
+      current = false;
+    };
+  }, [
+    fieldAgentMaxGuesses,
+    fieldAgentPhase,
+    partnerInviteActive,
+    webMcpAttempt,
+  ]);
+
+  useEffect(
+    () => () => {
+      webMcpHandlersCell.current = null;
+      partnerWebMcpAdapter.dispose();
+    },
+    [],
+  );
+
+  const lockedMissionKey =
+    room?.mode === "partner" &&
+    room.view.viewerRole === "mission_lead" &&
+    room.view.phase === "locked"
+      ? `${room.id}:${room.version}`
+      : null;
+  useEffect(() => {
+    if (!lockedMissionKey) {
+      return undefined;
+    }
+    let seconds = 3;
+    void Promise.resolve().then(() =>
+      setRevealPresentation({ countdownSeconds: seconds }),
+    );
+    const timer = window.setInterval(() => {
+      seconds -= 1;
+      if (seconds > 0) {
+        setRevealPresentation({ countdownSeconds: seconds });
+        return;
+      }
+      window.clearInterval(timer);
+      void resolveLockedGuesses();
+    }, 1_000);
+    return () => window.clearInterval(timer);
+  }, [lockedMissionKey, resolveLockedGuesses]);
+
+  const previousPartnerTurn =
+    room?.mode === "partner" && room.view.viewerRole !== null
+      ? room.view.previousTurn
+      : null;
+  const previousPartnerTurnKey = previousPartnerTurn
+    ? `${room?.id}:${previousPartnerTurn.turnNumber}`
+    : null;
+  const animatedTurnRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!previousPartnerTurnKey || !previousPartnerTurn) {
+      return undefined;
+    }
+    if (
+      room?.mode === "partner" &&
+      room.view.viewerRole !== null &&
+      room.view.phase === "locked"
+    ) {
+      animatedTurnRef.current = previousPartnerTurnKey;
+      return undefined;
+    }
+    if (animatedTurnRef.current === previousPartnerTurnKey) {
+      return undefined;
+    }
+    animatedTurnRef.current = previousPartnerTurnKey;
+    const sequenceCardIds = previousPartnerTurn.reveals.map(
+      (reveal) => reveal.cardId,
+    );
+    if (sequenceCardIds.length === 0) {
+      return undefined;
+    }
+    let visibleRevealCount = 0;
+    void Promise.resolve().then(() =>
+      setRevealPresentation({
+        sequenceCardIds,
+        visibleRevealCount,
+        activeCardId: sequenceCardIds[0],
+        step: { current: 1, total: sequenceCardIds.length },
+      }),
+    );
+    const timer = window.setInterval(() => {
+      visibleRevealCount += 1;
+      if (visibleRevealCount >= sequenceCardIds.length) {
+        window.clearInterval(timer);
+        setRevealPresentation(undefined);
+        return;
+      }
+      setRevealPresentation({
+        sequenceCardIds,
+        visibleRevealCount,
+        activeCardId: sequenceCardIds[visibleRevealCount],
+        step: {
+          current: visibleRevealCount + 1,
+          total: sequenceCardIds.length,
+        },
+      });
+    }, 700);
+    return () => window.clearInterval(timer);
+  }, [previousPartnerTurn, previousPartnerTurnKey, room]);
+
   return (
     <div
       className={`cn-shell text-ink ${locale === "ar" ? "font-ar" : "font-ui"}`}
@@ -732,24 +1169,86 @@ function AppShell() {
     >
       <GlyphDefs />
       <main className="cn-app">
-        {room && view ? (
+        {room?.mode === "partner" && room.view.viewerRole !== null ? (
+          <>
+            <LocaleToggle />
+            {room.view.viewerRole === "mission_lead" ? (
+              <PartnerMissionLead
+                locale={locale}
+                boardLang={room.view.lang}
+                phase={visiblePartnerPhase(room.view, revealPresentation)}
+                cards={toMissionLeadCards(room.view)}
+                targetsRemaining={visibleTargetsRemaining(
+                  room.view,
+                  revealPresentation,
+                )}
+                fieldAgentName={room.view.fieldAgentName}
+                signal={visiblePartnerSignal(room.view, revealPresentation)}
+                lockedCardIds={visibleLockedCardIds(
+                  room.view,
+                  revealPresentation,
+                )}
+                previousTurn={visiblePreviousTurn(
+                  room.view,
+                  revealPresentation,
+                )}
+                presentation={revealPresentation}
+                inviteUrl={roomInviteUrlOrEmpty(room)}
+                inviteCopied={copied}
+                briefingCopied={briefingCopied}
+                onCopyAgentInvite={copyInvite}
+                onCopyAgentBriefing={copyPartnerBriefing}
+                onSendSignal={giveSignal}
+                onResolveLockedGuesses={resolveLockedGuesses}
+              />
+            ) : (
+              <PartnerFieldAgent
+                locale={locale}
+                boardLang={room.view.lang}
+                phase={visiblePartnerPhase(room.view, revealPresentation)}
+                cards={toFieldAgentCards(room.view)}
+                targetsRemaining={visibleTargetsRemaining(
+                  room.view,
+                  revealPresentation,
+                )}
+                fieldAgentName={room.view.fieldAgentName}
+                signal={visiblePartnerSignal(room.view, revealPresentation)}
+                lockedCardIds={visibleLockedCardIds(
+                  room.view,
+                  revealPresentation,
+                )}
+                previousTurn={visiblePreviousTurn(
+                  room.view,
+                  revealPresentation,
+                )}
+                presentation={revealPresentation}
+                capability={webMcpStatus}
+                onRetryWebMcp={() => setWebMcpAttempt((attempt) => attempt + 1)}
+              />
+            )}
+            <Button variant="secondary" onClick={confirmExitToHome}>
+              {t.exitScreen}
+            </Button>
+          </>
+        ) : classicRoom && view ? (
           <>
             <PlayerBar
               name={
-                room.view.players.find((player) => player.id === playerId)
-                  ?.name ?? ""
+                classicRoom.view.players.find(
+                  (player) => player.id === playerId,
+                )?.name ?? ""
               }
               onRename={() => setRenameOpen(true)}
             />
-            {room.view.phase === "lobby" ? (
+            {classicRoom.view.phase === "lobby" ? (
               <Lobby
-                room={room}
+                room={classicRoom}
                 view={view}
                 playerId={playerId}
                 copied={copied}
                 canCopyInvite={
-                  room.visibility === "public" ||
-                  Boolean(roomProvider.getInviteToken(room.id))
+                  classicRoom.visibility === "public" ||
+                  Boolean(roomProvider.getInviteToken(classicRoom.id))
                 }
                 onCopyInvite={copyInvite}
                 onSetLang={setLang}
@@ -763,7 +1262,7 @@ function AppShell() {
               />
             ) : (
               <PlayScreen
-                room={room}
+                room={classicRoom}
                 view={view}
                 selectedCardIndex={selectedCardIndex}
                 isHost={isHost}
@@ -784,6 +1283,7 @@ function AppShell() {
           </>
         ) : (
           <Onboarding
+            locale={locale}
             step={step}
             onStep={setStep}
             pending={pendingRoomAction !== null}
@@ -794,8 +1294,11 @@ function AppShell() {
               setResumeAttempt((attempt) => attempt + 1);
             }}
             onCreateRoom={createRoom}
+            onCreatePartnerMission={createPartnerMission}
             onJoinRoom={joinRoom}
             onInstall={() => setInstallOpen(true)}
+            partnerCapability={webMcpStatus}
+            onRetryWebMcp={() => setWebMcpAttempt((attempt) => attempt + 1)}
           />
         )}
         {error ? (
@@ -813,10 +1316,10 @@ function AppShell() {
             onConfirm={confirmPendingAction}
           />
         ) : null}
-        {renameOpen && room ? (
+        {renameOpen && classicRoom ? (
           <RenameDialog
             currentName={
-              room.view.players.find((player) => player.id === playerId)
+              classicRoom.view.players.find((player) => player.id === playerId)
                 ?.name ?? ""
             }
             onCancel={() => setRenameOpen(false)}
@@ -931,23 +1434,31 @@ function ConfirmDialog({
 }
 
 function Onboarding({
+  locale,
   step,
   onStep,
   pending,
   onCancelRoomLink,
   onRetryRoom,
   onCreateRoom,
+  onCreatePartnerMission,
   onJoinRoom,
   onInstall,
+  partnerCapability,
+  onRetryWebMcp,
 }: {
+  locale: "en" | "ar";
   step: OnboardingStep;
   onStep: (step: OnboardingStep) => void;
   pending: boolean;
   onCancelRoomLink: () => void;
   onRetryRoom: () => void;
   onCreateRoom: (name: string) => void;
+  onCreatePartnerMission: (name: string, lang: Lang) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
   onInstall: () => void;
+  partnerCapability: WebMcpCapability;
+  onRetryWebMcp: () => void;
 }) {
   const t = useMessages().play;
 
@@ -986,6 +1497,41 @@ function Onboarding({
     );
   }
 
+  if (step.type === "partnerCreateName") {
+    return (
+      <PartnerCreateStep
+        title={PARTNER_MESSAGES[locale].partnerMission}
+        description={PARTNER_MESSAGES[locale].createHint}
+        submitLabel={pending ? t.createPending : t.createSubmit}
+        nameLabel={t.nameLabel}
+        namePlaceholder={t.namePlaceholder}
+        boardLanguageLabel={t.boardLanguage}
+        englishLabel={t.boardLanguageEn}
+        arabicLabel={t.boardLanguageAr}
+        backLabel={t.back}
+        pending={pending}
+        onBack={() => onStep({ type: "landing" })}
+        onSubmit={onCreatePartnerMission}
+      />
+    );
+  }
+
+  if (step.type === "partnerInvite") {
+    return (
+      <>
+        <LocaleToggle />
+        <PartnerFieldAgentOnboarding
+          locale={locale}
+          capability={partnerCapability}
+          onRetryWebMcp={onRetryWebMcp}
+        />
+        <Button variant="secondary" onClick={onCancelRoomLink}>
+          {t.back}
+        </Button>
+      </>
+    );
+  }
+
   if (step.type === "joinName") {
     return (
       <UsernameStep
@@ -1017,19 +1563,124 @@ function Onboarding({
 
   return (
     <Landing
+      locale={locale}
       onCreate={() => onStep({ type: "createName" })}
+      onCreatePartner={() => onStep({ type: "partnerCreateName" })}
       onJoin={() => onStep({ type: "joinCode" })}
       onInstall={onInstall}
     />
   );
 }
 
+function PartnerCreateStep({
+  title,
+  description,
+  submitLabel,
+  nameLabel,
+  namePlaceholder,
+  boardLanguageLabel,
+  englishLabel,
+  arabicLabel,
+  backLabel,
+  pending,
+  onBack,
+  onSubmit,
+}: {
+  title: string;
+  description: string;
+  submitLabel: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  boardLanguageLabel: string;
+  englishLabel: string;
+  arabicLabel: string;
+  backLabel: string;
+  pending: boolean;
+  onBack: () => void;
+  onSubmit: (name: string, lang: Lang) => void;
+}) {
+  const [name, setName] = useState("");
+  const [boardLang, setBoardLang] = useState<Lang>("en");
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (!pending) {
+      submittedRef.current = false;
+    }
+  }, [pending]);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (pending || submittedRef.current || !trimmed) {
+      return;
+    }
+    submittedRef.current = true;
+    onSubmit(trimmed, boardLang);
+  };
+
+  return (
+    <form
+      className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
+      onSubmit={submit}
+      aria-busy={pending}
+    >
+      <div>
+        <h1 className="text-ink m-0 text-lg font-bold">{title}</h1>
+        <p className="text-ink-soft mt-cn-1 m-0 text-sm">{description}</p>
+      </div>
+      <label className="text-ink text-sm font-semibold" htmlFor="lead-name">
+        {nameLabel}
+      </label>
+      <input
+        id="lead-name"
+        className="cn-field"
+        value={name}
+        disabled={pending}
+        onChange={(event) => setName(event.target.value)}
+        placeholder={namePlaceholder}
+      />
+      <fieldset className="gap-cn-2 flex flex-col" disabled={pending}>
+        <legend className="text-ink text-sm font-semibold">
+          {boardLanguageLabel}
+        </legend>
+        <div className="cn-segmented" dir="ltr">
+          <button
+            type="button"
+            aria-pressed={boardLang === "en"}
+            onClick={() => setBoardLang("en")}
+          >
+            {englishLabel}
+          </button>
+          <button
+            type="button"
+            aria-pressed={boardLang === "ar"}
+            onClick={() => setBoardLang("ar")}
+          >
+            {arabicLabel}
+          </button>
+        </div>
+      </fieldset>
+      <Button type="submit" disabled={pending || name.trim().length === 0}>
+        {submitLabel}
+      </Button>
+      <Button variant="secondary" onClick={onBack} disabled={pending}>
+        {backLabel}
+      </Button>
+    </form>
+  );
+}
+
 function Landing({
+  locale,
   onCreate,
+  onCreatePartner,
   onJoin,
   onInstall,
 }: {
+  locale: "en" | "ar";
   onCreate: () => void;
+  onCreatePartner: () => void;
   onJoin: () => void;
   onInstall: () => void;
 }) {
@@ -1052,6 +1703,9 @@ function Landing({
 
       <div className="gap-cn-3 flex flex-col">
         <Button onClick={onCreate}>{t.createRoom}</Button>
+        <Button onClick={onCreatePartner}>
+          {PARTNER_MESSAGES[locale].partnerMission}
+        </Button>
         <Button variant="secondary" onClick={onJoin}>
           {t.joinByCode}
         </Button>
@@ -1234,5 +1888,187 @@ function isTerminalRoomError(caught: unknown): boolean {
     ["ROOM_BANNED", "ROOM_NOT_FOUND", "ROOM_NOT_MEMBER"].includes(
       caught.message,
     )
+  );
+}
+
+function roomInviteUrl(room: SharedRoomSnapshot): string {
+  const invitation = new URL(
+    absolutePlayUrl(window.location.origin, { room: room.code }),
+  );
+  const token = roomProvider.getInviteToken(room.id);
+  if (room.visibility === "private") {
+    if (!token) {
+      throw new Error("ROOM_INVITE_UNAVAILABLE");
+    }
+    invitation.hash = new URLSearchParams({ invite: token }).toString();
+  }
+  return invitation.toString();
+}
+
+function roomInviteUrlOrEmpty(room: SharedRoomSnapshot): string {
+  try {
+    return roomInviteUrl(room);
+  } catch {
+    return "";
+  }
+}
+
+function toMissionLeadCards(view: PartnerMissionLeadView): MissionLeadCard[] {
+  return view.board.map((card) => ({
+    id: card.id,
+    word: card.concept[view.lang],
+    kind: card.kind,
+    revealed: card.revealed,
+  }));
+}
+
+function toFieldAgentCards(view: PartnerFieldAgentView): FieldAgentCard[] {
+  return view.board.map(
+    (card): FieldAgentCard =>
+      card.revealed
+        ? {
+            id: card.id,
+            word: card.concept[view.lang],
+            revealed: true,
+            result: card.result,
+          }
+        : {
+            id: card.id,
+            word: card.concept[view.lang],
+            revealed: false,
+          },
+  );
+}
+
+function toPartnerPreviousTurn(
+  view: PartnerMissionLeadView | PartnerFieldAgentView,
+): PartnerPreviousTurn | null {
+  if (!view.previousTurn) {
+    return null;
+  }
+  const words = new Map(
+    view.board.map((card) => [card.id, card.concept[view.lang]]),
+  );
+  return {
+    signal: view.previousTurn.signal,
+    reveals: view.previousTurn.reveals.map((reveal) => ({
+      cardId: reveal.cardId,
+      word: words.get(reveal.cardId) ?? reveal.cardId,
+      result: reveal.result,
+    })),
+    ...(view.previousTurn.fieldNote
+      ? { fieldNote: view.previousTurn.fieldNote }
+      : {}),
+  };
+}
+
+function visiblePreviousTurn(
+  view: PartnerMissionLeadView | PartnerFieldAgentView,
+  presentation: PartnerRevealPresentation | undefined,
+): PartnerPreviousTurn | null {
+  return presentation?.sequenceCardIds ? null : toPartnerPreviousTurn(view);
+}
+
+function visibleLockedCardIds(
+  view: PartnerMissionLeadView | PartnerFieldAgentView,
+  presentation: PartnerRevealPresentation | undefined,
+): readonly string[] {
+  if (presentation?.sequenceCardIds && view.previousTurn) {
+    return view.previousTurn.lockedCardIds;
+  }
+  return view.lockedCardIds;
+}
+
+function visiblePartnerPhase(
+  view: PartnerMissionLeadView | PartnerFieldAgentView,
+  presentation: PartnerRevealPresentation | undefined,
+): PartnerMissionLeadView["phase"] {
+  return presentation?.sequenceCardIds ? "locked" : view.phase;
+}
+
+function visibleTargetsRemaining(
+  view: PartnerMissionLeadView | PartnerFieldAgentView,
+  presentation: PartnerRevealPresentation | undefined,
+): number {
+  if (!presentation?.sequenceCardIds || !view.previousTurn) {
+    return view.targetsRemaining;
+  }
+  const visibleCount = presentation.visibleRevealCount ?? 0;
+  const pendingTargets = view.previousTurn.reveals
+    .slice(visibleCount)
+    .filter((reveal) => reveal.result === "target").length;
+  return view.targetsRemaining + pendingTargets;
+}
+
+function visiblePartnerSignal(
+  view: PartnerMissionLeadView | PartnerFieldAgentView,
+  presentation: PartnerRevealPresentation | undefined,
+) {
+  return presentation?.sequenceCardIds && view.previousTurn
+    ? view.previousTurn.signal
+    : view.signal;
+}
+
+function partnerTurnKey(room: SharedRoomSnapshot | null): string | null {
+  if (
+    room?.mode !== "partner" ||
+    room.view.viewerRole === null ||
+    !room.view.previousTurn
+  ) {
+    return null;
+  }
+  return `${room.id}:${room.view.previousTurn.turnNumber}`;
+}
+
+function toFieldAgentMissionSnapshot(
+  room: PartnerRoomSnapshot,
+  view: PartnerFieldAgentView,
+): FieldAgentMissionSnapshot {
+  return {
+    version: room.version,
+    phase: view.phase,
+    agentName: view.fieldAgentName ?? "Field Agent",
+    signal: view.signal,
+    maxGuesses: view.maxGuesses,
+    targetsRemaining: view.targetsRemaining,
+    cards: toFieldAgentCards(view),
+    lockedCardIds: view.lockedCardIds,
+  };
+}
+
+function webMcpError(
+  caught: unknown,
+  tool: "choose_name" | "submit_guesses",
+): WebMcpToolError {
+  if (caught instanceof WebMcpToolError) {
+    return caught;
+  }
+  const code =
+    isIllegalMove(caught) || caught instanceof RoomError
+      ? caught.code
+      : caught instanceof Error
+        ? caught.message
+        : "";
+  if (code === "ROOM_VERSION_CONFLICT" || code === "WRONG_PHASE") {
+    return new WebMcpToolError(
+      "The mission changed. Call inspect_mission again before submitting.",
+    );
+  }
+  if (
+    ["CARD_ALREADY_REVEALED", "CARD_NOT_FOUND", "DUPLICATE_CARD"].includes(code)
+  ) {
+    return new WebMcpToolError(
+      "One selected card is no longer available. Inspect the mission and submit a fresh ordered selection.",
+    );
+  }
+  if (code === "FIELD_AGENT_SEAT_TAKEN") {
+    return new WebMcpToolError(
+      "The Field Agent seat has already been claimed by another identity.",
+    );
+  }
+  return new WebMcpToolError(
+    tool === "choose_name"
+      ? "Unable to claim the Field Agent seat. Ask the Mission Lead for a fresh invitation."
+      : "Unable to lock these guesses. Call inspect_mission and submit a fresh ordered selection.",
   );
 }

@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RoomSnapshot } from "./types";
+import {
+  initialPartnerMissionState,
+  partnerMissionReducer,
+  partnerMissionViewFor,
+} from "../engine/partnerMission";
+import type { PartnerRoomSnapshot, RoomSnapshot } from "./types";
 
 type BroadcastHandler = (message: { payload: unknown }) => void;
 
@@ -245,6 +250,32 @@ describe("SupabaseRoomProvider", () => {
 
     expect(provider.getInviteToken(privateRoom.id)).toBe(
       "invite-token-from-fragment",
+    );
+  });
+
+  it("claims the Partner seat through the dedicated authenticated operation", async () => {
+    authenticatedSession();
+    const room = partnerSnapshot();
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(room));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = new SupabaseRoomProvider();
+    await expect(
+      provider.claimPartnerSeat({
+        code: room.code,
+        name: "Cipher",
+        inviteToken: "partner-invite-token-from-fragment",
+      }),
+    ).resolves.toMatchObject({ mode: "partner" });
+
+    expect(requestBody(fetchMock)).toEqual({
+      op: "claimPartnerSeat",
+      code: room.code,
+      name: "Cipher",
+      inviteToken: "partner-invite-token-from-fragment",
+    });
+    expect(provider.getInviteToken(room.id)).toBe(
+      "partner-invite-token-from-fragment",
     );
   });
 
@@ -582,5 +613,37 @@ function snapshot(): RoomSnapshot {
     version: 1,
     createdAt: "2026-08-23T00:00:00.000Z",
     updatedAt: "2026-08-23T00:00:00.000Z",
+  };
+}
+
+function partnerSnapshot(): PartnerRoomSnapshot {
+  const concepts = Array.from({ length: 25 }, (_, index) => ({
+    id: `concept-${index + 1}`,
+    en: `Word ${index + 1}`,
+    ar: `كلمة ${index + 1}`,
+  }));
+  const waiting = initialPartnerMissionState({
+    roomId: "room-00000000-0000-4000-8000-000000000099",
+    lang: "en",
+    missionLeadId: "00000000-0000-4000-8000-000000000001",
+    missionLeadName: "Lead",
+    concepts,
+    seed: 42,
+  });
+  const joined = partnerMissionReducer(
+    waiting,
+    { type: "claimFieldAgent", name: "Cipher" },
+    "00000000-0000-4000-8000-000000000002",
+  );
+  return {
+    mode: "partner",
+    id: joined.roomId,
+    code: "PARTNER",
+    hostId: joined.missionLead.id,
+    visibility: "private",
+    view: partnerMissionViewFor(joined, "00000000-0000-4000-8000-000000000002"),
+    version: 2,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:01.000Z",
   };
 }

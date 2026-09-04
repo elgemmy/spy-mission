@@ -5,6 +5,7 @@ import {
   createSeed,
 } from "./ids";
 import { applyRoomCommand } from "./commands";
+import { sampleConceptsForBoard } from "../content/words/sampler";
 import { inMemoryRoomProvider } from "./inMemoryRoomProvider";
 import {
   banPlayer,
@@ -13,14 +14,24 @@ import {
   leaveRoomRecord,
 } from "./session";
 import { toRoomSnapshot } from "./snapshot";
+import {
+  applyPartnerRoomAction,
+  createPartnerRoomRecord,
+  isPartnerRoomMember,
+} from "./partner";
 import type {
   CreateSharedRoomInput,
+  CreateClassicRoomInput,
+  CreatePartnerRoomInput,
+  ClaimPartnerSeatInput,
   JoinSharedRoomInput,
   ResumeRoomResult,
   RoomCommand,
   RoomMutationResult,
   RoomProvider,
   RoomSnapshot,
+  SharedRoomSnapshot,
+  PartnerRoomSnapshot,
   RoomStateCommand,
   Unsubscribe,
 } from "./types";
@@ -35,17 +46,34 @@ export class LocalRoomProvider implements RoomProvider {
     this.playerId = playerId;
   }
 
-  async create(input: CreateSharedRoomInput): Promise<RoomSnapshot> {
+  async create(input: CreatePartnerRoomInput): Promise<PartnerRoomSnapshot>;
+  async create(input: CreateClassicRoomInput): Promise<RoomSnapshot>;
+  async create(input: CreateSharedRoomInput): Promise<SharedRoomSnapshot> {
     const now = new Date().toISOString();
-    const room = createRoomRecord({
-      id: createRoomId(),
-      code: createRoomCode(8),
-      hostId: this.playerId,
-      hostName: input.name,
-      lang: input.lang,
-      visibility: input.visibility,
-      now,
-    });
+    const id = createRoomId();
+    const code = createRoomCode(8);
+    const seed = createSeed();
+    const room =
+      input.mode === "partner"
+        ? createPartnerRoomRecord({
+            id,
+            code,
+            hostId: this.playerId,
+            hostName: input.name,
+            lang: input.lang,
+            concepts: sampleConceptsForBoard(seed),
+            seed,
+            now,
+          })
+        : createRoomRecord({
+            id,
+            code,
+            hostId: this.playerId,
+            hostName: input.name,
+            lang: input.lang,
+            visibility: input.visibility,
+            now,
+          });
     await inMemoryRoomProvider.create(room);
     const inviteToken = createClientId();
     localInvites.set(room.id, inviteToken);
@@ -60,8 +88,14 @@ export class LocalRoomProvider implements RoomProvider {
     if (isLocallyBanned(room.id, this.playerId)) {
       throw new Error("ROOM_BANNED");
     }
-    if (!room.state.players[this.playerId]) {
-      return { status: "join", code: room.code };
+    const isMember =
+      room.mode === "partner"
+        ? isPartnerRoomMember(room, this.playerId)
+        : Boolean(room.state.players[this.playerId]);
+    if (!isMember) {
+      return room.mode === "partner"
+        ? { status: "join", code: room.code, mode: "partner" }
+        : { status: "join", code: room.code };
     }
     return {
       status: "active",
@@ -76,6 +110,9 @@ export class LocalRoomProvider implements RoomProvider {
     }
     if (isLocallyBanned(room.id, this.playerId)) {
       throw new Error("ROOM_BANNED");
+    }
+    if (room.mode === "partner") {
+      throw new Error("ROOM_MODE_MISMATCH");
     }
     const expectedInvite = localInvites.get(room.id);
     const allowPrivate =
@@ -94,10 +131,43 @@ export class LocalRoomProvider implements RoomProvider {
     return toRoomSnapshot(next, this.playerId);
   }
 
-  async load(roomId: string): Promise<RoomSnapshot | null> {
+  async claimPartnerSeat(
+    input: ClaimPartnerSeatInput,
+  ): Promise<PartnerRoomSnapshot> {
+    const room = await inMemoryRoomProvider.loadByCode(input.code);
+    if (!room) {
+      throw new Error("ROOM_NOT_FOUND");
+    }
+    if (room.mode !== "partner") {
+      throw new Error("ROOM_MODE_MISMATCH");
+    }
+    if (isLocallyBanned(room.id, this.playerId)) {
+      throw new Error("ROOM_BANNED");
+    }
+    const expectedInvite = localInvites.get(room.id);
+    if (!expectedInvite || input.inviteToken !== expectedInvite) {
+      throw new Error("ROOM_PRIVATE");
+    }
+    if (isPartnerRoomMember(room, this.playerId)) {
+      throw new Error("WRONG_PHASE");
+    }
+    const next = applyPartnerRoomAction(
+      room,
+      this.playerId,
+      { type: "claimFieldAgent", name: input.name },
+      new Date().toISOString(),
+    );
+    await inMemoryRoomProvider.save(next, room.version);
+    return toRoomSnapshot(next, this.playerId);
+  }
+
+  async load(roomId: string): Promise<SharedRoomSnapshot | null> {
     const room = await inMemoryRoomProvider.load(roomId);
     if (
-      !room?.state.players[this.playerId] ||
+      !room ||
+      (room.mode === "partner"
+        ? !isPartnerRoomMember(room, this.playerId)
+        : !room.state.players[this.playerId]) ||
       isLocallyBanned(roomId, this.playerId)
     ) {
       return null;
@@ -119,6 +189,28 @@ export class LocalRoomProvider implements RoomProvider {
     }
 
     const now = new Date().toISOString();
+    if (room.mode === "partner") {
+      if (command.type === "deleteRoom") {
+        if (room.hostId !== this.playerId) {
+          throw new Error("NOT_HOST");
+        }
+        await inMemoryRoomProvider.delete(roomId);
+        localBans.delete(roomId);
+        return { deleted: true };
+      }
+      if (
+        command.type !== "giveSignal" &&
+        command.type !== "lockGuesses" &&
+        command.type !== "resolveLockedGuesses"
+      ) {
+        throw new Error("ROOM_MODE_MISMATCH");
+      }
+      const next = applyPartnerRoomAction(room, this.playerId, command, now);
+      if (next !== room) {
+        await inMemoryRoomProvider.save(next, expectedVersion);
+      }
+      return toRoomSnapshot(next, this.playerId, localInvites.get(roomId));
+    }
     if (command.type === "leaveRoom") {
       const next = leaveRoomRecord(room, this.playerId, now);
       await inMemoryRoomProvider.save(next, expectedVersion);
@@ -172,11 +264,14 @@ export class LocalRoomProvider implements RoomProvider {
 
   subscribe(
     roomId: string,
-    onChange: (room: RoomSnapshot | null) => void,
+    onChange: (room: SharedRoomSnapshot | null) => void,
   ): Unsubscribe {
     return inMemoryRoomProvider.subscribe(roomId, (room) => {
       onChange(
-        room?.state.players[this.playerId] &&
+        room &&
+          (room.mode === "partner"
+            ? isPartnerRoomMember(room, this.playerId)
+            : Boolean(room.state.players[this.playerId])) &&
           !isLocallyBanned(roomId, this.playerId)
           ? toRoomSnapshot(room, this.playerId, localInvites.get(roomId))
           : null,

@@ -6,9 +6,14 @@ import type {
   Role,
   Team,
 } from "../engine/index.js";
+import type {
+  PartnerMissionState,
+  PartnerMissionView,
+} from "../engine/partnerMission/index.js";
 
 export type Unsubscribe = () => void;
 export type RoomVisibility = "public" | "private";
+export type RoomMode = "classic" | "partner";
 export const MAX_ROOM_PLAYERS = 12;
 
 export interface ClueLogEntry {
@@ -29,6 +34,7 @@ export interface RoomUiState {
 }
 
 export interface RoomRecord {
+  mode?: "classic";
   id: string;
   code: string;
   hostId: string;
@@ -39,6 +45,21 @@ export interface RoomRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PartnerRoomRecord {
+  mode: "partner";
+  id: string;
+  code: string;
+  hostId: string;
+  visibility: "private";
+  state: PartnerMissionState;
+  ui: RoomUiState;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SharedRoomRecord = RoomRecord | PartnerRoomRecord;
 
 export interface CreateRoomInput {
   id: string;
@@ -51,18 +72,19 @@ export interface CreateRoomInput {
 }
 
 export interface RoomStorage {
-  create(room: RoomRecord): Promise<void>;
+  create(room: SharedRoomRecord): Promise<void>;
   delete(roomId: string): Promise<void>;
-  load(roomId: string): Promise<RoomRecord | null>;
-  loadByCode(code: string): Promise<RoomRecord | null>;
-  save(room: RoomRecord, expectedVersion?: number): Promise<void>;
+  load(roomId: string): Promise<SharedRoomRecord | null>;
+  loadByCode(code: string): Promise<SharedRoomRecord | null>;
+  save(room: SharedRoomRecord, expectedVersion?: number): Promise<void>;
   subscribe(
     roomId: string,
-    onChange: (room: RoomRecord | null) => void,
+    onChange: (room: SharedRoomRecord | null) => void,
   ): Unsubscribe;
 }
 
 export interface RoomSnapshot {
+  mode?: "classic";
   id: string;
   code: string;
   hostId: string;
@@ -75,11 +97,34 @@ export interface RoomSnapshot {
   inviteToken?: string;
 }
 
+export interface PartnerRoomSnapshot {
+  mode: "partner";
+  id: string;
+  code: string;
+  hostId: string;
+  visibility: "private";
+  view: PartnerMissionView;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  inviteToken?: string;
+}
+
+export type SharedRoomSnapshot = RoomSnapshot | PartnerRoomSnapshot;
+
 export interface CreateSharedRoomInput {
   name: string;
   lang: Lang;
   visibility?: RoomVisibility;
+  mode?: RoomMode;
 }
+
+export type CreateClassicRoomInput = CreateSharedRoomInput & {
+  mode?: "classic";
+};
+export type CreatePartnerRoomInput = CreateSharedRoomInput & {
+  mode: "partner";
+};
 
 export interface JoinSharedRoomInput {
   code: string;
@@ -87,9 +132,12 @@ export interface JoinSharedRoomInput {
   inviteToken?: string;
 }
 
+export type ClaimPartnerSeatInput = JoinSharedRoomInput;
+
 export type ResumeRoomResult =
-  | { status: "active"; room: RoomSnapshot }
-  | { status: "join"; code: string }
+  | { status: "active"; room: SharedRoomSnapshot }
+  | { status: "join"; code: string; mode: "partner" }
+  | { status: "join"; code: string; mode?: "classic" }
   | { status: "notFound" };
 
 export type RoomStateCommand =
@@ -108,20 +156,25 @@ export type RoomStateCommand =
 
 export type RoomCommand =
   | RoomStateCommand
+  | { type: "giveSignal"; word: string; count: number }
+  | { type: "lockGuesses"; cardIds: string[]; fieldNote?: string }
+  | { type: "resolveLockedGuesses" }
   | { type: "leaveRoom" }
   | { type: "banPlayer"; targetPlayerId: string }
   | { type: "deleteRoom" };
 
 export type RoomMutationResult =
-  | RoomSnapshot
+  | SharedRoomSnapshot
   | { left: true }
   | { deleted: true };
 
 export interface RoomProvider {
-  create(input: CreateSharedRoomInput): Promise<RoomSnapshot>;
+  create(input: CreatePartnerRoomInput): Promise<PartnerRoomSnapshot>;
+  create(input: CreateClassicRoomInput): Promise<RoomSnapshot>;
   resume(code: string): Promise<ResumeRoomResult>;
   join(input: JoinSharedRoomInput): Promise<RoomSnapshot>;
-  load(roomId: string): Promise<RoomSnapshot | null>;
+  claimPartnerSeat(input: ClaimPartnerSeatInput): Promise<PartnerRoomSnapshot>;
+  load(roomId: string): Promise<SharedRoomSnapshot | null>;
   mutate(
     roomId: string,
     expectedVersion: number,
@@ -131,6 +184,6 @@ export interface RoomProvider {
   clearRoomStorage(roomId: string): void;
   subscribe(
     roomId: string,
-    onChange: (room: RoomSnapshot | null) => void,
+    onChange: (room: SharedRoomSnapshot | null) => void,
   ): Unsubscribe;
 }

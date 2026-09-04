@@ -1,14 +1,14 @@
-import type { RoomRecord, RoomStorage, Unsubscribe } from "./types";
+import type { RoomStorage, SharedRoomRecord, Unsubscribe } from "./types";
 import { normalizeRoomRecord } from "./uiState";
 
-type Listener = (room: RoomRecord | null) => void;
+type Listener = (room: SharedRoomRecord | null) => void;
 
 export class InMemoryRoomProvider implements RoomStorage {
-  private readonly rooms = new Map<string, RoomRecord>();
+  private readonly rooms = new Map<string, SharedRoomRecord>();
   private readonly codes = new Map<string, string>();
   private readonly listeners = new Map<string, Set<Listener>>();
 
-  async create(room: RoomRecord): Promise<void> {
+  async create(room: SharedRoomRecord): Promise<void> {
     const normalized = normalizeRoomRecord(room);
     this.rooms.set(normalized.id, normalized);
     this.codes.set(normalized.code, normalized.id);
@@ -25,11 +25,11 @@ export class InMemoryRoomProvider implements RoomStorage {
     this.listeners.delete(roomId);
   }
 
-  async load(roomId: string): Promise<RoomRecord | null> {
+  async load(roomId: string): Promise<SharedRoomRecord | null> {
     return this.rooms.get(roomId) ?? null;
   }
 
-  async loadByCode(code: string): Promise<RoomRecord | null> {
+  async loadByCode(code: string): Promise<SharedRoomRecord | null> {
     const roomId = this.codes.get(code.toUpperCase());
     if (!roomId) {
       return null;
@@ -37,7 +37,7 @@ export class InMemoryRoomProvider implements RoomStorage {
     return this.load(roomId);
   }
 
-  async save(room: RoomRecord, _expectedVersion?: number): Promise<void> {
+  async save(room: SharedRoomRecord, _expectedVersion?: number): Promise<void> {
     void _expectedVersion;
     const normalized = normalizeRoomRecord(room);
     this.rooms.set(normalized.id, normalized);
@@ -47,7 +47,7 @@ export class InMemoryRoomProvider implements RoomStorage {
 
   subscribe(
     roomId: string,
-    onChange: (room: RoomRecord | null) => void,
+    onChange: (room: SharedRoomRecord | null) => void,
   ): Unsubscribe {
     const set = this.listeners.get(roomId) ?? new Set<Listener>();
     set.add(onChange);
@@ -66,7 +66,7 @@ export class InMemoryRoomProvider implements RoomStorage {
     };
   }
 
-  private notify(room: RoomRecord): void {
+  private notify(room: SharedRoomRecord): void {
     const roomListeners = this.listeners.get(room.id);
     if (roomListeners) {
       for (const listener of roomListeners) {
