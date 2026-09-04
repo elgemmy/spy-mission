@@ -1,5 +1,7 @@
 import "./PartnerMission.css";
 
+export { buildAgentBriefing } from "./agentBriefing";
+
 export {
   FieldAgentBoard,
   MissionLeadBoard,
