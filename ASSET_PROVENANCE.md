@@ -9,12 +9,12 @@ in the repository. **Unresolved items are flagged rather than guessed.**
 
 Companion files:
 
-- [`LICENSE`](LICENSE) — MIT grant for first-party application code and
-  design; not the word pack
+- [`LICENSE`](LICENSE) — MIT grant for first-party application code, design,
+  and the current word pack
 - [`src/content/words/NOTICE.md`](src/content/words/NOTICE.md) — word-pack
   license status
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — third-party package and font licenses
-- [`src/content/words/README.md`](src/content/words/README.md) — word-pack structure and duplicates
+- [`src/content/words/README.md`](src/content/words/README.md) — word-pack structure and curation rules
 
 ## Original project work
 
@@ -24,7 +24,8 @@ Ahmed Gamal (elgemmy), 2026.
 
 | Asset                                                                                                                                | Origin                                                                         | License / status | Original? |
 | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ---------------- | --------- |
-| Application source under `src/`, `api/`, `supabase/` (excluding the word pack and leftover starter files below)                      | Authored in this repository                                                    | MIT              | Yes       |
+| Application source under `src/`, `api/`, `supabase/` (excluding leftover starter files below)                                        | Authored in this repository                                                    | MIT              | Yes       |
+| Bilingual word pack (`src/content/words/codenames.json`)                                                                             | Curated from scratch in this repository, September 2026                        | MIT              | Yes       |
 | Warm Sand tokens and card/chrome specs (`docs/handoff/tokens.css`, `card.css`, `Card.html`, `component-specs.md`, `landing-spec.md`) | Project design handoff                                                         | MIT              | Yes       |
 | Board faction glyphs (`src/ui/card/glyphs.tsx`)                                                                                      | Project design; geometric triangle / circle / rounded square / octagon + cross | MIT              | Yes       |
 | 2×2 wordmark (`src/ui/components/Mark.tsx`, `public/favicon.svg`, `public/pwa-icon.svg`)                                             | Same Warm Sand mark as the PWA icons                                           | MIT              | Yes       |
@@ -36,25 +37,22 @@ No proprietary commercial-game logos or box art are included.
 ## Word pack
 
 The JSON file under `src/content/words/` is the shipped bilingual concept pack
-(23 categories, 597 concepts).
+(19 categories, 444 concepts).
 
 Known facts:
 
-- The file entered git in `316dfc37c8733aa688cc889213189e9cc36482be`
-  (30 May 2026).
-- Arabic labels match an author-owned Arabic word-list working document dated
-  30 May 2026.
-- English labels are stored as pairs in the same file.
+- The current pack was authored from scratch for this repository in
+  September 2026 as first-party content. It was not copied from the previous
+  pack or from any published game or card list.
+- It is covered by the repository MIT license like the other first-party
+  content listed above.
+- The previous pack entered git in `316dfc37c8733aa688cc889213189e9cc36482be`
+  (30 May 2026). Its Arabic labels matched an author-owned working document;
+  whether any of its English labels came from another published list was
+  never resolved. That pack is no longer shipped and remains only in git
+  history. This file does not claim third-party clearance for it.
 
-Unresolved: whether any English label was taken from another published list.
-
-The repository MIT license covers the first-party application code and design
-listed above. It does **not** license this pack or word-list entries reproduced
-from it in documentation. This file does not claim third-party clearance for
-the pack.
-
-Do not replace or regenerate the pack in documentation-only work. Duplicate
-rendered English labels are listed in
+Structure and curation rules:
 [`src/content/words/README.md`](src/content/words/README.md).
 
 ## Hosted typefaces
