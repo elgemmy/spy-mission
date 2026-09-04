@@ -61,6 +61,7 @@ import { App } from "./App";
 const en = PARTNER_MESSAGES.en;
 
 beforeEach(() => {
+  vi.useRealTimers();
   window.history.replaceState(null, "", "/play/");
   localStorage.clear();
   mocks.resume.mockReset();
@@ -303,6 +304,121 @@ describe("AI Partner Mission App integration", () => {
     expect(screen.queryByText(en.previousTurn)).not.toBeInTheDocument();
     expect(screen.getByLabelText(en.targetCount)).toHaveTextContent("8");
   });
+
+  it("auto-resolves a Lead lock and publishes the authoritative result", async () => {
+    const waiting = waitingLeadSnapshot();
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: waiting });
+    mocks.mutate.mockResolvedValue(resolvedLeadSnapshot());
+    render(<App />);
+    await screen.findByRole("button", { name: en.sendSignal });
+
+    vi.useFakeTimers();
+    act(() => mocks.onChange?.(lockedLeadSnapshot()));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+
+    expect(mocks.mutate).toHaveBeenCalledWith(waiting.id, 4, {
+      type: "resolveLockedGuesses",
+    });
+    expect(screen.getByText(en.phaseLabel("locked"))).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_400);
+    });
+    expect(screen.getByText(en.previousTurn)).toBeInTheDocument();
+    expect(screen.getByLabelText(en.signalWord)).toBeEnabled();
+  });
+
+  it("refreshes and converges when resolution reports a version conflict", async () => {
+    const locked = lockedLeadSnapshot();
+    const resolved = resolvedLeadSnapshot();
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: locked });
+    mocks.mutate.mockRejectedValue(new Error("ROOM_VERSION_CONFLICT"));
+    mocks.load.mockResolvedValue(resolved);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: en.revealNow }));
+    await waitFor(() => expect(mocks.load).toHaveBeenCalledWith(locked.id));
+    expect(mocks.resume).toHaveBeenCalledTimes(1);
+
+    await waitFor(
+      () => {
+        expect(screen.getByText(en.previousTurn)).toBeInTheDocument();
+        expect(screen.getByLabelText(en.signalWord)).toBeEnabled();
+      },
+      { timeout: 2_500 },
+    );
+  });
+
+  it("lets Reveal now retry from a refreshed lock and deduplicates in-flight resolution", async () => {
+    const locked = lockedLeadSnapshot();
+    const freshLock = lockedLeadSnapshot(5);
+    const resolved = resolvedLeadSnapshot(6);
+    let releaseFirst!: () => void;
+    const firstAttempt = new Promise<never>((_resolve, reject) => {
+      releaseFirst = () => reject(new Error("ROOM_VERSION_CONFLICT"));
+    });
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: locked });
+    mocks.mutate
+      .mockReturnValueOnce(firstAttempt)
+      .mockResolvedValueOnce(resolved);
+    mocks.load.mockResolvedValue(freshLock);
+    render(<App />);
+
+    const reveal = await screen.findByRole("button", { name: en.revealNow });
+    fireEvent.click(reveal);
+    fireEvent.click(reveal);
+    expect(mocks.mutate).toHaveBeenCalledTimes(1);
+
+    releaseFirst();
+    await waitFor(() => expect(mocks.load).toHaveBeenCalledWith(locked.id));
+    fireEvent.click(screen.getByRole("button", { name: en.revealNow }));
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledTimes(2));
+    expect(mocks.mutate).toHaveBeenLastCalledWith(locked.id, 5, {
+      type: "resolveLockedGuesses",
+    });
+  });
+
+  it("finishes one persisted reveal sequence despite same-turn refreshes", async () => {
+    const waiting = waitingLeadSnapshot();
+    const resolved = resolvedLeadSnapshot();
+    const sameTurnRefresh = resolvedLeadSnapshot(6);
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: waiting });
+    render(<App />);
+    await screen.findByRole("button", { name: en.sendSignal });
+
+    vi.useFakeTimers();
+    act(() => mocks.onChange?.(resolved));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    act(() => mocks.onChange?.(sameTurnRefresh));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_400);
+    });
+
+    expect(screen.getByText(en.previousTurn)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: en.revealNow })).toBeNull();
+  });
+
+  it("does not regress a resolved room to a late older locked snapshot", async () => {
+    const waiting = waitingLeadSnapshot();
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: waiting });
+    render(<App />);
+    await screen.findByRole("button", { name: en.sendSignal });
+
+    act(() => mocks.onChange?.(resolvedLeadSnapshot()));
+    act(() => mocks.onChange?.(lockedLeadSnapshot()));
+
+    expect(screen.queryByText(en.revealCountdown(3))).toBeNull();
+    expect(screen.getByText(en.revealingGuesses("Cipher"))).toBeInTheDocument();
+  });
 });
 
 function latestTool(
@@ -341,7 +457,11 @@ function baseSnapshot() {
   };
 }
 
-function leadSnapshot(): PartnerRoomSnapshot & {
+function leadSnapshot(
+  overrides: Omit<Partial<PartnerRoomSnapshot>, "view"> & {
+    view?: Partial<PartnerMissionLeadView>;
+  } = {},
+): PartnerRoomSnapshot & {
   view: PartnerMissionLeadView;
 } {
   const board = concepts().map((concept, index) => ({
@@ -355,30 +475,103 @@ function leadSnapshot(): PartnerRoomSnapshot & {
           : ("decoy" as const),
     revealed: false,
   }));
+  const base = baseSnapshot();
+  const view: PartnerMissionLeadView = {
+    roomId: base.id,
+    lang: "en",
+    phase: "waiting_for_agent",
+    viewerRole: "mission_lead",
+    missionLeadName: "Lead",
+    fieldAgentName: null,
+    targetsRemaining: 8,
+    signal: null,
+    lockedCardIds: [],
+    previousTurn: null,
+    turnNumber: 0,
+    maxGuesses: null,
+    board,
+    can: {
+      claimFieldAgent: false,
+      giveSignal: false,
+      lockGuesses: false,
+      resolveLockedGuesses: false,
+    },
+  };
   return {
-    ...baseSnapshot(),
+    ...base,
+    ...overrides,
+    view: { ...view, ...(overrides.view ?? {}) },
+  };
+}
+
+function waitingLeadSnapshot(version = 3) {
+  return leadSnapshot({
+    version,
     view: {
-      roomId: baseSnapshot().id,
-      lang: "en",
-      phase: "waiting_for_agent",
-      viewerRole: "mission_lead",
-      missionLeadName: "Lead",
-      fieldAgentName: null,
-      targetsRemaining: 8,
-      signal: null,
-      lockedCardIds: [],
-      previousTurn: null,
-      turnNumber: 0,
-      maxGuesses: null,
-      board,
+      phase: "waiting_for_signal",
+      fieldAgentName: "Cipher",
       can: {
         claimFieldAgent: false,
-        giveSignal: false,
+        giveSignal: true,
         lockGuesses: false,
         resolveLockedGuesses: false,
       },
     },
-  };
+  });
+}
+
+function lockedLeadSnapshot(version = 4) {
+  return leadSnapshot({
+    version,
+    view: {
+      phase: "locked",
+      fieldAgentName: "Cipher",
+      signal: { word: "orbit", count: 2 },
+      lockedCardIds: ["c01", "c02"],
+      turnNumber: 1,
+      maxGuesses: 3,
+      can: {
+        claimFieldAgent: false,
+        giveSignal: false,
+        lockGuesses: false,
+        resolveLockedGuesses: true,
+      },
+    },
+  });
+}
+
+function resolvedLeadSnapshot(version = 5) {
+  const locked = lockedLeadSnapshot(version);
+  return leadSnapshot({
+    version,
+    view: {
+      ...locked.view,
+      phase: "waiting_for_signal",
+      signal: null,
+      targetsRemaining: 7,
+      lockedCardIds: [],
+      board: locked.view.board.map((card, index) =>
+        index < 2 ? { ...card, revealed: true } : card,
+      ),
+      previousTurn: {
+        turnNumber: 1,
+        signal: { word: "orbit", count: 2 },
+        lockedCardIds: ["c01", "c02"],
+        reveals: [
+          { cardId: "c01", result: "target" },
+          { cardId: "c02", result: "decoy" },
+        ],
+        stoppedBy: "decoy",
+        fieldNote: null,
+      },
+      can: {
+        claimFieldAgent: false,
+        giveSignal: true,
+        lockGuesses: false,
+        resolveLockedGuesses: false,
+      },
+    },
+  });
 }
 
 function fieldSnapshot(

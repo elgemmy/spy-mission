@@ -467,6 +467,72 @@ describe("room server boundary", () => {
       /"(?:kind|result)":/,
     );
   });
+
+  it("returns the authoritative snapshot for an immediate duplicate Partner resolution", async () => {
+    const row = partnerRoomRow({ fieldAgentId: AGENT_ID });
+    let state = row.state as ReturnType<typeof initialPartnerMissionState>;
+    state = partnerMissionReducer(
+      state,
+      { type: "giveSignal", word: "orbit", count: 1 },
+      LEAD_ID,
+    );
+    const cardId = state.board.find((card) => card.kind === "target")!.id;
+    state = partnerMissionReducer(
+      state,
+      { type: "lockGuesses", cardIds: [cardId] },
+      AGENT_ID,
+    );
+    state = partnerMissionReducer(
+      state,
+      { type: "resolveLockedGuesses" },
+      LEAD_ID,
+    );
+    row.state = state;
+    row.version = 5;
+    const client = fakeClient({ row, userId: LEAD_ID });
+    setAdminClientForTests(client);
+
+    const duplicate = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 4,
+        command: { type: "resolveLockedGuesses" },
+      }),
+    );
+    const payload = (await duplicate.json()) as {
+      data: {
+        version: number;
+        view: {
+          phase: string;
+          previousTurn: { lockedCardIds: string[] };
+        };
+      };
+    };
+
+    expect(duplicate.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      version: 5,
+      view: {
+        phase: "waiting_for_signal",
+        previousTurn: { lockedCardIds: [cardId] },
+      },
+    });
+    expect(client.rpc).not.toHaveBeenCalled();
+
+    const older = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 3,
+        command: { type: "resolveLockedGuesses" },
+      }),
+    );
+    expect(older.status).toBe(409);
+    await expect(older.json()).resolves.toEqual({
+      error: "ROOM_VERSION_CONFLICT",
+    });
+  });
 });
 
 function request(body: unknown): Request {

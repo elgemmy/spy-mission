@@ -149,6 +149,10 @@ function AppShell() {
   const roomRef = useRef<SharedRoomSnapshot | null>(null);
   const lifecycleGenerationRef = useRef(0);
   const pendingActionRef = useRef<{ key: string } | null>(null);
+  const pendingPartnerResolutionRef = useRef<{
+    roomId: string;
+    promise: Promise<void>;
+  } | null>(null);
   const copiedTimerRef = useRef<number | null>(null);
   const briefingCopiedTimerRef = useRef<number | null>(null);
   const waitersRef = useRef(
@@ -156,6 +160,14 @@ function AppShell() {
   );
   const publishRoom = useCallback((next: SharedRoomSnapshot | null) => {
     const current = roomRef.current;
+    if (
+      current &&
+      next &&
+      current.id === next.id &&
+      next.version <= current.version
+    ) {
+      return;
+    }
     if (
       next?.mode === "partner" &&
       next.view.viewerRole !== null &&
@@ -599,32 +611,62 @@ function AppShell() {
     }
   };
 
-  const resolveLockedGuesses = useCallback(async () => {
+  const resolveLockedGuesses = useCallback(() => {
     const current = roomRef.current;
     if (
       current?.mode !== "partner" ||
       current.view.viewerRole !== "mission_lead" ||
       current.view.phase !== "locked"
     ) {
-      return;
+      return Promise.resolve();
     }
-    try {
-      const result = await roomProvider.mutate(current.id, current.version, {
-        type: "resolveLockedGuesses",
-      });
-      if ("id" in result && activeRoomRef.current === current.id) {
-        publishRoom(result);
-        setError(null);
-      }
-    } catch (caught) {
-      if (
-        caught instanceof Error &&
-        caught.message === "ROOM_VERSION_CONFLICT"
-      ) {
-        return;
-      }
-      setError(messageForError(caught, messagesRef.current));
+    if (pendingPartnerResolutionRef.current?.roomId === current.id) {
+      return pendingPartnerResolutionRef.current.promise;
     }
+
+    const pending = (async () => {
+      try {
+        const result = await roomProvider.mutate(current.id, current.version, {
+          type: "resolveLockedGuesses",
+        });
+        if ("id" in result && activeRoomRef.current === current.id) {
+          publishRoom(result);
+          setError(null);
+        }
+      } catch (caught) {
+        if (
+          caught instanceof Error &&
+          caught.message === "ROOM_VERSION_CONFLICT"
+        ) {
+          try {
+            const latest = await roomProvider.load(current.id);
+            if (activeRoomRef.current !== current.id) {
+              return;
+            }
+            if (latest) {
+              publishRoom(latest);
+              setError(null);
+              return;
+            }
+            setError(
+              messageForError(new Error("ROOM_NOT_FOUND"), messagesRef.current),
+            );
+          } catch (refreshError) {
+            setError(messageForError(refreshError, messagesRef.current));
+          }
+          return;
+        }
+        setError(messageForError(caught, messagesRef.current));
+      }
+    })();
+    const pendingEntry = { roomId: current.id, promise: pending };
+    pendingPartnerResolutionRef.current = pendingEntry;
+    void pending.finally(() => {
+      if (pendingPartnerResolutionRef.current === pendingEntry) {
+        pendingPartnerResolutionRef.current = null;
+      }
+    });
+    return pending;
   }, [publishRoom]);
 
   const vote = async (cardIndex: number) => {
@@ -1109,26 +1151,31 @@ function AppShell() {
   const previousPartnerTurnKey = previousPartnerTurn
     ? `${room?.id}:${previousPartnerTurn.turnNumber}`
     : null;
+  const revealAnimationKey =
+    previousPartnerTurnKey &&
+    previousPartnerTurn &&
+    room?.mode === "partner" &&
+    room.view.viewerRole !== null &&
+    room.view.phase !== "locked"
+      ? JSON.stringify({
+          turnKey: previousPartnerTurnKey,
+          sequenceCardIds: previousPartnerTurn.reveals.map(
+            (reveal) => reveal.cardId,
+          ),
+        })
+      : null;
   const animatedTurnRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!previousPartnerTurnKey || !previousPartnerTurn) {
+    if (!revealAnimationKey) {
       return undefined;
     }
-    if (
-      room?.mode === "partner" &&
-      room.view.viewerRole !== null &&
-      room.view.phase === "locked"
-    ) {
-      animatedTurnRef.current = previousPartnerTurnKey;
+    if (animatedTurnRef.current === revealAnimationKey) {
       return undefined;
     }
-    if (animatedTurnRef.current === previousPartnerTurnKey) {
-      return undefined;
-    }
-    animatedTurnRef.current = previousPartnerTurnKey;
-    const sequenceCardIds = previousPartnerTurn.reveals.map(
-      (reveal) => reveal.cardId,
-    );
+    animatedTurnRef.current = revealAnimationKey;
+    const { sequenceCardIds } = JSON.parse(revealAnimationKey) as {
+      sequenceCardIds: string[];
+    };
     if (sequenceCardIds.length === 0) {
       return undefined;
     }
@@ -1159,7 +1206,7 @@ function AppShell() {
       });
     }, 700);
     return () => window.clearInterval(timer);
-  }, [previousPartnerTurn, previousPartnerTurnKey, room]);
+  }, [revealAnimationKey]);
 
   return (
     <div
