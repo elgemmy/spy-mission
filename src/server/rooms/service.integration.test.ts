@@ -881,6 +881,126 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
     }
   }, 30_000);
 
+  it("persists the same Partner reveal sequence for both roles across success, Decoy, and Trap turns", async () => {
+    const [lead, agent] = await Promise.all([
+      anonymousIdentity(),
+      anonymousIdentity(),
+    ]);
+    const created = await success<PartnerRoomSnapshot>(lead, {
+      op: "create",
+      name: "Mission Lead",
+      lang: "en",
+      mode: "partner",
+    });
+    if (!created.inviteToken) {
+      throw new Error("PARTNER_INVITE_EXPECTED");
+    }
+
+    try {
+      await success<PartnerRoomSnapshot>(agent, {
+        op: "claimPartnerSeat",
+        code: created.code,
+        name: "Cipher",
+        inviteToken: created.inviteToken,
+      });
+
+      const turns = [
+        {
+          kind: "target" as const,
+          expectedPhase: "waiting_for_signal",
+          stoppedBy: "guesses_exhausted",
+        },
+        {
+          kind: "decoy" as const,
+          expectedPhase: "waiting_for_signal",
+          stoppedBy: "decoy",
+        },
+        {
+          kind: "trap" as const,
+          expectedPhase: "lost",
+          stoppedBy: "trap",
+        },
+      ];
+
+      for (const [index, turn] of turns.entries()) {
+        const beforeSignal = await success<PartnerRoomSnapshot>(lead, {
+          op: "get",
+          roomId: created.id,
+        });
+        if (beforeSignal.view.viewerRole !== "mission_lead") {
+          throw new Error("PARTNER_LEAD_VIEW_EXPECTED");
+        }
+        const cardId = beforeSignal.view.board.find(
+          (card) => card.kind === turn.kind && !card.revealed,
+        )?.id;
+        if (!cardId) {
+          throw new Error(`PARTNER_${turn.kind.toUpperCase()}_EXPECTED`);
+        }
+        await success<PartnerRoomSnapshot>(lead, {
+          op: "command",
+          roomId: created.id,
+          expectedVersion: beforeSignal.version,
+          command: { type: "giveSignal", word: `signal${index}`, count: 1 },
+        });
+        const agentTurn = await success<PartnerRoomSnapshot>(agent, {
+          op: "get",
+          roomId: created.id,
+        });
+        const locked = await success<PartnerRoomSnapshot>(agent, {
+          op: "command",
+          roomId: created.id,
+          expectedVersion: agentTurn.version,
+          command: { type: "lockGuesses", cardIds: [cardId] },
+        });
+        const resolved = await success<PartnerRoomSnapshot>(lead, {
+          op: "command",
+          roomId: created.id,
+          expectedVersion: locked.version,
+          command: { type: "resolveLockedGuesses" },
+        });
+        const duplicate = await success<PartnerRoomSnapshot>(lead, {
+          op: "command",
+          roomId: created.id,
+          expectedVersion: locked.version,
+          command: { type: "resolveLockedGuesses" },
+        });
+        const agentDuplicate = await call(agent, {
+          op: "command",
+          roomId: created.id,
+          expectedVersion: locked.version,
+          command: { type: "resolveLockedGuesses" },
+        });
+        const fieldResolved = await success<PartnerRoomSnapshot>(agent, {
+          op: "get",
+          roomId: created.id,
+        });
+        if (
+          resolved.view.viewerRole !== "mission_lead" ||
+          duplicate.view.viewerRole !== "mission_lead" ||
+          fieldResolved.view.viewerRole !== "field_agent"
+        ) {
+          throw new Error("PARTNER_RESOLVED_VIEWS_EXPECTED");
+        }
+
+        expect(resolved.view.phase).toBe(turn.expectedPhase);
+        expect(resolved.view.previousTurn).toMatchObject({
+          lockedCardIds: [cardId],
+          reveals: [{ cardId, result: turn.kind }],
+          stoppedBy: turn.stoppedBy,
+        });
+        expect(fieldResolved.view.previousTurn).toEqual(
+          resolved.view.previousTurn,
+        );
+        expect(duplicate.version).toBe(resolved.version);
+        expect(duplicate.view.previousTurn).toEqual(resolved.view.previousTurn);
+        expect(agentDuplicate.response.status).toBe(409);
+        expect(agentDuplicate.payload.error).toBe("ROOM_VERSION_CONFLICT");
+      }
+    } finally {
+      await deleteIfPresent(lead, created.id);
+    }
+  }, 30_000);
+
   it("serializes competing Partner identities so exactly one claims the seat", async () => {
     const [lead, first, second] = await Promise.all([
       anonymousIdentity(),

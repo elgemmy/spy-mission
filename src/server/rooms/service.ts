@@ -422,6 +422,16 @@ async function mutateRoom(
     throw new ApiError(404, "ROOM_NOT_FOUND");
   }
   if (stored.room.version !== expectedVersion) {
+    if (
+      isImmediatelyRepeatedPartnerResolution(
+        stored.room,
+        expectedVersion,
+        command,
+        userId,
+      )
+    ) {
+      return toRoomSnapshot(stored.room, userId);
+    }
     throw new ApiError(409, "ROOM_VERSION_CONFLICT");
   }
 
@@ -514,6 +524,28 @@ async function mutateRoom(
     client,
   );
   return toRoomSnapshot(updated.room, userId, inviteToken);
+}
+
+function isImmediatelyRepeatedPartnerResolution(
+  room: SharedRoomRecord,
+  expectedVersion: number,
+  command: RoomCommand,
+  userId: string,
+): room is PartnerRoomRecord {
+  if (
+    room.mode !== "partner" ||
+    command.type !== "resolveLockedGuesses" ||
+    room.state.missionLead.id !== userId ||
+    room.version !== expectedVersion + 1
+  ) {
+    return false;
+  }
+  return (
+    (room.state.phase === "waiting_for_signal" ||
+      room.state.phase === "won" ||
+      room.state.phase === "lost") &&
+    room.state.previousTurn?.turnNumber === room.state.turnNumber
+  );
 }
 
 async function deleteRoom(
