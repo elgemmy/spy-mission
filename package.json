@@ -13,7 +13,10 @@
     "test:watch": "vitest",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "skill:build": "node scripts/build-play-spymission-skill.mjs",
+    "skill:check": "node scripts/build-play-spymission-skill.mjs --check",
+    "skill:test": "node --test scripts/test-play-spymission-watcher.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
