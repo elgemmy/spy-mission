@@ -19,6 +19,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run skill:check
+      - run: npm run skill:test
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test
