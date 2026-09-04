@@ -66,27 +66,14 @@ export function PartnerStatus({
   });
 
   return (
-    <section
-      className="cn-partner-panel"
-      aria-labelledby="partner-status-title"
-    >
-      <p id="partner-status-title" className="cn-partner-eyebrow">
-        {t.activity}
-      </p>
-      <div className="cn-partner-status" aria-live="polite">
-        <span
-          className="cn-partner-status__dot"
-          data-ready={String(fieldAgentName !== null)}
-          aria-hidden="true"
-        />
-        <strong>{status}</strong>
-      </div>
-      {fieldAgentName ? (
-        <p className="cn-partner-status__joined">
-          ● {t.joined(fieldAgentName)}
-        </p>
-      ) : null}
-    </section>
+    <p className="cn-partner-status" aria-label={t.activity} aria-live="polite">
+      <span
+        className="cn-partner-status__dot"
+        data-ready={String(fieldAgentName !== null)}
+        aria-hidden="true"
+      />
+      <strong>{status}</strong>
+    </p>
   );
 }
 

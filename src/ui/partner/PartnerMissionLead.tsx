@@ -79,19 +79,26 @@ export function PartnerMissionLead({
         presentation={presentation}
       />
 
-      <AgentInvite
-        locale={locale}
-        fieldAgentName={fieldAgentName}
-        inviteUrl={inviteUrl}
-        inviteCopied={inviteCopied}
-        briefingCopied={briefingCopied}
-        onCopyAgentInvite={onCopyAgentInvite}
-        onCopyAgentBriefing={onCopyAgentBriefing}
-      />
+      {fieldAgentName === null ? (
+        <AgentInvite
+          locale={locale}
+          inviteUrl={inviteUrl}
+          inviteCopied={inviteCopied}
+          briefingCopied={briefingCopied}
+          onCopyAgentInvite={onCopyAgentInvite}
+          onCopyAgentBriefing={onCopyAgentBriefing}
+        />
+      ) : null}
 
-      <AgentVisibility locale={locale} />
+      {signal ? <CurrentSignal locale={locale} signal={signal} /> : null}
 
-      <CurrentSignal locale={locale} signal={signal} />
+      {!ended ? (
+        <SignalForm
+          locale={locale}
+          enabled={phase === "waiting_for_signal"}
+          onSendSignal={onSendSignal}
+        />
+      ) : null}
 
       <MissionLeadBoard
         cards={cards}
@@ -103,11 +110,13 @@ export function PartnerMissionLead({
         visibleRevealCount={presentation?.visibleRevealCount}
       />
 
-      <LockedGuessSummary
-        locale={locale}
-        cardIds={lockedCardIds}
-        cardWords={words}
-      />
+      {lockedCardIds.length > 0 ? (
+        <LockedGuessSummary
+          locale={locale}
+          cardIds={lockedCardIds}
+          cardWords={words}
+        />
+      ) : null}
 
       {phase === "locked" ? (
         <RevealPresentation
@@ -119,21 +128,12 @@ export function PartnerMissionLead({
       ) : null}
 
       <PreviousTurn locale={locale} turn={previousTurn} />
-
-      {!ended ? (
-        <SignalForm
-          locale={locale}
-          enabled={phase === "waiting_for_signal"}
-          onSendSignal={onSendSignal}
-        />
-      ) : null}
     </section>
   );
 }
 
 function AgentInvite({
   locale,
-  fieldAgentName,
   inviteUrl,
   inviteCopied,
   briefingCopied,
@@ -141,7 +141,6 @@ function AgentInvite({
   onCopyAgentBriefing,
 }: {
   locale: "en" | "ar";
-  fieldAgentName: string | null;
   inviteUrl: string;
   inviteCopied: boolean;
   briefingCopied: boolean;
@@ -158,7 +157,7 @@ function AgentInvite({
           <p id={`${inviteId}-title`} className="cn-partner-eyebrow">
             {t.fieldAgentSeat}
           </p>
-          <strong>{fieldAgentName ?? t.seatOpen}</strong>
+          <strong>{t.seatOpen}</strong>
         </div>
         <GlyphIcon role="neutral" />
       </div>
@@ -181,28 +180,6 @@ function AgentInvite({
         </Button>
       </div>
     </section>
-  );
-}
-
-function AgentVisibility({ locale }: { locale: "en" | "ar" }) {
-  const t = PARTNER_MESSAGES[locale];
-
-  return (
-    <aside
-      className="cn-partner-panel"
-      aria-labelledby="agent-visibility-title"
-    >
-      <p id="agent-visibility-title" className="cn-partner-eyebrow">
-        {t.whatAgentSees}
-      </p>
-      <ul className="cn-partner-visibility-list">
-        <li data-visible="true">✓ {t.publicWords}</li>
-        <li data-visible="true">✓ {t.revealedResults}</li>
-        <li data-visible="true">✓ {t.currentSignal}</li>
-        <li data-visible="false">✕ {t.secretMap}</li>
-        <li data-visible="false">✕ {t.unrevealedClassifications}</li>
-      </ul>
-    </aside>
   );
 }
 
