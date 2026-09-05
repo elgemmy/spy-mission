@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type ReactNode,
 } from "react";
 import {
   isIllegalMove,
@@ -54,6 +55,7 @@ import {
   type FieldAgentMissionSnapshot,
   type PartnerMissionWebMcpHandlers,
 } from "../webmcp";
+import { buildAgentBriefing } from "../ui/partner/agentBriefing";
 import "../ui/game/Game.css";
 import { initTheme } from "./theme";
 
@@ -246,6 +248,7 @@ function AppShell() {
         briefingCopiedTimerRef.current = null;
       }
       pendingActionRef.current = null;
+      pendingPartnerResolutionRef.current = null;
       setPendingRoomAction(null);
       return true;
     },
@@ -265,28 +268,30 @@ function AppShell() {
     [publishRoom],
   );
 
-  const runPending = useCallback(
-    async <T,>(
-      key: string,
-      action: () => Promise<T>,
-    ): Promise<T | undefined> => {
-      if (pendingActionRef.current) {
-        return undefined;
+  // The operation owns its completion: callers never receive a result from
+  // a room context that navigation or teardown has already invalidated.
+  const runPending = async <T,>(
+    key: string,
+    action: () => Promise<T>,
+    onSuccess: (result: T) => void,
+  ): Promise<void> => {
+    if (pendingActionRef.current) return;
+    const generation = lifecycleGenerationRef.current;
+    const pending = { key };
+    pendingActionRef.current = pending;
+    setPendingRoomAction(key);
+    try {
+      const result = await action();
+      if (lifecycleGenerationRef.current === generation) onSuccess(result);
+    } catch (caught) {
+      if (lifecycleGenerationRef.current === generation) handleError(caught);
+    } finally {
+      if (pendingActionRef.current === pending) {
+        pendingActionRef.current = null;
+        setPendingRoomAction(null);
       }
-      const pending = { key };
-      pendingActionRef.current = pending;
-      setPendingRoomAction(key);
-      try {
-        return await action();
-      } finally {
-        if (pendingActionRef.current === pending) {
-          pendingActionRef.current = null;
-          setPendingRoomAction(null);
-        }
-      }
-    },
-    [],
-  );
+    }
+  };
 
   useEffect(() => {
     initTheme("default");
@@ -418,13 +423,20 @@ function AppShell() {
         publishRoom(next);
         return;
       }
+      // Deletion/leave can notify subscribers before the command resolves.
+      // Losing access is expected while this context is intentionally exiting.
+      const exiting =
+        pendingActionRef.current?.key === "deleteRoom" ||
+        pendingActionRef.current?.key === "leaveRoom";
       teardownRoomContext({
         expectedRoomId: activeRoomId,
         clearInvite: true,
-        nextError: messageForError(
-          new Error("ROOM_ACCESS_REVOKED"),
-          messagesRef.current,
-        ),
+        nextError: exiting
+          ? null
+          : messageForError(
+              new Error("ROOM_ACCESS_REVOKED"),
+              messagesRef.current,
+            ),
       });
     });
   }, [activeRoomId, publishRoom, teardownRoomContext]);
@@ -437,38 +449,21 @@ function AppShell() {
   const clueToast: ClueLogEntry | null =
     classicRoom?.ui.clueLog[classicRoom.ui.clueLog.length - 1] ?? null;
 
-  const commit = async (command: RoomCommand) => {
-    if (!room) {
-      return;
-    }
+  const commit = async (
+    command: RoomCommand,
+    onSuccess?: (result: RoomMutationResult) => void,
+  ) => {
+    if (!room) return;
     const sourceRoom = room;
-    const generation = lifecycleGenerationRef.current;
-    let result: RoomMutationResult | undefined;
-    try {
-      result = await runPending(command.type, () =>
-        roomProvider.mutate(sourceRoom.id, sourceRoom.version, command),
-      );
-    } catch (caught) {
-      if (
-        activeRoomRef.current === sourceRoom.id &&
-        lifecycleGenerationRef.current === generation
-      ) {
-        throw caught;
-      }
-      return undefined;
-    }
-    if (
-      !result ||
-      activeRoomRef.current !== sourceRoom.id ||
-      lifecycleGenerationRef.current !== generation
-    ) {
-      return result;
-    }
-    if ("id" in result) {
-      publishRoom(result);
-    }
-    setError(null);
-    return result;
+    await runPending(
+      command.type,
+      () => roomProvider.mutate(sourceRoom.id, sourceRoom.version, command),
+      (result) => {
+        if ("id" in result) publishRoom(result);
+        setError(null);
+        onSuccess?.(result);
+      },
+    );
   };
 
   const handleError = (caught: unknown) => {
@@ -483,50 +478,30 @@ function AppShell() {
     setError(messageForError(caught, t));
   };
 
-  const createRoom = async (name: string) => {
-    const generation = lifecycleGenerationRef.current;
-    try {
-      const next = await runPending("create", () =>
-        roomProvider.create({
-          name,
-          lang: "en",
-        }),
-      );
-      if (next && lifecycleGenerationRef.current === generation) {
-        enterRoom(next);
-      }
-    } catch (caught) {
-      if (lifecycleGenerationRef.current === generation) {
-        handleError(caught);
-      }
-    }
-  };
+  const createRoom = (name: string) =>
+    runPending(
+      "create",
+      () => roomProvider.create({ name, lang: "en" }),
+      enterRoom,
+    );
 
-  const createPartnerMission = async (name: string, lang: Lang = "en") => {
-    const generation = lifecycleGenerationRef.current;
-    try {
-      const next = await runPending("createPartner", () =>
+  const createPartnerMission = (name: string, lang: Lang = "en") =>
+    runPending(
+      "createPartner",
+      () =>
         roomProvider.create({
           name,
           lang,
           mode: "partner",
           visibility: "private",
         }),
-      );
-      if (next && lifecycleGenerationRef.current === generation) {
-        enterRoom(next);
-      }
-    } catch (caught) {
-      if (lifecycleGenerationRef.current === generation) {
-        handleError(caught);
-      }
-    }
-  };
+      enterRoom,
+    );
 
-  const joinRoom = async (code: string, name: string, source: JoinSource) => {
-    const generation = lifecycleGenerationRef.current;
-    try {
-      const next = await runPending("join", () =>
+  const joinRoom = (code: string, name: string, source: JoinSource) =>
+    runPending(
+      "join",
+      () =>
         roomProvider.join({
           code,
           name,
@@ -534,81 +509,27 @@ function AppShell() {
             ? { inviteToken: pendingInviteToken }
             : {}),
         }),
-      );
-      if (next && lifecycleGenerationRef.current === generation) {
-        enterRoom(next);
-      }
-    } catch (caught) {
-      if (lifecycleGenerationRef.current === generation) {
-        handleError(caught);
-      }
-    }
-  };
+      enterRoom,
+    );
 
-  const assignSelf = async (team: Team, role: Role) => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "assignSelf", team, role });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const assignSelf = (team: Team, role: Role) =>
+    commit({ type: "assignSelf", team, role });
 
-  const setLang = async (lang: Lang) => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "setLang", lang });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const setLang = (lang: Lang) => commit({ type: "setLang", lang });
 
-  const setVisibility = async (visibility: RoomVisibility) => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "setVisibility", visibility });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const setVisibility = (visibility: RoomVisibility) =>
+    commit({ type: "setVisibility", visibility });
 
-  const startGame = async () => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "startGame" });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const startGame = () => commit({ type: "startGame" });
 
-  const giveClue = async (word: string, count: number) => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "giveClue", word, count });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const giveClue = (word: string, count: number) =>
+    commit({ type: "giveClue", word, count });
 
   const giveSignal = async (word: string, count: number) => {
     if (room?.mode !== "partner") {
       return;
     }
-    try {
-      await commit({ type: "giveSignal", word, count });
-    } catch (caught) {
-      handleError(caught);
-    }
+    await commit({ type: "giveSignal", word, count });
   };
 
   const resolveLockedGuesses = useCallback(() => {
@@ -624,23 +545,28 @@ function AppShell() {
       return pendingPartnerResolutionRef.current.promise;
     }
 
+    const generation = lifecycleGenerationRef.current;
+    const isCurrent = () =>
+      lifecycleGenerationRef.current === generation &&
+      activeRoomRef.current === current.id;
     const pending = (async () => {
       try {
         const result = await roomProvider.mutate(current.id, current.version, {
           type: "resolveLockedGuesses",
         });
-        if ("id" in result && activeRoomRef.current === current.id) {
+        if ("id" in result && isCurrent()) {
           publishRoom(result);
           setError(null);
         }
       } catch (caught) {
+        if (!isCurrent()) return;
         if (
           caught instanceof Error &&
           caught.message === "ROOM_VERSION_CONFLICT"
         ) {
           try {
             const latest = await roomProvider.load(current.id);
-            if (activeRoomRef.current !== current.id) {
+            if (!isCurrent()) {
               return;
             }
             if (latest) {
@@ -652,7 +578,9 @@ function AppShell() {
               messageForError(new Error("ROOM_NOT_FOUND"), messagesRef.current),
             );
           } catch (refreshError) {
-            setError(messageForError(refreshError, messagesRef.current));
+            if (isCurrent()) {
+              setError(messageForError(refreshError, messagesRef.current));
+            }
           }
           return;
         }
@@ -673,49 +601,23 @@ function AppShell() {
     if (!room || !view?.can.guess) {
       return;
     }
-    try {
-      await commit(
-        selectedCardIndex === cardIndex
-          ? { type: "clearVote" }
-          : { type: "vote", cardIndex },
-      );
-    } catch (caught) {
-      handleError(caught);
-    }
+    await commit(
+      selectedCardIndex === cardIndex
+        ? { type: "clearVote" }
+        : { type: "vote", cardIndex },
+    );
   };
 
   const confirmCard = async (cardIndex: number) => {
     if (!classicRoom || classicRoom.ui.votes[playerId] !== cardIndex) {
       return;
     }
-    try {
-      await commit({ type: "confirmGuess", cardIndex });
-    } catch (caught) {
-      handleError(caught);
-    }
+    await commit({ type: "confirmGuess", cardIndex });
   };
 
-  const endTurn = async () => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "endTurn" });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const endTurn = () => commit({ type: "endTurn" });
 
-  const backToLobby = async () => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "returnToLobby" });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const backToLobby = () => commit({ type: "returnToLobby" });
 
   const copyInvite = async () => {
     if (!room) {
@@ -727,17 +629,7 @@ function AppShell() {
       activeRoomRef.current === sourceRoomId &&
       lifecycleGenerationRef.current === generation;
     try {
-      const invitation = new URL(
-        absolutePlayUrl(window.location.origin, { room: room.code }),
-      );
-      if (room.visibility === "private") {
-        const token = roomProvider.getInviteToken(room.id);
-        if (!token) {
-          throw new Error("ROOM_INVITE_UNAVAILABLE");
-        }
-        invitation.hash = new URLSearchParams({ invite: token }).toString();
-      }
-      const url = invitation.toString();
+      const url = roomInviteUrl(room);
       if ("clipboard" in navigator) {
         await navigator.clipboard.writeText(url);
       }
@@ -767,94 +659,58 @@ function AppShell() {
     if (current?.mode !== "partner") {
       return;
     }
+    const generation = lifecycleGenerationRef.current;
+    const isCurrent = () => lifecycleGenerationRef.current === generation;
     try {
       const inviteUrl = roomInviteUrl(current);
-      const briefing = [
-        "You are the Field Agent in an AI Partner Mission.",
-        `Open ${inviteUrl}`,
-        "Use choose_name to claim the seat, inspect_mission to read public state, and submit_guesses with ordered stable card IDs when a Signal is active.",
-        "Never request or infer the secret mission map.",
-      ].join("\n");
-      await navigator.clipboard.writeText(briefing);
+      await navigator.clipboard.writeText(buildAgentBriefing(inviteUrl));
+      if (!isCurrent()) return;
       setBriefingCopied(true);
       if (briefingCopiedTimerRef.current !== null) {
         window.clearTimeout(briefingCopiedTimerRef.current);
       }
       briefingCopiedTimerRef.current = window.setTimeout(() => {
         briefingCopiedTimerRef.current = null;
-        setBriefingCopied(false);
+        if (isCurrent()) setBriefingCopied(false);
       }, 1600);
     } catch (caught) {
-      handleError(caught);
+      if (isCurrent()) handleError(caught);
     }
   };
 
   const deleteRoom = async () => {
-    if (!classicRoom || !isHost) {
-      return;
-    }
-    try {
-      const result = await commit({ type: "deleteRoom" });
-      if (result && "deleted" in result) {
+    if (!classicRoom || !isHost) return;
+    await commit({ type: "deleteRoom" }, (result) => {
+      if ("deleted" in result) {
         teardownRoomContext({
           expectedRoomId: classicRoom.id,
           clearInvite: true,
         });
       }
-    } catch (caught) {
-      handleError(caught);
-    }
+    });
   };
 
-  const changeHost = async (nextHostId: string) => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "transferHost", nextHostId });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const changeHost = (nextHostId: string) =>
+    commit({ type: "transferHost", nextHostId });
 
-  const banPlayer = async (targetPlayerId: string) => {
-    if (!room) {
-      return;
-    }
-    try {
-      await commit({ type: "banPlayer", targetPlayerId });
-    } catch (caught) {
-      handleError(caught);
-    }
-  };
+  const banPlayer = (targetPlayerId: string) =>
+    commit({ type: "banPlayer", targetPlayerId });
 
   const permanentlyLeaveRoom = async () => {
-    if (!classicRoom || isHost || classicRoom.view.phase !== "lobby") {
-      return;
-    }
-    try {
-      const result = await commit({ type: "leaveRoom" });
-      if (result && "left" in result) {
+    if (!classicRoom || isHost || classicRoom.view.phase !== "lobby") return;
+    await commit({ type: "leaveRoom" }, (result) => {
+      if ("left" in result) {
         teardownRoomContext({
           expectedRoomId: classicRoom.id,
           clearInvite: true,
         });
       }
-    } catch (caught) {
-      handleError(caught);
-    }
+    });
   };
 
   const renameSelf = async (name: string) => {
-    if (!classicRoom) {
-      return;
-    }
-    try {
-      await commit({ type: "renamePlayer", name });
-      setRenameOpen(false);
-    } catch (caught) {
-      handleError(caught);
-    }
+    if (!classicRoom) return;
+    await commit({ type: "renamePlayer", name }, () => setRenameOpen(false));
   };
 
   const requestConfirm = (request: ConfirmRequest) => {
@@ -960,6 +816,7 @@ function AppShell() {
   useEffect(() => {
     webMcpHandlersCell.current = {
       chooseName: async ({ name }) => {
+        const generation = lifecycleGenerationRef.current;
         const currentStep = step;
         const inviteToken = pendingInviteToken;
         if (currentStep.type !== "partnerInvite" || !inviteToken) {
@@ -973,6 +830,9 @@ function AppShell() {
             name,
             inviteToken,
           });
+          if (lifecycleGenerationRef.current !== generation) {
+            throw new WebMcpToolError("The invitation is no longer active.");
+          }
           if (
             next.mode !== "partner" ||
             next.view.viewerRole !== "field_agent"
@@ -1019,6 +879,7 @@ function AppShell() {
           signal.addEventListener("abort", finish, { once: true });
         }),
       submitGuesses: async ({ cardIds, fieldNote }, latest) => {
+        const generation = lifecycleGenerationRef.current;
         const current = roomRef.current;
         if (
           current?.mode !== "partner" ||
@@ -1039,6 +900,9 @@ function AppShell() {
               ...(fieldNote === undefined ? {} : { fieldNote }),
             },
           );
+          if (lifecycleGenerationRef.current !== generation) {
+            throw new WebMcpToolError("The mission is no longer active.");
+          }
           if (
             !("id" in result) ||
             result.mode !== "partner" ||
@@ -1112,6 +976,8 @@ function AppShell() {
 
   useEffect(
     () => () => {
+      lifecycleGenerationRef.current += 1;
+      pendingPartnerResolutionRef.current = null;
       webMcpHandlersCell.current = null;
       partnerWebMcpAdapter.dispose();
     },
@@ -1620,74 +1486,26 @@ function Onboarding({
 }
 
 function PartnerCreateStep({
-  title,
-  description,
-  submitLabel,
-  nameLabel,
-  namePlaceholder,
   boardLanguageLabel,
   englishLabel,
   arabicLabel,
-  backLabel,
-  pending,
-  onBack,
   onSubmit,
-}: {
-  title: string;
-  description: string;
-  submitLabel: string;
-  nameLabel: string;
-  namePlaceholder: string;
+  ...nameProps
+}: Omit<UsernameStepProps, "onSubmit" | "children" | "inputId"> & {
   boardLanguageLabel: string;
   englishLabel: string;
   arabicLabel: string;
-  backLabel: string;
-  pending: boolean;
-  onBack: () => void;
   onSubmit: (name: string, lang: Lang) => void;
 }) {
-  const [name, setName] = useState("");
   const [boardLang, setBoardLang] = useState<Lang>("en");
-  const submittedRef = useRef(false);
-
-  useEffect(() => {
-    if (!pending) {
-      submittedRef.current = false;
-    }
-  }, [pending]);
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmed = name.trim();
-    if (pending || submittedRef.current || !trimmed) {
-      return;
-    }
-    submittedRef.current = true;
-    onSubmit(trimmed, boardLang);
-  };
 
   return (
-    <form
-      className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
-      onSubmit={submit}
-      aria-busy={pending}
+    <UsernameStep
+      {...nameProps}
+      inputId="lead-name"
+      onSubmit={(name) => onSubmit(name, boardLang)}
     >
-      <div>
-        <h1 className="text-ink m-0 text-lg font-bold">{title}</h1>
-        <p className="text-ink-soft mt-cn-1 m-0 text-sm">{description}</p>
-      </div>
-      <label className="text-ink text-sm font-semibold" htmlFor="lead-name">
-        {nameLabel}
-      </label>
-      <input
-        id="lead-name"
-        className="cn-field"
-        value={name}
-        disabled={pending}
-        onChange={(event) => setName(event.target.value)}
-        placeholder={namePlaceholder}
-      />
-      <fieldset className="gap-cn-2 flex flex-col" disabled={pending}>
+      <fieldset className="gap-cn-2 flex flex-col" disabled={nameProps.pending}>
         <legend className="text-ink text-sm font-semibold">
           {boardLanguageLabel}
         </legend>
@@ -1708,13 +1526,7 @@ function PartnerCreateStep({
           </button>
         </div>
       </fieldset>
-      <Button type="submit" disabled={pending || name.trim().length === 0}>
-        {submitLabel}
-      </Button>
-      <Button variant="secondary" onClick={onBack} disabled={pending}>
-        {backLabel}
-      </Button>
-    </form>
+    </UsernameStep>
   );
 }
 
@@ -1811,6 +1623,20 @@ function JoinCodeStep({
   );
 }
 
+interface UsernameStepProps {
+  title: string;
+  description: string;
+  submitLabel: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  backLabel: string;
+  pending: boolean;
+  onBack: () => void;
+  onSubmit: (name: string) => void;
+  inputId?: string;
+  children?: ReactNode;
+}
+
 function UsernameStep({
   title,
   description,
@@ -1821,17 +1647,9 @@ function UsernameStep({
   pending,
   onBack,
   onSubmit,
-}: {
-  title: string;
-  description: string;
-  submitLabel: string;
-  nameLabel: string;
-  namePlaceholder: string;
-  backLabel: string;
-  pending: boolean;
-  onBack: () => void;
-  onSubmit: (name: string) => void;
-}) {
+  inputId = "player-name",
+  children,
+}: UsernameStepProps) {
   const [name, setName] = useState("");
   const submittedRef = useRef(false);
 
@@ -1863,17 +1681,18 @@ function UsernameStep({
         <h1 className="text-ink m-0 text-lg font-bold">{title}</h1>
         <p className="text-ink-soft mt-cn-1 m-0 text-sm">{description}</p>
       </div>
-      <label className="text-ink text-sm font-semibold" htmlFor="player-name">
+      <label className="text-ink text-sm font-semibold" htmlFor={inputId}>
         {nameLabel}
       </label>
       <input
-        id="player-name"
+        id={inputId}
         className="cn-field"
         value={name}
         disabled={pending}
         onChange={(event) => setName(event.target.value)}
         placeholder={namePlaceholder}
       />
+      {children}
       <Button type="submit" disabled={pending || name.trim().length === 0}>
         {submitLabel}
       </Button>

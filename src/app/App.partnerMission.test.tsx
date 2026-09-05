@@ -82,6 +82,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   localStorage.clear();
   Reflect.deleteProperty(document, "modelContext");
   Reflect.deleteProperty(navigator, "modelContext");
@@ -220,6 +221,111 @@ describe("AI Partner Mission App integration", () => {
     );
   });
 
+  it.each(["choose_name", "submit_guesses"])(
+    "ignores an in-flight %s result after navigation home",
+    async (toolName) => {
+      const registrations: Array<{ tool: RegisteredTool }> = [];
+      Object.defineProperty(document, "modelContext", {
+        configurable: true,
+        value: {
+          registerTool: (tool: RegisteredTool) => registrations.push({ tool }),
+        },
+      });
+      const waiting = fieldSnapshot();
+      const turn = fieldSnapshot({
+        version: 3,
+        view: {
+          ...waiting.view,
+          phase: "field_agent_turn",
+          signal: { word: "orbit", count: 1 },
+          maxGuesses: 2,
+        },
+      });
+      window.history.replaceState(
+        null,
+        "",
+        "/play/?room=PARTNER#invite=private-agent-token",
+      );
+      mocks.resume.mockResolvedValue(
+        toolName === "choose_name"
+          ? { status: "join", code: "PARTNER", mode: "partner" }
+          : { status: "active", room: turn },
+      );
+      let complete!: (room: PartnerRoomSnapshot) => void;
+      const pending = new Promise<PartnerRoomSnapshot>((resolve) => {
+        complete = resolve;
+      });
+      mocks.claimPartnerSeat.mockReturnValue(pending);
+      mocks.mutate.mockReturnValue(pending);
+      render(<App />);
+      await waitFor(() =>
+        expect(registrations.some(({ tool }) => tool.name === toolName)).toBe(
+          true,
+        ),
+      );
+      const execution = latestTool(registrations, toolName)
+        .execute(
+          toolName === "choose_name"
+            ? { name: "Cipher" }
+            : { card_ids: ["c01"] },
+        )
+        .then(
+          () => "accepted",
+          () => "rejected",
+        );
+      await waitFor(() =>
+        expect(
+          toolName === "choose_name" ? mocks.claimPartnerSeat : mocks.mutate,
+        ).toHaveBeenCalledOnce(),
+      );
+      act(() => {
+        window.history.replaceState(null, "", "/play/");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      });
+      await act(async () => {
+        complete(
+          toolName === "choose_name"
+            ? waiting
+            : fieldSnapshot({
+                version: 4,
+                view: { ...turn.view, phase: "locked", lockedCardIds: ["c01"] },
+              }),
+        );
+        await execution;
+      });
+      expect(window.location.search).toBe("");
+      expect(
+        screen.getByRole("button", { name: en.partnerMission }),
+      ).toBeInTheDocument();
+      expect(await execution).toBe("rejected");
+    },
+  );
+
+  it("ignores a failed reveal request after leaving its room", async () => {
+    let rejectMutation!: (error: Error) => void;
+    mocks.mutate.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectMutation = reject;
+      }),
+    );
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({
+      status: "active",
+      room: lockedLeadSnapshot(),
+    });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: en.revealNow }));
+    act(() => {
+      window.history.replaceState(null, "", "/play/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await act(async () => {
+      rejectMutation(new Error("ROOM_VERSION_CONFLICT"));
+    });
+    expect(mocks.load).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("shows an actionable unsupported state without WebMCP", async () => {
     window.history.replaceState(
       null,
@@ -314,7 +420,10 @@ describe("AI Partner Mission App integration", () => {
     await screen.findByRole("button", { name: en.sendSignal });
 
     vi.useFakeTimers();
-    act(() => mocks.onChange?.(lockedLeadSnapshot()));
+    await act(async () => {
+      mocks.onChange?.(lockedLeadSnapshot());
+    });
+    expect(screen.getByText(en.revealCountdown(3))).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3_000);
     });

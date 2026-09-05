@@ -199,6 +199,88 @@ describe("WebMCP tool schemas and legal sets", () => {
 });
 
 describe("WebMCP registration lifecycle", () => {
+  it("does not let a late registration failure clear the new pending group", async () => {
+    let rejectOld!: (error: Error) => void;
+    let finishNew!: () => void;
+    const oldRegistration = new Promise<void>((_, reject) => {
+      rejectOld = reject;
+    });
+    const newRegistration = new Promise<void>((resolve) => {
+      finishNew = resolve;
+    });
+    const registerTool = vi
+      .fn()
+      .mockReturnValueOnce(oldRegistration)
+      .mockReturnValue(newRegistration);
+    const adapter = new PartnerMissionWebMcpAdapter({
+      getCurrentHandlers: () => handlersHarness().handlers,
+      getModelContext: () => context,
+    });
+    const context = { registerTool };
+    const old = adapter.setCapability({ kind: "pre_join" });
+    await Promise.resolve();
+    const capability = {
+      kind: "joined" as const,
+      phase: "waiting_for_signal" as const,
+    };
+    const current = adapter.setCapability(capability);
+    await Promise.resolve();
+    rejectOld(new Error("old group failed"));
+    await old;
+    const repeated = adapter.setCapability(capability);
+    await Promise.resolve();
+    expect(registerTool).toHaveBeenCalledTimes(2);
+    finishNew();
+    const expected = {
+      state: "ready",
+      toolCount: 1,
+      toolNames: ["inspect_mission"],
+    };
+    await expect(current).resolves.toEqual(expected);
+    await expect(repeated).resolves.toEqual(expected);
+    expect(adapter.getStatus()).toEqual(expected);
+    adapter.dispose();
+  });
+
+  it.each(["inactive", "unsupported"] as const)(
+    "does not retain an abandoned registration promise when %s",
+    async (state) => {
+      let finishRegistration!: () => void;
+      const stalled = new Promise<void>((resolve) => {
+        finishRegistration = resolve;
+      });
+      let context: WebMcpModelContext | null = {
+        registerTool: () => stalled,
+      };
+      const adapter = new PartnerMissionWebMcpAdapter({
+        getCurrentHandlers: () => handlersHarness().handlers,
+        getModelContext: () => context,
+      });
+      const first = adapter.setCapability({ kind: "pre_join" });
+      await Promise.resolve();
+      if (state === "unsupported") context = null;
+      const next =
+        state === "inactive"
+          ? { kind: "inactive" as const }
+          : { kind: "pre_join" as const };
+      const expected = { state, toolCount: 0, toolNames: [] };
+      try {
+        await expect(adapter.setCapability(next)).resolves.toEqual(expected);
+        let repeated: unknown;
+        void adapter.setCapability(next).then((result) => {
+          repeated = result;
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(repeated).toEqual(expected);
+      } finally {
+        finishRegistration();
+        await first;
+        adapter.dispose();
+      }
+    },
+  );
+
   it("does not re-register for an unchanged capability", async () => {
     const { adapter, context, registered } = adapterHarness();
     const capability: PartnerMissionWebMcpCapability = {

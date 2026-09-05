@@ -120,12 +120,6 @@ export class WebMcpToolError extends Error {
   }
 }
 
-const NO_ARGUMENTS_SCHEMA = {
-  type: "object",
-  properties: {},
-  additionalProperties: false,
-} as const;
-
 export const CHOOSE_NAME_INPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -441,7 +435,6 @@ export class PartnerMissionWebMcpAdapter {
   private controller: AbortController | null = null;
   private context: WebMcpModelContext | null = null;
   private desiredKey: string | null = null;
-  private generation = 0;
   private pending: Promise<PartnerMissionWebMcpStatus> | null = null;
   private status: PartnerMissionWebMcpStatus = {
     state: "inactive",
@@ -474,10 +467,9 @@ export class PartnerMissionWebMcpAdapter {
       }
     }
 
-    this.generation += 1;
-    const generation = this.generation;
     this.controller?.abort();
     this.controller = null;
+    this.pending = null;
     this.context = context;
     this.desiredKey = key;
 
@@ -505,14 +497,14 @@ export class PartnerMissionWebMcpAdapter {
       await Promise.resolve();
       try {
         for (const definition of definitions) {
-          if (controller.signal.aborted || generation !== this.generation) {
+          if (this.controller !== controller) {
             return this.status;
           }
           await context.registerTool(definition, {
             signal: controller.signal,
           });
         }
-        if (controller.signal.aborted || generation !== this.generation) {
+        if (this.controller !== controller) {
           return this.status;
         }
         this.status = {
@@ -523,8 +515,7 @@ export class PartnerMissionWebMcpAdapter {
         return this.status;
       } catch {
         controller.abort();
-        if (generation === this.generation) {
-          this.controller = null;
+        if (this.controller === controller) {
           this.status = {
             state: "registration_error",
             toolCount: 0,
@@ -533,7 +524,7 @@ export class PartnerMissionWebMcpAdapter {
         }
         return this.status;
       } finally {
-        if (generation === this.generation) {
+        if (this.controller === controller) {
           this.pending = null;
         }
       }
@@ -544,7 +535,6 @@ export class PartnerMissionWebMcpAdapter {
   }
 
   dispose(): void {
-    this.generation += 1;
     this.controller?.abort();
     this.controller = null;
     this.context = null;
@@ -662,6 +652,3 @@ export class PartnerMissionWebMcpAdapter {
     };
   }
 }
-
-// Kept exported for consumers that need an explicit no-argument schema.
-export const EMPTY_WEBMCP_INPUT_SCHEMA = NO_ARGUMENTS_SCHEMA;
