@@ -3,7 +3,12 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, refactor/room-lifecycle-security]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -14,15 +19,44 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Compare the complete PR against its base, including renamed/deleted files.
+          fetch-depth: 0
+      - name: Decide whether live database tests are needed
+        id: database
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Main pushes and manual runs always exercise the full integration suite.
+          required=true
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            git diff --name-only --no-renames -z "$BASE_SHA" HEAD > "$RUNNER_TEMP/changed-files"
+            required=false
+            while IFS= read -r -d '' path; do
+              case "$path" in
+                # Only known presentation/documentation paths can skip Docker.
+                # Shared code, dependencies, config, CI and unknown paths run it.
+                docs/*|*.md|LICENSE|.agents/*|public/*|play/*|index.html|\
+                src/app/*|src/ui/*|src/styles/*|src/landing/*|src/locale/*|\
+                src/assets/*|src/webmcp/*|src/main.tsx|\
+                scripts/build-play-spymission-skill.mjs|scripts/test-play-spymission-watcher.mjs)
+                  ;;
+                *) required=true; break ;;
+              esac
+            done < "$RUNNER_TEMP/changed-files"
+          fi
+          echo "required=$required" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run skill:check
       - run: npm run skill:test
-      - run: npm run typecheck
       - run: npm run lint
       - run: npm run test
+      # build includes tsc -b and the public-identity check.
       - run: npm run build
       - run: npm run test:supabase
+        if: steps.database.outputs.required == 'true'

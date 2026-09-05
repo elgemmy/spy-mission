@@ -184,8 +184,17 @@ denied.
 - Room API (mocked): `src/server/rooms/service.test.ts`
 - Room API (live local stack): `npm run test:supabase`
 
-CI runs typecheck, lint, unit tests, production build, and
-`npm run test:supabase`.
+CI runs skill checks, lint, unit tests, and the production build (which includes
+typechecking and the public-identity check). Dependency installation uses the npm
+cache and skips the automatic audit request; run `npm audit` separately when
+reviewing dependency security.
+
+The live Supabase suite runs for every `main` push and manual workflow run. PRs
+skip it only when all changed files are in the presentation, documentation, or
+agent-skill paths listed in `.github/workflows/ci.yml`. Shared/backend code,
+dependencies, configuration, workflow changes, and unknown paths still run the
+full suite. Superseded PR runs are canceled; the `verify` check remains present
+for every PR, including documentation-only changes.
 
 ## Deployment
 
