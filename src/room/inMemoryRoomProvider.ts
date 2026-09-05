@@ -8,8 +8,8 @@ export class InMemoryRoomProvider implements RoomStorage {
   private readonly codes = new Map<string, string>();
   private readonly listeners = new Map<string, Set<Listener>>();
 
-  async create(room: SharedRoomRecord): Promise<void> {
-    await this.save(room);
+  create(room: SharedRoomRecord): Promise<void> {
+    return this.save(room);
   }
 
   async delete(roomId: string): Promise<void> {
@@ -34,8 +34,16 @@ export class InMemoryRoomProvider implements RoomStorage {
     return this.load(roomId);
   }
 
-  async save(room: SharedRoomRecord, _expectedVersion?: number): Promise<void> {
-    void _expectedVersion;
+  assertVersion(roomId: string, expectedVersion: number): void {
+    if (this.rooms.get(roomId)?.version !== expectedVersion) {
+      throw new Error("ROOM_VERSION_CONFLICT");
+    }
+  }
+
+  async save(room: SharedRoomRecord, expectedVersion?: number): Promise<void> {
+    if (expectedVersion !== undefined) {
+      this.assertVersion(room.id, expectedVersion);
+    }
     const normalized = normalizeRoomRecord(room);
     this.rooms.set(normalized.id, normalized);
     this.codes.set(normalized.code, normalized.id);

@@ -37,10 +37,12 @@ import type {
 } from "./types";
 
 const localBans = new Map<string, Set<string>>();
-const localInvites = new Map<string, string>();
+// Room authority survives an individual player's cache cleanup.
+const roomInviteTokens = new Map<string, string>();
 
 export class LocalRoomProvider implements RoomProvider {
   private readonly playerId: string;
+  private readonly inviteCache = new Map<string, string>();
 
   constructor(playerId = createClientId()) {
     this.playerId = playerId;
@@ -76,7 +78,8 @@ export class LocalRoomProvider implements RoomProvider {
           });
     await inMemoryRoomProvider.create(room);
     const inviteToken = createClientId();
-    localInvites.set(room.id, inviteToken);
+    roomInviteTokens.set(room.id, inviteToken);
+    this.inviteCache.set(room.id, inviteToken);
     return toRoomSnapshot(room, this.playerId, inviteToken);
   }
 
@@ -99,7 +102,7 @@ export class LocalRoomProvider implements RoomProvider {
     }
     return {
       status: "active",
-      room: toRoomSnapshot(room, this.playerId, localInvites.get(room.id)),
+      room: toRoomSnapshot(room, this.playerId, this.inviteCache.get(room.id)),
     };
   }
 
@@ -114,7 +117,7 @@ export class LocalRoomProvider implements RoomProvider {
     if (room.mode === "partner") {
       throw new Error("ROOM_MODE_MISMATCH");
     }
-    const expectedInvite = localInvites.get(room.id);
+    const expectedInvite = roomInviteTokens.get(room.id);
     const allowPrivate =
       room.visibility === "public" ||
       Boolean(expectedInvite && input.inviteToken === expectedInvite);
@@ -128,7 +131,14 @@ export class LocalRoomProvider implements RoomProvider {
     if (next !== room) {
       await inMemoryRoomProvider.save(next, room.version);
     }
-    return toRoomSnapshot(next, this.playerId);
+    if (
+      room.visibility === "private" &&
+      input.inviteToken &&
+      input.inviteToken === expectedInvite
+    ) {
+      this.inviteCache.set(room.id, input.inviteToken);
+    }
+    return toRoomSnapshot(next, this.playerId, this.inviteCache.get(room.id));
   }
 
   async claimPartnerSeat(
@@ -144,7 +154,7 @@ export class LocalRoomProvider implements RoomProvider {
     if (isLocallyBanned(room.id, this.playerId)) {
       throw new Error("ROOM_BANNED");
     }
-    const expectedInvite = localInvites.get(room.id);
+    const expectedInvite = roomInviteTokens.get(room.id);
     if (!expectedInvite || input.inviteToken !== expectedInvite) {
       throw new Error("ROOM_PRIVATE");
     }
@@ -158,7 +168,8 @@ export class LocalRoomProvider implements RoomProvider {
       new Date().toISOString(),
     );
     await inMemoryRoomProvider.save(next, room.version);
-    return toRoomSnapshot(next, this.playerId);
+    this.inviteCache.set(room.id, expectedInvite);
+    return toRoomSnapshot(next, this.playerId, expectedInvite);
   }
 
   async load(roomId: string): Promise<SharedRoomSnapshot | null> {
@@ -172,7 +183,7 @@ export class LocalRoomProvider implements RoomProvider {
     ) {
       return null;
     }
-    return toRoomSnapshot(room, this.playerId, localInvites.get(room.id));
+    return toRoomSnapshot(room, this.playerId, this.inviteCache.get(room.id));
   }
 
   async mutate(
@@ -187,6 +198,9 @@ export class LocalRoomProvider implements RoomProvider {
     if (room.version !== expectedVersion) {
       throw new Error("ROOM_VERSION_CONFLICT");
     }
+    // The awaited load may have raced another write. Check the live store
+    // before changing local ban/invite metadata; no await precedes the write.
+    inMemoryRoomProvider.assertVersion(roomId, expectedVersion);
 
     if (command.type === "deleteRoom") {
       if (room.hostId !== this.playerId) {
@@ -194,6 +208,8 @@ export class LocalRoomProvider implements RoomProvider {
       }
       await inMemoryRoomProvider.delete(roomId);
       localBans.delete(roomId);
+      roomInviteTokens.delete(roomId);
+      this.inviteCache.delete(roomId);
       return { deleted: true };
     }
 
@@ -210,7 +226,7 @@ export class LocalRoomProvider implements RoomProvider {
       if (next !== room) {
         await inMemoryRoomProvider.save(next, expectedVersion);
       }
-      return toRoomSnapshot(next, this.playerId, localInvites.get(roomId));
+      return toRoomSnapshot(next, this.playerId, this.inviteCache.get(roomId));
     }
     if (command.type === "leaveRoom") {
       const next = leaveRoomRecord(room, this.playerId, now);
@@ -223,17 +239,9 @@ export class LocalRoomProvider implements RoomProvider {
       banned.add(command.targetPlayerId);
       localBans.set(roomId, banned);
       await inMemoryRoomProvider.save(next, expectedVersion);
-      return toRoomSnapshot(next, this.playerId, localInvites.get(roomId));
+      return toRoomSnapshot(next, this.playerId, this.inviteCache.get(roomId));
     }
-    let inviteToken = localInvites.get(roomId);
-    if (
-      command.type === "setVisibility" &&
-      command.visibility === "private" &&
-      !inviteToken
-    ) {
-      inviteToken = createClientId();
-      localInvites.set(roomId, inviteToken);
-    }
+    const inviteToken = this.inviteCache.get(roomId);
     const next = applyRoomCommand(
       room,
       this.playerId,
@@ -248,11 +256,11 @@ export class LocalRoomProvider implements RoomProvider {
   }
 
   getInviteToken(roomId: string): string | null {
-    return localInvites.get(roomId) ?? null;
+    return this.inviteCache.get(roomId) ?? null;
   }
 
   clearRoomStorage(roomId: string): void {
-    localInvites.delete(roomId);
+    this.inviteCache.delete(roomId);
   }
 
   subscribe(
@@ -266,7 +274,7 @@ export class LocalRoomProvider implements RoomProvider {
             ? isPartnerRoomMember(room, this.playerId)
             : Boolean(room.state.players[this.playerId])) &&
           !isLocallyBanned(roomId, this.playerId)
-          ? toRoomSnapshot(room, this.playerId, localInvites.get(roomId))
+          ? toRoomSnapshot(room, this.playerId, this.inviteCache.get(roomId))
           : null,
       );
     });
