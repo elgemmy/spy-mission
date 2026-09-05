@@ -1,5 +1,4 @@
 import {
-  DEFAULT_UI_LOCALE,
   UI_LOCALE_STORAGE_KEY,
   dirFor,
   readStoredUiLocale,
@@ -8,7 +7,6 @@ import {
 } from "../locale/uiLocale";
 
 export const LANG_STORAGE_KEY = UI_LOCALE_STORAGE_KEY;
-export const DEFAULT_LANG: UiLocale = DEFAULT_UI_LOCALE;
 
 export { dirFor };
 export type Lang = UiLocale;

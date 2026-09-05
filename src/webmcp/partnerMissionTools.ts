@@ -120,12 +120,6 @@ export class WebMcpToolError extends Error {
   }
 }
 
-const NO_ARGUMENTS_SCHEMA = {
-  type: "object",
-  properties: {},
-  additionalProperties: false,
-} as const;
-
 export const CHOOSE_NAME_INPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -662,6 +656,3 @@ export class PartnerMissionWebMcpAdapter {
     };
   }
 }
-
-// Kept exported for consumers that need an explicit no-argument schema.
-export const EMPTY_WEBMCP_INPUT_SCHEMA = NO_ARGUMENTS_SCHEMA;

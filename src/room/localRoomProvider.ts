@@ -188,16 +188,17 @@ export class LocalRoomProvider implements RoomProvider {
       throw new Error("ROOM_VERSION_CONFLICT");
     }
 
+    if (command.type === "deleteRoom") {
+      if (room.hostId !== this.playerId) {
+        throw new Error("NOT_HOST");
+      }
+      await inMemoryRoomProvider.delete(roomId);
+      localBans.delete(roomId);
+      return { deleted: true };
+    }
+
     const now = new Date().toISOString();
     if (room.mode === "partner") {
-      if (command.type === "deleteRoom") {
-        if (room.hostId !== this.playerId) {
-          throw new Error("NOT_HOST");
-        }
-        await inMemoryRoomProvider.delete(roomId);
-        localBans.delete(roomId);
-        return { deleted: true };
-      }
       if (
         command.type !== "giveSignal" &&
         command.type !== "lockGuesses" &&
@@ -223,14 +224,6 @@ export class LocalRoomProvider implements RoomProvider {
       localBans.set(roomId, banned);
       await inMemoryRoomProvider.save(next, expectedVersion);
       return toRoomSnapshot(next, this.playerId, localInvites.get(roomId));
-    }
-    if (command.type === "deleteRoom") {
-      if (room.hostId !== this.playerId) {
-        throw new Error("NOT_HOST");
-      }
-      await inMemoryRoomProvider.delete(roomId);
-      localBans.delete(roomId);
-      return { deleted: true };
     }
     let inviteToken = localInvites.get(roomId);
     if (

@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type ReactNode,
 } from "react";
 import {
   isIllegalMove,
@@ -1620,74 +1621,26 @@ function Onboarding({
 }
 
 function PartnerCreateStep({
-  title,
-  description,
-  submitLabel,
-  nameLabel,
-  namePlaceholder,
   boardLanguageLabel,
   englishLabel,
   arabicLabel,
-  backLabel,
-  pending,
-  onBack,
   onSubmit,
-}: {
-  title: string;
-  description: string;
-  submitLabel: string;
-  nameLabel: string;
-  namePlaceholder: string;
+  ...nameProps
+}: Omit<UsernameStepProps, "onSubmit" | "children" | "inputId"> & {
   boardLanguageLabel: string;
   englishLabel: string;
   arabicLabel: string;
-  backLabel: string;
-  pending: boolean;
-  onBack: () => void;
   onSubmit: (name: string, lang: Lang) => void;
 }) {
-  const [name, setName] = useState("");
   const [boardLang, setBoardLang] = useState<Lang>("en");
-  const submittedRef = useRef(false);
-
-  useEffect(() => {
-    if (!pending) {
-      submittedRef.current = false;
-    }
-  }, [pending]);
-
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmed = name.trim();
-    if (pending || submittedRef.current || !trimmed) {
-      return;
-    }
-    submittedRef.current = true;
-    onSubmit(trimmed, boardLang);
-  };
 
   return (
-    <form
-      className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col"
-      onSubmit={submit}
-      aria-busy={pending}
+    <UsernameStep
+      {...nameProps}
+      inputId="lead-name"
+      onSubmit={(name) => onSubmit(name, boardLang)}
     >
-      <div>
-        <h1 className="text-ink m-0 text-lg font-bold">{title}</h1>
-        <p className="text-ink-soft mt-cn-1 m-0 text-sm">{description}</p>
-      </div>
-      <label className="text-ink text-sm font-semibold" htmlFor="lead-name">
-        {nameLabel}
-      </label>
-      <input
-        id="lead-name"
-        className="cn-field"
-        value={name}
-        disabled={pending}
-        onChange={(event) => setName(event.target.value)}
-        placeholder={namePlaceholder}
-      />
-      <fieldset className="gap-cn-2 flex flex-col" disabled={pending}>
+      <fieldset className="gap-cn-2 flex flex-col" disabled={nameProps.pending}>
         <legend className="text-ink text-sm font-semibold">
           {boardLanguageLabel}
         </legend>
@@ -1708,13 +1661,7 @@ function PartnerCreateStep({
           </button>
         </div>
       </fieldset>
-      <Button type="submit" disabled={pending || name.trim().length === 0}>
-        {submitLabel}
-      </Button>
-      <Button variant="secondary" onClick={onBack} disabled={pending}>
-        {backLabel}
-      </Button>
-    </form>
+    </UsernameStep>
   );
 }
 
@@ -1811,6 +1758,20 @@ function JoinCodeStep({
   );
 }
 
+interface UsernameStepProps {
+  title: string;
+  description: string;
+  submitLabel: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  backLabel: string;
+  pending: boolean;
+  onBack: () => void;
+  onSubmit: (name: string) => void;
+  inputId?: string;
+  children?: ReactNode;
+}
+
 function UsernameStep({
   title,
   description,
@@ -1821,17 +1782,9 @@ function UsernameStep({
   pending,
   onBack,
   onSubmit,
-}: {
-  title: string;
-  description: string;
-  submitLabel: string;
-  nameLabel: string;
-  namePlaceholder: string;
-  backLabel: string;
-  pending: boolean;
-  onBack: () => void;
-  onSubmit: (name: string) => void;
-}) {
+  inputId = "player-name",
+  children,
+}: UsernameStepProps) {
   const [name, setName] = useState("");
   const submittedRef = useRef(false);
 
@@ -1863,17 +1816,18 @@ function UsernameStep({
         <h1 className="text-ink m-0 text-lg font-bold">{title}</h1>
         <p className="text-ink-soft mt-cn-1 m-0 text-sm">{description}</p>
       </div>
-      <label className="text-ink text-sm font-semibold" htmlFor="player-name">
+      <label className="text-ink text-sm font-semibold" htmlFor={inputId}>
         {nameLabel}
       </label>
       <input
-        id="player-name"
+        id={inputId}
         className="cn-field"
         value={name}
         disabled={pending}
         onChange={(event) => setName(event.target.value)}
         placeholder={namePlaceholder}
       />
+      {children}
       <Button type="submit" disabled={pending || name.trim().length === 0}>
         {submitLabel}
       </Button>
