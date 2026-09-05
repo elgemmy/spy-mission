@@ -19,6 +19,26 @@ for (const relativePath of builtFiles) {
   }
 }
 
+for (const relativePath of ["dist/index.html", "dist/play/index.html"]) {
+  const html = readFileSync(resolve(root, relativePath), "utf8");
+  if (
+    !/<html\b[^>]*\blang="en"/.test(html) ||
+    !/<html\b[^>]*\bdir="ltr"/.test(html)
+  ) {
+    throw new Error(`${relativePath} must start in English with LTR direction`);
+  }
+}
+
+for (const relativePath of ["dist/favicon.svg", "dist/pwa-icon.svg"]) {
+  const icon = readFileSync(resolve(root, relativePath), "utf8");
+  if (
+    !icon.includes('aria-label="Spy Mission"') ||
+    legacyProductName.test(icon)
+  ) {
+    throw new Error(`${relativePath} has an unexpected accessible identity`);
+  }
+}
+
 const manifest = JSON.parse(
   readFileSync(resolve(root, "dist/manifest.webmanifest"), "utf8"),
 );

@@ -549,7 +549,7 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
 
     for (const browser of browsers) {
       const read = await browser.from("rooms").select("*").limit(1);
-      expect(read.error).not.toBeNull();
+      expect(read.error?.code, "browser SELECT must be denied").toBe("42501");
 
       const insert = await browser.from("rooms").insert({
         id: "forbidden-browser-write",
@@ -560,19 +560,19 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
         ui: {},
         version: 1,
       });
-      expect(insert.error).not.toBeNull();
+      expect(insert.error?.code, "browser INSERT must be denied").toBe("42501");
 
       const update = await browser
         .from("rooms")
         .update({ visibility: "private" })
         .eq("id", "forbidden-browser-write");
-      expect(update.error).not.toBeNull();
+      expect(update.error?.code, "browser UPDATE must be denied").toBe("42501");
 
       const removal = await browser
         .from("rooms")
         .delete()
         .eq("id", "forbidden-browser-write");
-      expect(removal.error).not.toBeNull();
+      expect(removal.error?.code, "browser DELETE must be denied").toBe("42501");
     }
   }, 15_000);
 
