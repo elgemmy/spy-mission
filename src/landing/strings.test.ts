@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { CREDIT_NAME, PRODUCT_NAME } from "../locale/messages";
 import { STR, type LandingStrings } from "./strings";
@@ -28,10 +30,6 @@ function keyShape(value: unknown): unknown {
 }
 
 describe("landing strings", () => {
-  it("exposes exactly the same top-level keys in both languages", () => {
-    expect(Object.keys(STR.ar).sort()).toEqual(Object.keys(STR.en).sort());
-  });
-
   it("has the same nested key shape in both languages", () => {
     expect(keyShape(STR.ar)).toEqual(keyShape(STR.en));
   });

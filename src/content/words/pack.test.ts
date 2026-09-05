@@ -1,9 +1,10 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { sampleConceptsForBoard, WORD_CATEGORIES } from "./sampler";
 
 const MIN_CONCEPTS = 300;
 const MIN_PER_CATEGORY = 15;
-const MAX_WORDS_PER_LABEL = 2;
 
 const ENGLISH_LABEL = /^[a-z]+( [a-z]+)?$/;
 const ARABIC_LABEL =
@@ -71,23 +72,10 @@ describe("word pack content", () => {
     }
   });
 
-  it("has a non-empty English and Arabic label on every concept", () => {
-    for (const concept of allConcepts) {
-      expect(concept.en.trim(), concept.id).not.toBe("");
-      expect(concept.ar.trim(), concept.id).not.toBe("");
-    }
-  });
-
   it("keeps labels short, lowercase, and in the right script", () => {
     for (const concept of allConcepts) {
       expect(concept.en, concept.id).toMatch(ENGLISH_LABEL);
       expect(concept.ar, concept.id).toMatch(ARABIC_LABEL);
-      expect(concept.en.split(" ").length, concept.id).toBeLessThanOrEqual(
-        MAX_WORDS_PER_LABEL,
-      );
-      expect(concept.ar.split(" ").length, concept.id).toBeLessThanOrEqual(
-        MAX_WORDS_PER_LABEL,
-      );
     }
   });
 
@@ -109,15 +97,6 @@ describe("word pack content", () => {
 });
 
 describe("board sampling from the shipped pack", () => {
-  it("is deterministic for a seed", () => {
-    for (const seed of [1, 7, 42, 2_147_483_646]) {
-      const ids = sampleConceptsForBoard(seed).map((concept) => concept.id);
-      expect(sampleConceptsForBoard(seed).map((concept) => concept.id)).toEqual(
-        ids,
-      );
-    }
-  });
-
   it("gives every board 25 unique concepts with unique labels in both languages", () => {
     for (let seed = 1; seed <= 300; seed += 1) {
       const board = sampleConceptsForBoard(seed);

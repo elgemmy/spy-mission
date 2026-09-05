@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { IllegalMove, reducer, type GameState } from "../engine";
 import { makeConcepts, startTestGame } from "../engine/codenames/testFixtures";

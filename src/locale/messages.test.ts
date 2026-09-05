@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { MESSAGES, type Messages } from "./messages";
 
@@ -62,12 +64,6 @@ describe("locale catalog", () => {
         expect(text.length, path).toBeGreaterThan(0);
       });
     }
-  });
-
-  it("keeps error code keys identical", () => {
-    expect(Object.keys(MESSAGES.en.play.errors).sort()).toEqual(
-      Object.keys(MESSAGES.ar.play.errors).sort(),
-    );
   });
 
   it("does not expose infrastructure remediation to players", () => {

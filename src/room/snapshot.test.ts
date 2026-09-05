@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { startTestGame } from "../engine/codenames/testFixtures";
 import { toRoomSnapshot } from "./snapshot";
