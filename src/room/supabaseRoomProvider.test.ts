@@ -1,3 +1,4 @@
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   initialPartnerMissionState,
@@ -499,6 +500,54 @@ describe("SupabaseRoomProvider", () => {
     expect(roomBChange).not.toHaveBeenCalled();
     unsubscribeB();
   });
+
+  it.each([0, 503])(
+    "keeps the room during retryable Auth refresh failure (%s) and recovers",
+    async (status) => {
+      vi.useFakeTimers();
+      authenticatedSession();
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+        .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+        .mockResolvedValueOnce(jsonResponse(snapshot()));
+      mocks.refreshSession
+        .mockReset()
+        .mockResolvedValueOnce({
+          data: { session: null },
+          error: new AuthRetryableFetchError("Temporary network failure", status),
+        })
+        .mockResolvedValueOnce({
+          data: { session: { access_token: "renewed-jwt" } },
+          error: null,
+        });
+      vi.stubGlobal("fetch", fetchMock);
+      const onChange = vi.fn();
+      const unsubscribe = new SupabaseRoomProvider().subscribe(
+        snapshot().id,
+        onChange,
+      );
+      try {
+        await vi.advanceTimersByTimeAsync(ROOM_POLL_INTERVAL_MS);
+        expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+        expect(onChange).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(ROOM_POLL_INTERVAL_MS);
+        expect(onChange).toHaveBeenCalledExactlyOnceWith(snapshot());
+        expect(fetchMock).toHaveBeenLastCalledWith(
+          "/api/rooms",
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              Authorization: "Bearer renewed-jwt",
+            }),
+          }),
+        );
+        expect(mocks.signInAnonymously).not.toHaveBeenCalled();
+      } finally {
+        unsubscribe();
+      }
+    },
+  );
 
   it("ejects on a permanently expired Auth session but not a transient fetch", async () => {
     vi.useFakeTimers();

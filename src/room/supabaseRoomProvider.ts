@@ -1,3 +1,4 @@
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../lib/supabase/client";
 import type {
   CreateSharedRoomInput,
@@ -219,6 +220,10 @@ export class SupabaseRoomProvider implements RoomProvider {
     if (response.status === 401) {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase.auth.refreshSession();
+      // Network outages do not invalidate the player's existing identity.
+      if (isAuthRetryableFetchError(error)) {
+        throw error;
+      }
       if (error || !data.session) {
         throw new Error("ROOM_SESSION_EXPIRED");
       }
