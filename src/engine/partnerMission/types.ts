@@ -67,6 +67,8 @@ export interface PartnerPreviousTurn {
 
 export interface PartnerMissionState {
   mode: "partner";
+  /** Older missions omit this and keep the AI partner experience. */
+  partnerType?: "ai" | "human";
   roomId: string;
   lang: Lang;
   phase: PartnerMissionPhase;

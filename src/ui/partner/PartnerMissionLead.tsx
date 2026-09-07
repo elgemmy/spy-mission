@@ -10,7 +10,7 @@ import {
   PreviousTurn,
   RevealPresentation,
 } from "./PartnerMissionShared";
-import { PARTNER_MESSAGES } from "./strings";
+import { PARTNER_MESSAGES, getPartnerMessages } from "./strings";
 import type { MissionLeadCard, PartnerMissionCommonProps } from "./types";
 
 export interface PartnerMissionLeadProps extends PartnerMissionCommonProps {
@@ -26,6 +26,7 @@ export interface PartnerMissionLeadProps extends PartnerMissionCommonProps {
 }
 
 export function PartnerMissionLead({
+  partnerType,
   locale,
   boardLang,
   phase,
@@ -56,6 +57,7 @@ export function PartnerMissionLead({
       data-role="mission-lead"
     >
       <PartnerMissionHeader
+        partnerType={partnerType}
         locale={locale}
         role="lead"
         phase={phase}
@@ -71,6 +73,7 @@ export function PartnerMissionLead({
       ) : null}
 
       <PartnerStatus
+        partnerType={partnerType}
         locale={locale}
         phase={phase}
         fieldAgentName={fieldAgentName}
@@ -81,6 +84,7 @@ export function PartnerMissionLead({
 
       {fieldAgentName === null ? (
         <AgentInvite
+          partnerType={partnerType}
           locale={locale}
           inviteUrl={inviteUrl}
           inviteCopied={inviteCopied}
@@ -133,6 +137,7 @@ export function PartnerMissionLead({
 }
 
 function AgentInvite({
+  partnerType,
   locale,
   inviteUrl,
   inviteCopied,
@@ -140,6 +145,7 @@ function AgentInvite({
   onCopyAgentInvite,
   onCopyAgentBriefing,
 }: {
+  partnerType?: "ai" | "human";
   locale: "en" | "ar";
   inviteUrl: string;
   inviteCopied: boolean;
@@ -147,7 +153,7 @@ function AgentInvite({
   onCopyAgentInvite: () => void;
   onCopyAgentBriefing: () => void;
 }) {
-  const t = PARTNER_MESSAGES[locale];
+  const t = getPartnerMessages(locale, partnerType);
   const inviteId = useId();
 
   return (
@@ -175,9 +181,11 @@ function AgentInvite({
         <Button variant="secondary" onClick={onCopyAgentInvite}>
           {inviteCopied ? t.inviteCopied : t.copyAgentInvite}
         </Button>
-        <Button variant="secondary" onClick={onCopyAgentBriefing}>
-          {briefingCopied ? t.briefingCopied : t.copyAgentBriefing}
-        </Button>
+        {partnerType !== "human" ? (
+          <Button variant="secondary" onClick={onCopyAgentBriefing}>
+            {briefingCopied ? t.briefingCopied : t.copyAgentBriefing}
+          </Button>
+        ) : null}
       </div>
     </section>
   );

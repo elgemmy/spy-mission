@@ -33,6 +33,9 @@ export function toRoomSnapshot(
   if (room.mode === "partner") {
     return {
       mode: "partner",
+      ...(room.state.partnerType
+        ? { partnerType: room.state.partnerType }
+        : {}),
       id: room.id,
       code: room.code,
       hostId: room.hostId,

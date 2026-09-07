@@ -215,3 +215,55 @@ const ar: PartnerMissionMessages = {
 export const PARTNER_MESSAGES: Readonly<
   Record<"en" | "ar", PartnerMissionMessages>
 > = { en, ar };
+
+export const DUO_MESSAGES = {
+  en: {
+    partnerMission: "Duo Mission",
+    createHint:
+      "Two players, one mission. Give Signals as Mission Lead and invite a friend to guess on their own device.",
+    waitingForPartner: "Waiting for your partner…",
+    seatOpen: "Waiting for your partner…",
+    copyAgentInvite: "Copy partner invitation",
+    joinHint:
+      "Join as Field Agent. Your partner sees the secret map; you choose guesses from their Signals.",
+    inviteRequired:
+      "Ask your partner for the full private invitation link to join this mission.",
+    selectHint:
+      "Tap words in guess order. Tap again to remove. A decoy ends the turn; a trap ends the mission.",
+    selectionCount: (selected: number, max: number) =>
+      `${selected} of ${max} guesses selected (Signal + 1 maximum)`,
+    draftGuesses: "Selected guess order",
+    lockGuesses: "Lock guesses",
+    locking: "Locking guesses…",
+    clearSelection: "Clear selection",
+  },
+  ar: {
+    partnerMission: "المهمة الثنائية",
+    createHint:
+      "لاعبان ومهمة واحدة. أعطِ الإشارات كقائد للمهمة وادعُ صديقًا ليخمّن من جهازه.",
+    waitingForPartner: "بانتظار شريكك…",
+    seatOpen: "بانتظار شريكك…",
+    copyAgentInvite: "نسخ دعوة الشريك",
+    joinHint:
+      "انضم كعميل ميداني. يرى شريكك الخريطة السرية وتختار أنت التخمينات بناءً على إشاراته.",
+    inviteRequired:
+      "اطلب من شريكك رابط الدعوة الخاص الكامل للانضمام إلى هذه المهمة.",
+    selectHint:
+      "اضغط الكلمات بترتيب التخمين. اضغط مجددًا لإزالة الاختيار. التمويه ينهي الدور والفخ ينهي المهمة.",
+    selectionCount: (selected: number, max: number) =>
+      `تم اختيار ${selected} من ${max} تخمينات (عدد الإشارة + ١ كحد أقصى)`,
+    draftGuesses: "ترتيب التخمينات المختارة",
+    lockGuesses: "تثبيت التخمينات",
+    locking: "جارٍ تثبيت التخمينات…",
+    clearSelection: "مسح الاختيارات",
+  },
+} as const;
+
+export function getPartnerMessages(
+  locale: "en" | "ar",
+  partnerType?: "ai" | "human",
+) {
+  return partnerType === "human"
+    ? { ...PARTNER_MESSAGES[locale], ...DUO_MESSAGES[locale] }
+    : PARTNER_MESSAGES[locale];
+}

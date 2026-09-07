@@ -56,6 +56,7 @@ export class LocalRoomProvider implements RoomProvider {
     const room =
       input.mode === "partner"
         ? createPartnerRoomRecord({
+            partnerType: input.partnerType,
             id,
             code,
             hostId: this.playerId,
@@ -94,7 +95,14 @@ export class LocalRoomProvider implements RoomProvider {
         : Boolean(room.state.players[this.playerId]);
     if (!isMember) {
       return room.mode === "partner"
-        ? { status: "join", code: room.code, mode: "partner" }
+        ? {
+            status: "join",
+            code: room.code,
+            mode: "partner",
+            ...(room.state.partnerType
+              ? { partnerType: room.state.partnerType }
+              : {}),
+          }
         : { status: "join", code: room.code };
     }
     return {

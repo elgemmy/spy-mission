@@ -1,6 +1,6 @@
 import { Button } from "../components/Button";
 import { GlyphIcon } from "../card/glyphs";
-import { PARTNER_MESSAGES } from "./strings";
+import { PARTNER_MESSAGES, getPartnerMessages } from "./strings";
 import type {
   PartnerMissionPhase,
   PartnerPreviousTurn,
@@ -10,17 +10,19 @@ import type {
 } from "./types";
 
 export function PartnerMissionHeader({
+  partnerType,
   locale,
   role,
   phase,
   targetsRemaining,
 }: {
+  partnerType?: "ai" | "human";
   locale: "en" | "ar";
   role: "lead" | "agent";
   phase: PartnerMissionPhase;
   targetsRemaining: number;
 }) {
-  const t = PARTNER_MESSAGES[locale];
+  const t = getPartnerMessages(locale, partnerType);
 
   return (
     <header className="cn-partner-header">
@@ -41,6 +43,7 @@ export function PartnerMissionHeader({
 }
 
 export function PartnerStatus({
+  partnerType,
   locale,
   phase,
   fieldAgentName,
@@ -48,6 +51,7 @@ export function PartnerStatus({
   previousTurn,
   presentation,
 }: {
+  partnerType?: "ai" | "human";
   locale: "en" | "ar";
   phase: PartnerMissionPhase;
   fieldAgentName: string | null;
@@ -55,7 +59,7 @@ export function PartnerStatus({
   previousTurn?: PartnerPreviousTurn | null;
   presentation?: PartnerRevealPresentation;
 }) {
-  const t = PARTNER_MESSAGES[locale];
+  const t = getPartnerMessages(locale, partnerType);
   const status = currentStatus({
     t,
     phase,
@@ -100,10 +104,12 @@ export function CurrentSignal({
 }
 
 export function LockedGuessSummary({
+  title,
   locale,
   cardIds,
   cardWords,
 }: {
+  title?: string;
   locale: "en" | "ar";
   cardIds: readonly string[];
   cardWords: ReadonlyMap<string, string>;
@@ -116,7 +122,7 @@ export function LockedGuessSummary({
       aria-labelledby="locked-guesses-title"
     >
       <p id="locked-guesses-title" className="cn-partner-eyebrow">
-        {t.orderedGuesses}
+        {title ?? t.orderedGuesses}
       </p>
       {cardIds.length === 0 ? (
         <p className="cn-partner-muted">{t.noGuesses}</p>

@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PartnerMissionLeadView, PartnerFieldAgentView } from "../engine";
 import type { PartnerRoomSnapshot, SharedRoomSnapshot } from "../room";
-import { PARTNER_MESSAGES } from "../ui/partner";
+import { PARTNER_MESSAGES, DUO_MESSAGES } from "../ui/partner";
 
 interface RegisteredTool {
   name: string;
@@ -59,6 +59,210 @@ vi.mock("../lib/pwa/serviceWorker", () => ({
 import { App } from "./App";
 
 const en = PARTNER_MESSAGES.en;
+
+describe("human Duo Mission", () => {
+  it("asks for a complete invitation when the private token is missing", async () => {
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({
+      status: "join",
+      mode: "partner",
+      partnerType: "human",
+      code: "PARTNER",
+    });
+    render(<App />);
+    expect(
+      await screen.findByText(DUO_MESSAGES.en.inviteRequired),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+    expect(mocks.claimPartnerSeat).not.toHaveBeenCalled();
+  });
+  it("creates a human mission with the chosen board language and a friend invitation", async () => {
+    mocks.create.mockResolvedValue(leadSnapshot({ partnerType: "human" }));
+    render(<App />);
+    fireEvent.click(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.partnerMission }),
+    );
+    fireEvent.change(screen.getByLabelText("Your name"), {
+      target: { value: "Lead" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "العربية" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create room" }));
+
+    expect(await screen.findByLabelText(en.missionMap)).toBeInTheDocument();
+    expect(mocks.create).toHaveBeenCalledWith({
+      name: "Lead",
+      lang: "ar",
+      mode: "partner",
+      partnerType: "human",
+      visibility: "private",
+    });
+    expect(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.copyAgentInvite }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(en.copyAgentBriefing)).not.toBeInTheDocument();
+    expect(screen.queryByText(en.waitingForPartner)).not.toBeInTheDocument();
+  });
+
+  it("joins by name, edits ordered guesses, enforces the limit, and locks once without WebMCP", async () => {
+    const registerTool = vi.fn();
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: { registerTool },
+    });
+    window.history.replaceState(
+      null,
+      "",
+      "/play/?room=PARTNER#invite=private-agent-token",
+    );
+    mocks.resume.mockResolvedValue({
+      status: "join",
+      mode: "partner",
+      partnerType: "human",
+      code: "PARTNER",
+    });
+    const waiting = fieldSnapshot({ partnerType: "human" });
+    mocks.claimPartnerSeat.mockResolvedValue(waiting);
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText("Your name"), {
+      target: { value: "Friend" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Join room" }));
+    expect(
+      await screen.findByLabelText(en.publicMissionBoard),
+    ).toBeInTheDocument();
+    expect(mocks.claimPartnerSeat).toHaveBeenCalledWith({
+      code: "PARTNER",
+      name: "Friend",
+      inviteToken: "private-agent-token",
+    });
+    expect(screen.getByRole("button", { name: "Word 1" })).toBeDisabled();
+    expect(screen.queryByText(en.webMcpRequired)).not.toBeInTheDocument();
+
+    const turn = fieldSnapshot({
+      partnerType: "human",
+      version: 3,
+      view: {
+        phase: "field_agent_turn",
+        signal: { word: "orbit", count: 2 },
+        maxGuesses: 3,
+        turnNumber: 1,
+      },
+    });
+    act(() => mocks.onChange?.(turn));
+    const card = (n: number) =>
+      screen.getByRole("button", { name: `Word ${n}` });
+    const lock = screen.getByRole("button", {
+      name: DUO_MESSAGES.en.lockGuesses,
+    });
+    expect(lock).toBeDisabled();
+    fireEvent.click(card(2));
+    fireEvent.click(card(1));
+    fireEvent.click(card(3));
+    expect(card(4)).toBeDisabled();
+    expect(card(2)).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(card(2));
+    expect(card(4)).toBeEnabled();
+    fireEvent.click(card(2));
+    expect(document.querySelector('[data-card-id="c02"]')).toHaveTextContent(
+      "3",
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.clearSelection }),
+    );
+    expect(lock).toBeDisabled();
+    fireEvent.click(card(2));
+    fireEvent.click(card(1));
+
+    let finish!: (value: PartnerRoomSnapshot) => void;
+    mocks.mutate.mockReturnValue(
+      new Promise<PartnerRoomSnapshot>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    fireEvent.click(lock);
+    fireEvent.click(lock);
+    expect(mocks.mutate).toHaveBeenCalledTimes(1);
+    expect(mocks.mutate).toHaveBeenCalledWith(turn.id, 3, {
+      type: "lockGuesses",
+      cardIds: ["c02", "c01"],
+    });
+    expect(card(3)).toBeDisabled();
+    await act(async () =>
+      finish(
+        fieldSnapshot({
+          partnerType: "human",
+          version: 4,
+          view: {
+            ...turn.view,
+            phase: "locked",
+            lockedCardIds: ["c02", "c01"],
+          },
+        }),
+      ),
+    );
+    expect(screen.getByText(en.orderedGuesses)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: DUO_MESSAGES.en.lockGuesses }),
+    ).not.toBeInTheDocument();
+    expect(registerTool).not.toHaveBeenCalled();
+
+    act(() =>
+      mocks.onChange?.(
+        fieldSnapshot({
+          partnerType: "human",
+          version: 6,
+          view: { ...turn.view, turnNumber: 2 },
+        }),
+      ),
+    );
+    expect(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.lockGuesses }),
+    ).toBeDisabled();
+    expect(card(2)).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("resumes human controls after refresh and lets a failed lock be retried", async () => {
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    const turn = fieldSnapshot({
+      partnerType: "human",
+      version: 3,
+      view: {
+        phase: "field_agent_turn",
+        signal: { word: "orbit", count: 1 },
+        maxGuesses: 2,
+      },
+    });
+    mocks.resume.mockResolvedValue({ status: "active", room: turn });
+    mocks.mutate.mockRejectedValueOnce(new Error("Failed to fetch"));
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Word 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.lockGuesses }),
+    );
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Word 1" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.lockGuesses }),
+    ).toBeEnabled();
+    mocks.mutate.mockResolvedValue(
+      fieldSnapshot({
+        partnerType: "human",
+        version: 4,
+        view: { ...turn.view, phase: "locked", lockedCardIds: ["c01"] },
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.lockGuesses }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+    expect(mocks.mutate).toHaveBeenCalledTimes(2);
+  });
+});
 
 beforeEach(() => {
   vi.useRealTimers();

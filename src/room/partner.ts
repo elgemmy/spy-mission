@@ -9,6 +9,7 @@ import { normalizeRoomUi } from "./uiState.js";
 import type { PartnerRoomRecord } from "./types.js";
 
 export interface CreatePartnerRoomRecordInput {
+  partnerType?: "ai" | "human";
   id: string;
   code: string;
   hostId: string;
@@ -29,15 +30,18 @@ export function createPartnerRoomRecord(
     code: input.code.toUpperCase(),
     hostId: input.hostId,
     visibility: "private",
-    state: initialPartnerMissionState({
-      roomId: input.id,
-      lang: input.lang,
-      missionLeadId: input.hostId,
-      missionLeadName: input.hostName,
-      concepts: input.concepts,
-      seed: input.seed,
-      ...(input.kinds ? { kinds: input.kinds } : {}),
-    }),
+    state: {
+      ...initialPartnerMissionState({
+        roomId: input.id,
+        lang: input.lang,
+        missionLeadId: input.hostId,
+        missionLeadName: input.hostName,
+        concepts: input.concepts,
+        seed: input.seed,
+        ...(input.kinds ? { kinds: input.kinds } : {}),
+      }),
+      ...(input.partnerType ? { partnerType: input.partnerType } : {}),
+    },
     ui: normalizeRoomUi(null),
     version: 1,
     createdAt: input.now,

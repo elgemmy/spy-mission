@@ -99,6 +99,7 @@ export interface RoomSnapshot {
 
 export interface PartnerRoomSnapshot {
   mode: "partner";
+  partnerType?: "ai" | "human";
   id: string;
   code: string;
   hostId: string;
@@ -117,6 +118,7 @@ export interface CreateSharedRoomInput {
   lang: Lang;
   visibility?: RoomVisibility;
   mode?: RoomMode;
+  partnerType?: "ai" | "human";
 }
 
 export type CreateClassicRoomInput = CreateSharedRoomInput & {
@@ -136,7 +138,12 @@ export type ClaimPartnerSeatInput = JoinSharedRoomInput;
 
 export type ResumeRoomResult =
   | { status: "active"; room: SharedRoomSnapshot }
-  | { status: "join"; code: string; mode: "partner" }
+  | {
+      status: "join";
+      code: string;
+      mode: "partner";
+      partnerType?: "ai" | "human";
+    }
   | { status: "join"; code: string; mode?: "classic" }
   | { status: "notFound" };
 

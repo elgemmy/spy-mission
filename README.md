@@ -19,6 +19,21 @@ A mobile-first family game:
 - The board is bilingual: every concept carries English and Arabic labels
 - Rooms persist across refresh; leaving the URL leaves the table
 
+## Duo Mission
+
+Play cooperatively with a friend, each on your own device. Choose **Duo Mission**,
+enter your name and board language, then share the private invitation link.
+The creator is Mission Lead; the invited player joins as Field Agent.
+
+The Lead sends a one-word Signal and count. The Field Agent taps words in guess
+order, can deselect or clear them, and locks up to the Signal count plus one.
+Guesses reveal in order: a decoy ends the turn, a trap loses the mission, and
+finding all eight targets wins. The secret map stays with the Lead.
+
+Duo Mission uses the same room persistence and cooperative rules as AI Partner
+Mission, with ordinary browser controls. It needs no WebMCP support or new
+migration; existing missions retain their AI behavior.
+
 ## AI Partner Mission
 
 AI Partner Mission is Spy Mission's WebMCP-powered cooperative mode.

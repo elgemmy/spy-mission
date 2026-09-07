@@ -39,6 +39,8 @@ import { UpdateToast } from "../ui/components/UpdateToast";
 import { Lobby, PlayScreen } from "../ui/game";
 import {
   PARTNER_MESSAGES,
+  DUO_MESSAGES,
+  getPartnerMessages,
   PartnerFieldAgent,
   PartnerFieldAgentOnboarding,
   PartnerMissionLead,
@@ -67,8 +69,8 @@ type OnboardingStep =
   | { type: "loadingRoom" }
   | { type: "roomRetry"; code: string }
   | { type: "createName" }
-  | { type: "partnerCreateName" }
-  | { type: "partnerInvite"; code: string }
+  | { type: "partnerCreateName"; partnerType?: "ai" | "human" }
+  | { type: "partnerInvite"; code: string; partnerType?: "ai" | "human" }
   | { type: "joinCode" }
   | { type: "joinName"; code: string; source: JoinSource };
 
@@ -352,7 +354,11 @@ function AppShell() {
         if (result.status === "join") {
           setStep(
             result.mode === "partner"
-              ? { type: "partnerInvite", code: result.code }
+              ? {
+                  type: "partnerInvite",
+                  code: result.code,
+                  partnerType: result.partnerType,
+                }
               : { type: "joinName", code: result.code, source: "link" },
           );
           setError(null);
@@ -502,7 +508,11 @@ function AppShell() {
     }
   };
 
-  const createPartnerMission = async (name: string, lang: Lang = "en") => {
+  const createPartnerMission = async (
+    name: string,
+    lang: Lang = "en",
+    partnerType?: "ai" | "human",
+  ) => {
     const generation = lifecycleGenerationRef.current;
     try {
       const next = await runPending("createPartner", () =>
@@ -510,6 +520,7 @@ function AppShell() {
           name,
           lang,
           mode: "partner",
+          ...(partnerType ? { partnerType } : {}),
           visibility: "private",
         }),
       );
@@ -542,6 +553,41 @@ function AppShell() {
       if (lifecycleGenerationRef.current === generation) {
         handleError(caught);
       }
+    }
+  };
+
+  const joinDuoMission = async (code: string, name: string) => {
+    const generation = lifecycleGenerationRef.current;
+    if (!pendingInviteToken) {
+      handleError(new Error("ROOM_INVITE_INVALID"));
+      return;
+    }
+    try {
+      const next = await runPending("claimPartnerSeat", () =>
+        roomProvider.claimPartnerSeat({
+          code,
+          name,
+          inviteToken: pendingInviteToken,
+        }),
+      );
+      if (next && lifecycleGenerationRef.current === generation)
+        enterRoom(next);
+    } catch (caught) {
+      if (lifecycleGenerationRef.current === generation) handleError(caught);
+    }
+  };
+
+  const lockDuoGuesses = async (cardIds: string[]) => {
+    if (
+      room?.mode !== "partner" ||
+      room.partnerType !== "human" ||
+      room.view.viewerRole !== "field_agent"
+    )
+      return;
+    try {
+      await commit({ type: "lockGuesses", cardIds });
+    } catch (caught) {
+      handleError(caught);
     }
   };
 
@@ -962,7 +1008,11 @@ function AppShell() {
       chooseName: async ({ name }) => {
         const currentStep = step;
         const inviteToken = pendingInviteToken;
-        if (currentStep.type !== "partnerInvite" || !inviteToken) {
+        if (
+          currentStep.type !== "partnerInvite" ||
+          currentStep.partnerType === "human" ||
+          !inviteToken
+        ) {
           throw new WebMcpToolError(
             "This Field Agent invitation is no longer active. Ask the Mission Lead for a fresh invitation.",
           );
@@ -991,6 +1041,7 @@ function AppShell() {
         const current = roomRef.current;
         if (
           current?.mode !== "partner" ||
+          current.partnerType === "human" ||
           current.view.viewerRole !== "field_agent"
         ) {
           throw new WebMcpToolError(
@@ -1022,6 +1073,7 @@ function AppShell() {
         const current = roomRef.current;
         if (
           current?.mode !== "partner" ||
+          current.partnerType === "human" ||
           current.view.viewerRole !== "field_agent" ||
           current.version !== latest.version
         ) {
@@ -1058,13 +1110,19 @@ function AppShell() {
   });
 
   const partnerInviteActive =
-    step.type === "partnerInvite" && Boolean(pendingInviteToken);
+    step.type === "partnerInvite" &&
+    step.partnerType !== "human" &&
+    Boolean(pendingInviteToken);
   const fieldAgentPhase =
-    room?.mode === "partner" && room.view.viewerRole === "field_agent"
+    room?.mode === "partner" &&
+    room.partnerType !== "human" &&
+    room.view.viewerRole === "field_agent"
       ? room.view.phase
       : null;
   const fieldAgentMaxGuesses =
-    room?.mode === "partner" && room.view.viewerRole === "field_agent"
+    room?.mode === "partner" &&
+    room.partnerType !== "human" &&
+    room.view.viewerRole === "field_agent"
       ? room.view.maxGuesses
       : null;
 
@@ -1221,6 +1279,7 @@ function AppShell() {
             <LocaleToggle />
             {room.view.viewerRole === "mission_lead" ? (
               <PartnerMissionLead
+                partnerType={room.partnerType}
                 locale={locale}
                 boardLang={room.view.lang}
                 phase={visiblePartnerPhase(room.view, revealPresentation)}
@@ -1250,6 +1309,10 @@ function AppShell() {
               />
             ) : (
               <PartnerFieldAgent
+                key={`${room.id}:${room.view.turnNumber}:${room.view.phase}`}
+                partnerType={room.partnerType}
+                maxGuesses={room.view.maxGuesses}
+                onLockGuesses={lockDuoGuesses}
                 locale={locale}
                 boardLang={room.view.lang}
                 phase={visiblePartnerPhase(room.view, revealPresentation)}
@@ -1342,9 +1405,11 @@ function AppShell() {
             }}
             onCreateRoom={createRoom}
             onCreatePartnerMission={createPartnerMission}
+            onJoinDuoMission={joinDuoMission}
             onJoinRoom={joinRoom}
             onInstall={() => setInstallOpen(true)}
             partnerCapability={webMcpStatus}
+            partnerInviteAvailable={Boolean(pendingInviteToken)}
             onRetryWebMcp={() => setWebMcpAttempt((attempt) => attempt + 1)}
           />
         )}
@@ -1489,9 +1554,11 @@ function Onboarding({
   onRetryRoom,
   onCreateRoom,
   onCreatePartnerMission,
+  onJoinDuoMission,
   onJoinRoom,
   onInstall,
   partnerCapability,
+  partnerInviteAvailable,
   onRetryWebMcp,
 }: {
   locale: "en" | "ar";
@@ -1501,10 +1568,16 @@ function Onboarding({
   onCancelRoomLink: () => void;
   onRetryRoom: () => void;
   onCreateRoom: (name: string) => void;
-  onCreatePartnerMission: (name: string, lang: Lang) => void;
+  onCreatePartnerMission: (
+    name: string,
+    lang: Lang,
+    partnerType?: "ai" | "human",
+  ) => void;
+  onJoinDuoMission: (code: string, name: string) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
   onInstall: () => void;
   partnerCapability: WebMcpCapability;
+  partnerInviteAvailable: boolean;
   onRetryWebMcp: () => void;
 }) {
   const t = useMessages().play;
@@ -1547,8 +1620,8 @@ function Onboarding({
   if (step.type === "partnerCreateName") {
     return (
       <PartnerCreateStep
-        title={PARTNER_MESSAGES[locale].partnerMission}
-        description={PARTNER_MESSAGES[locale].createHint}
+        title={getPartnerMessages(locale, step.partnerType).partnerMission}
+        description={getPartnerMessages(locale, step.partnerType).createHint}
         submitLabel={pending ? t.createPending : t.createSubmit}
         nameLabel={t.nameLabel}
         namePlaceholder={t.namePlaceholder}
@@ -1558,12 +1631,48 @@ function Onboarding({
         backLabel={t.back}
         pending={pending}
         onBack={() => onStep({ type: "landing" })}
-        onSubmit={onCreatePartnerMission}
+        onSubmit={(name, lang) =>
+          onCreatePartnerMission(name, lang, step.partnerType)
+        }
       />
     );
   }
 
   if (step.type === "partnerInvite") {
+    if (step.partnerType === "human") {
+      if (!partnerInviteAvailable) {
+        return (
+          <section className="cn-card-panel gap-cn-3 p-cn-4 flex flex-col">
+            <h1 className="text-ink m-0 text-lg font-bold">
+              {DUO_MESSAGES[locale].partnerMission}
+            </h1>
+            <p className="cn-partner-muted">
+              {DUO_MESSAGES[locale].inviteRequired}
+            </p>
+            <Button variant="secondary" onClick={onCancelRoomLink}>
+              {t.back}
+            </Button>
+          </section>
+        );
+      }
+      return (
+        <>
+          <LocaleToggle />
+          <UsernameStep
+            title={DUO_MESSAGES[locale].partnerMission}
+            description={DUO_MESSAGES[locale].joinHint}
+            submitLabel={pending ? t.joinPending : t.joinSubmit}
+            nameLabel={t.nameLabel}
+            namePlaceholder={t.namePlaceholder}
+            backLabel={t.back}
+            pending={pending}
+            maxNameLength={32}
+            onBack={onCancelRoomLink}
+            onSubmit={(name) => onJoinDuoMission(step.code, name)}
+          />
+        </>
+      );
+    }
     return (
       <>
         <LocaleToggle />
@@ -1613,6 +1722,9 @@ function Onboarding({
       locale={locale}
       onCreate={() => onStep({ type: "createName" })}
       onCreatePartner={() => onStep({ type: "partnerCreateName" })}
+      onCreateDuo={() =>
+        onStep({ type: "partnerCreateName", partnerType: "human" })
+      }
       onJoin={() => onStep({ type: "joinCode" })}
       onInstall={onInstall}
     />
@@ -1722,12 +1834,14 @@ function Landing({
   locale,
   onCreate,
   onCreatePartner,
+  onCreateDuo,
   onJoin,
   onInstall,
 }: {
   locale: "en" | "ar";
   onCreate: () => void;
   onCreatePartner: () => void;
+  onCreateDuo: () => void;
   onJoin: () => void;
   onInstall: () => void;
 }) {
@@ -1750,6 +1864,9 @@ function Landing({
 
       <div className="gap-cn-3 flex flex-col">
         <Button onClick={onCreate}>{t.createRoom}</Button>
+        <Button onClick={onCreateDuo}>
+          {DUO_MESSAGES[locale].partnerMission}
+        </Button>
         <Button onClick={onCreatePartner}>
           {PARTNER_MESSAGES[locale].partnerMission}
         </Button>
@@ -1812,6 +1929,7 @@ function JoinCodeStep({
 }
 
 function UsernameStep({
+  maxNameLength,
   title,
   description,
   submitLabel,
@@ -1822,6 +1940,7 @@ function UsernameStep({
   onBack,
   onSubmit,
 }: {
+  maxNameLength?: number;
   title: string;
   description: string;
   submitLabel: string;
@@ -1869,6 +1988,7 @@ function UsernameStep({
       <input
         id="player-name"
         className="cn-field"
+        maxLength={maxNameLength}
         value={name}
         disabled={pending}
         onChange={(event) => setName(event.target.value)}

@@ -119,6 +119,7 @@ const requestSchema = z.discriminatedUnion("op", [
     lang: z.enum(["ar", "en"]),
     visibility: z.enum(["public", "private"]).optional(),
     mode: z.enum(["classic", "partner"]).optional(),
+    partnerType: z.enum(["ai", "human"]).optional(),
   }),
   z.strictObject({
     op: z.literal("join"),
@@ -257,6 +258,7 @@ async function createRoom(
   const room =
     mode === "partner"
       ? createPartnerRoomRecord({
+          partnerType: request.partnerType,
           id,
           code: createRoomCode(),
           hostId: userId,
@@ -328,7 +330,14 @@ async function resumeRoom(
     };
   }
   return stored.room.mode === "partner"
-    ? { status: "join", code: stored.room.code, mode: "partner" }
+    ? {
+        status: "join",
+        code: stored.room.code,
+        mode: "partner",
+        ...(stored.room.state.partnerType
+          ? { partnerType: stored.room.state.partnerType }
+          : {}),
+      }
     : { status: "join", code: stored.room.code };
 }
 
