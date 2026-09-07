@@ -65,13 +65,18 @@ describe.each([undefined, "human"] as const)(
       }
       expect(joined.view.fieldAgentName).toBe("Cipher");
       expect(joined.view.board.every((card) => !("kind" in card))).toBe(true);
-      await expect(
-        second.claimPartnerSeat({
-          code: created.code,
-          name: "Second",
-          inviteToken: created.inviteToken,
-        }),
-      ).rejects.toThrow("FIELD_AGENT_SEAT_TAKEN");
+      const secondJoin = second.claimPartnerSeat({
+        code: created.code,
+        name: "Second",
+        inviteToken: created.inviteToken,
+      });
+      if (partnerType === "human") {
+        await expect(secondJoin).resolves.toMatchObject({
+          view: { viewerRole: "field_agent" },
+        });
+      } else {
+        await expect(secondJoin).rejects.toThrow("FIELD_AGENT_SEAT_TAKEN");
+      }
       await expect(
         agent.claimPartnerSeat({
           code: created.code,
@@ -104,7 +109,14 @@ describe.each([undefined, "human"] as const)(
         name: "Cipher",
         inviteToken: created.inviteToken,
       });
-      const signalled = await lead.mutate(created.id, joined.version, {
+      const ready =
+        partnerType === "human"
+          ? await lead.mutate(created.id, joined.version, {
+              type: "startPartnerMission",
+            })
+          : joined;
+      if (!("id" in ready)) throw new Error("PARTNER_ROOM_EXPECTED");
+      const signalled = await lead.mutate(created.id, ready.version, {
         type: "giveSignal",
         word: "orbit",
         count: 2,

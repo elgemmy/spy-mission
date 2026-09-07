@@ -19,6 +19,7 @@ import {
   PARTNER_MIN_SIGNAL_COUNT,
   PARTNER_TARGET_COUNT,
   PARTNER_DECOY_COUNT,
+  partnerRoleFor,
   type PartnerCardKind,
 } from "../../engine/partnerMission/index.js";
 import { sampleConceptsForBoard } from "../../content/words/sampler.js";
@@ -107,6 +108,7 @@ const roomCommandSchema = z.discriminatedUnion("type", [
     fieldNote: z.string().max(PARTNER_MAX_FIELD_NOTE_LENGTH).optional(),
   }),
   z.strictObject({ type: z.literal("resolveLockedGuesses") }),
+  z.strictObject({ type: z.literal("startPartnerMission") }),
   z.strictObject({ type: z.literal("leaveRoom") }),
   z.strictObject({ type: z.literal("banPlayer"), targetPlayerId: playerId }),
   z.strictObject({ type: z.literal("deleteRoom") }),
@@ -129,6 +131,7 @@ const requestSchema = z.discriminatedUnion("op", [
   }),
   z.strictObject({
     op: z.literal("claimPartnerSeat"),
+    role: z.enum(["mission_lead", "field_agent"]).optional(),
     code: roomCode,
     name: playerName,
     inviteToken: z.string().min(32).max(128),
@@ -384,7 +387,13 @@ async function joinRoom(
         ? applyPartnerRoomAction(
             stored.room,
             userId,
-            { type: "claimFieldAgent", name: request.name },
+            {
+              type: "claimFieldAgent",
+              name: request.name,
+              ...(request.op === "claimPartnerSeat" && request.role
+                ? { role: request.role }
+                : {}),
+            },
             new Date().toISOString(),
           )
         : joinRoomRecord(
@@ -451,6 +460,7 @@ async function mutateRoom(
   if (stored.room.mode === "partner") {
     if (
       command.type !== "giveSignal" &&
+      command.type !== "startPartnerMission" &&
       command.type !== "lockGuesses" &&
       command.type !== "resolveLockedGuesses"
     ) {
@@ -476,6 +486,7 @@ async function mutateRoom(
   }
   if (
     command.type === "giveSignal" ||
+    command.type === "startPartnerMission" ||
     command.type === "lockGuesses" ||
     command.type === "resolveLockedGuesses"
   ) {
@@ -544,7 +555,7 @@ function isImmediatelyRepeatedPartnerResolution(
   if (
     room.mode !== "partner" ||
     command.type !== "resolveLockedGuesses" ||
-    room.state.missionLead.id !== userId ||
+    partnerRoleFor(room.state, userId) !== "mission_lead" ||
     room.version !== expectedVersion + 1
   ) {
     return false;

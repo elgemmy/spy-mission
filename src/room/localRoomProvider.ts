@@ -162,7 +162,11 @@ export class LocalRoomProvider implements RoomProvider {
     const next = applyPartnerRoomAction(
       room,
       this.playerId,
-      { type: "claimFieldAgent", name: input.name },
+      {
+        type: "claimFieldAgent",
+        name: input.name,
+        ...(input.role ? { role: input.role } : {}),
+      },
       new Date().toISOString(),
     );
     await inMemoryRoomProvider.save(next, room.version);
@@ -208,6 +212,7 @@ export class LocalRoomProvider implements RoomProvider {
       }
       if (
         command.type !== "giveSignal" &&
+        command.type !== "startPartnerMission" &&
         command.type !== "lockGuesses" &&
         command.type !== "resolveLockedGuesses"
       ) {

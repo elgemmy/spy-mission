@@ -134,7 +134,9 @@ export interface JoinSharedRoomInput {
   inviteToken?: string;
 }
 
-export type ClaimPartnerSeatInput = JoinSharedRoomInput;
+export type ClaimPartnerSeatInput = JoinSharedRoomInput & {
+  role?: "mission_lead" | "field_agent";
+};
 
 export type ResumeRoomResult =
   | { status: "active"; room: SharedRoomSnapshot }
@@ -163,6 +165,7 @@ export type RoomStateCommand =
 
 export type RoomCommand =
   | RoomStateCommand
+  | { type: "startPartnerMission" }
   | { type: "giveSignal"; word: string; count: number }
   | { type: "lockGuesses"; cardIds: string[]; fieldNote?: string }
   | { type: "resolveLockedGuesses" }

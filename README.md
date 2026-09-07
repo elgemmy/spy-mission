@@ -19,20 +19,22 @@ A mobile-first family game:
 - The board is bilingual: every concept carries English and Arabic labels
 - Rooms persist across refresh; leaving the URL leaves the table
 
-## Duo Mission
+## Co-op Mission
 
-Play cooperatively with a friend, each on your own device. Choose **Duo Mission**,
-enter your name and board language, then share the private invitation link.
-The creator is Mission Lead; the invited player joins as Field Agent.
+Play as one team with any number of Mission Leads and Field Agents. Create a
+**Co-op Mission**, then share the private invitation. Players choose their role
+when joining; a Lead can start once there is at least one person in each role.
+Roles stay fixed because Leads have already seen the secret map. More players
+can join while the mission is running.
 
-The Lead sends a one-word Signal and count. The Field Agent taps words in guess
-order, can deselect or clear them, and locks up to the Signal count plus one.
-Guesses reveal in order: a decoy ends the turn, a trap loses the mission, and
-finding all eight targets wins. The secret map stays with the Lead.
+Any Lead can send the team's one-word Signal and count. Field Agents agree on
+guesses, then any one of them locks an ordered selection of up to the count
+plus one. The first accepted submission counts for the team. A decoy ends the
+turn, a trap loses the mission, and finding all eight targets wins.
 
-Duo Mission uses the same room persistence and cooperative rules as AI Partner
-Mission, with ordinary browser controls. It needs no WebMCP support or new
-migration; existing missions retain their AI behavior.
+Apply `supabase/migrations/20260907223339_cooperative_team.sql` before deploying
+this version. It lifts the human team size limit while preserving AI rooms and
+existing human pairs. Each player uses their own device; no WebMCP is required.
 
 ## AI Partner Mission
 
@@ -157,7 +159,7 @@ npm run test:supabase
 ```
 
 That command starts a **disposable** project-local Supabase stack, applies
-migrations `0001` through `0004`, runs the real API / Realtime / permission
+all migrations, runs the real API / Realtime / permission
 suite, then verifies a populated `0003` → `0004` upgrade. It stops and removes
 that local data when it finishes.
 
@@ -172,6 +174,8 @@ Current migration files:
 2. `supabase/migrations/0002_lock_down_rooms.sql`
 3. `supabase/migrations/0003_secure_multiplayer.sql`
 4. `supabase/migrations/0004_room_lifecycle.sql`
+5. `supabase/migrations/0005_partner_mission.sql`
+6. `supabase/migrations/20260907223339_cooperative_team.sql`
 
 `0001`–`0003` are immutable. Further schema changes are forward-only.
 

@@ -218,14 +218,34 @@ export const PARTNER_MESSAGES: Readonly<
 
 export const DUO_MESSAGES = {
   en: {
-    partnerMission: "Duo Mission",
+    partnerMission: "Co-op Mission",
     createHint:
-      "Two players, one mission. Give Signals as Mission Lead and invite a friend to guess on their own device.",
-    waitingForPartner: "Waiting for your partner…",
+      "One team, one mission. Invite any number of Mission Leads and Field Agents, each on their own device.",
+    waitingForPartner: "Gather your team, then start the mission.",
+    team: "Your team",
+    role: "Your role",
+    leads: "Mission Leads",
+    agents: "Field Agents",
+    startMission: "Start mission",
+    minimumTeam:
+      "Start with at least one Mission Lead and one Field Agent. There is no player limit.",
+    roleFixed:
+      "Your role stays fixed for this mission. Leads can see the secret map.",
+    sharedTurn:
+      "Agree on guesses together. Any Lead can send the Signal; any Field Agent can lock guesses for the whole team. The first accepted submission counts.",
+    waitingForSignal: () => "Waiting for a Mission Lead to send the Signal",
+    waitingForNextSignal: () => "Waiting for the next Signal",
+    guessesLocked: (_name: string, count: number) =>
+      `Team locked ${count} guesses`,
+    revealingGuesses: () => "Revealing the team’s guesses…",
+    phaseLabel: (phase: PartnerMissionPhase) =>
+      phase === "waiting_for_agent"
+        ? "Assembling the team"
+        : en.phaseLabel(phase),
     seatOpen: "Waiting for your partner…",
-    copyAgentInvite: "Copy partner invitation",
+    copyAgentInvite: "Copy team invitation",
     joinHint:
-      "Join as Field Agent. Your partner sees the secret map; you choose guesses from their Signals.",
+      "Choose your role. Mission Leads see the secret map and send Signals; Field Agents work together to guess.",
     inviteRequired:
       "Ask your partner for the full private invitation link to join this mission.",
     selectHint:
@@ -238,14 +258,31 @@ export const DUO_MESSAGES = {
     clearSelection: "Clear selection",
   },
   ar: {
-    partnerMission: "المهمة الثنائية",
+    partnerMission: "المهمة التعاونية",
     createHint:
-      "لاعبان ومهمة واحدة. أعطِ الإشارات كقائد للمهمة وادعُ صديقًا ليخمّن من جهازه.",
-    waitingForPartner: "بانتظار شريكك…",
+      "فريق واحد ومهمة واحدة. ادعُ أي عدد من قادة المهمة والعملاء الميدانيين، كلٌ من جهازه.",
+    waitingForPartner: "اجمع فريقك ثم ابدأ المهمة.",
+    team: "فريقك",
+    role: "دورك",
+    leads: "قادة المهمة",
+    agents: "العملاء الميدانيون",
+    startMission: "ابدأ المهمة",
+    minimumTeam:
+      "ابدأ بقائد مهمة وعميل ميداني على الأقل. لا يوجد حد لعدد اللاعبين.",
+    roleFixed: "يبقى دورك ثابتًا في هذه المهمة. يرى القادة الخريطة السرية.",
+    sharedTurn:
+      "اتفقوا على التخمينات معًا. يمكن لأي قائد إرسال الإشارة ولأي عميل تثبيت التخمينات للفريق كله. يُعتمد أول إرسال مقبول.",
+    waitingForSignal: () => "بانتظار إرسال الإشارة من أحد القادة",
+    waitingForNextSignal: () => "بانتظار الإشارة التالية",
+    guessesLocked: (_name: string, count: number) =>
+      `ثبّت الفريق ${count} تخمينات`,
+    revealingGuesses: () => "جارٍ كشف تخمينات الفريق…",
+    phaseLabel: (phase: PartnerMissionPhase) =>
+      phase === "waiting_for_agent" ? "تجميع الفريق" : ar.phaseLabel(phase),
     seatOpen: "بانتظار شريكك…",
-    copyAgentInvite: "نسخ دعوة الشريك",
+    copyAgentInvite: "نسخ دعوة الفريق",
     joinHint:
-      "انضم كعميل ميداني. يرى شريكك الخريطة السرية وتختار أنت التخمينات بناءً على إشاراته.",
+      "اختر دورك. يرى قادة المهمة الخريطة السرية ويرسلون الإشارات، ويتعاون العملاء الميدانيون في التخمين.",
     inviteRequired:
       "اطلب من شريكك رابط الدعوة الخاص الكامل للانضمام إلى هذه المهمة.",
     selectHint:

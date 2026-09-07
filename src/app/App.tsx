@@ -4,6 +4,8 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type ReactNode,
+  type ComponentProps,
 } from "react";
 import {
   isIllegalMove,
@@ -37,6 +39,7 @@ import { InstallSheet } from "../ui/components/InstallSheet";
 import { LocaleToggle } from "../ui/components/LocaleToggle";
 import { UpdateToast } from "../ui/components/UpdateToast";
 import { Lobby, PlayScreen } from "../ui/game";
+import { CoopTeam } from "../ui/partner/CoopTeam";
 import {
   PARTNER_MESSAGES,
   DUO_MESSAGES,
@@ -556,7 +559,11 @@ function AppShell() {
     }
   };
 
-  const joinDuoMission = async (code: string, name: string) => {
+  const joinDuoMission = async (
+    code: string,
+    name: string,
+    role: "mission_lead" | "field_agent",
+  ) => {
     const generation = lifecycleGenerationRef.current;
     if (!pendingInviteToken) {
       handleError(new Error("ROOM_INVITE_INVALID"));
@@ -567,6 +574,7 @@ function AppShell() {
         roomProvider.claimPartnerSeat({
           code,
           name,
+          role,
           inviteToken: pendingInviteToken,
         }),
       );
@@ -586,6 +594,14 @@ function AppShell() {
       return;
     try {
       await commit({ type: "lockGuesses", cardIds });
+    } catch (caught) {
+      handleError(caught);
+    }
+  };
+
+  const startPartnerMission = async () => {
+    try {
+      await commit({ type: "startPartnerMission" });
     } catch (caught) {
       handleError(caught);
     }
@@ -1277,6 +1293,21 @@ function AppShell() {
         {room?.mode === "partner" && room.view.viewerRole !== null ? (
           <>
             <LocaleToggle />
+            {room.partnerType === "human" ? (
+              <CoopTeam
+                locale={locale}
+                team={room.view.team ?? []}
+                phase={room.view.phase}
+                isLead={room.view.viewerRole === "mission_lead"}
+                canStart={Boolean(room.view.can.startPartnerMission)}
+                pending={pendingRoomAction !== null}
+                onStart={startPartnerMission}
+                onCopyInvite={
+                  roomProvider.getInviteToken(room.id) ? copyInvite : undefined
+                }
+                copied={copied}
+              />
+            ) : null}
             {room.view.viewerRole === "mission_lead" ? (
               <PartnerMissionLead
                 partnerType={room.partnerType}
@@ -1573,7 +1604,11 @@ function Onboarding({
     lang: Lang,
     partnerType?: "ai" | "human",
   ) => void;
-  onJoinDuoMission: (code: string, name: string) => void;
+  onJoinDuoMission: (
+    code: string,
+    name: string,
+    role: "mission_lead" | "field_agent",
+  ) => void;
   onJoinRoom: (code: string, name: string, source: JoinSource) => void;
   onInstall: () => void;
   partnerCapability: WebMcpCapability;
@@ -1658,7 +1693,8 @@ function Onboarding({
       return (
         <>
           <LocaleToggle />
-          <UsernameStep
+          <CoopJoinStep
+            locale={locale}
             title={DUO_MESSAGES[locale].partnerMission}
             description={DUO_MESSAGES[locale].joinHint}
             submitLabel={pending ? t.joinPending : t.joinSubmit}
@@ -1668,7 +1704,7 @@ function Onboarding({
             pending={pending}
             maxNameLength={32}
             onBack={onCancelRoomLink}
-            onSubmit={(name) => onJoinDuoMission(step.code, name)}
+            onSubmit={(name, role) => onJoinDuoMission(step.code, name, role)}
           />
         </>
       );
@@ -1928,7 +1964,43 @@ function JoinCodeStep({
   );
 }
 
+function CoopJoinStep({
+  locale,
+  onSubmit,
+  ...props
+}: Omit<ComponentProps<typeof UsernameStep>, "onSubmit"> & {
+  locale: "en" | "ar";
+  onSubmit: (name: string, role: "mission_lead" | "field_agent") => void;
+}) {
+  const [role, setRole] = useState<"mission_lead" | "field_agent">(
+    "field_agent",
+  );
+  const t = DUO_MESSAGES[locale];
+  const common = PARTNER_MESSAGES[locale];
+  return (
+    <UsernameStep {...props} onSubmit={(name) => onSubmit(name, role)}>
+      <label className="text-ink text-sm font-semibold" htmlFor="coop-role">
+        {t.role}
+      </label>
+      <select
+        id="coop-role"
+        className="cn-field"
+        value={role}
+        disabled={props.pending}
+        onChange={(event) =>
+          setRole(event.target.value as "mission_lead" | "field_agent")
+        }
+      >
+        <option value="field_agent">{common.fieldAgent}</option>
+        <option value="mission_lead">{common.missionLead}</option>
+      </select>
+      <p className="cn-partner-muted">{t.roleFixed}</p>
+    </UsernameStep>
+  );
+}
+
 function UsernameStep({
+  children,
   maxNameLength,
   title,
   description,
@@ -1940,6 +2012,7 @@ function UsernameStep({
   onBack,
   onSubmit,
 }: {
+  children?: ReactNode;
   maxNameLength?: number;
   title: string;
   description: string;
@@ -1994,6 +2067,7 @@ function UsernameStep({
         onChange={(event) => setName(event.target.value)}
         placeholder={namePlaceholder}
       />
+      {children}
       <Button type="submit" disabled={pending || name.trim().length === 0}>
         {submitLabel}
       </Button>

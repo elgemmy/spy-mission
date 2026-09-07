@@ -26,6 +26,10 @@ export interface PartnerMissionPlayer {
   name: string;
 }
 
+export interface PartnerTeamPlayer extends PartnerMissionPlayer {
+  role: PartnerMissionRole;
+}
+
 export interface PartnerMissionCard {
   id: string;
   concept: Concept;
@@ -69,6 +73,8 @@ export interface PartnerMissionState {
   mode: "partner";
   /** Older missions omit this and keep the AI partner experience. */
   partnerType?: "ai" | "human";
+  /** Human cooperative roster. Missing on legacy two-player missions. */
+  team?: PartnerTeamPlayer[];
   roomId: string;
   lang: Lang;
   phase: PartnerMissionPhase;
@@ -97,7 +103,8 @@ export interface PartnerMissionConfig {
 }
 
 export type PartnerMissionAction =
-  | { type: "claimFieldAgent"; name: string }
+  | { type: "claimFieldAgent"; name: string; role?: PartnerMissionRole }
+  | { type: "startPartnerMission" }
   | { type: "giveSignal"; word: string; count: number }
   | {
       type: "lockGuesses";
@@ -127,6 +134,7 @@ export type PartnerFieldCard =
     };
 
 export interface PartnerMissionCapabilities {
+  startPartnerMission?: boolean;
   claimFieldAgent: boolean;
   giveSignal: boolean;
   lockGuesses: boolean;
@@ -134,6 +142,7 @@ export interface PartnerMissionCapabilities {
 }
 
 interface PartnerMissionViewBase {
+  team?: PartnerTeamPlayer[];
   roomId: string;
   lang: Lang;
   phase: PartnerMissionPhase;

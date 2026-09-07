@@ -82,7 +82,7 @@ export function PartnerMissionLead({
         presentation={presentation}
       />
 
-      {fieldAgentName === null ? (
+      {partnerType !== "human" && fieldAgentName === null ? (
         <AgentInvite
           partnerType={partnerType}
           locale={locale}

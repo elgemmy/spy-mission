@@ -60,7 +60,82 @@ import { App } from "./App";
 
 const en = PARTNER_MESSAGES.en;
 
-describe("human Duo Mission", () => {
+describe("human Co-op Mission", () => {
+  it("joins as an additional Lead, shows the roster, and starts only when both roles are ready", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/play/?room=PARTNER#invite=private-agent-token",
+    );
+    mocks.resume.mockResolvedValue({
+      status: "join",
+      mode: "partner",
+      partnerType: "human",
+      code: "PARTNER",
+    });
+    const team = [
+      { id: "host", name: "Host", role: "mission_lead" as const },
+      { id: "friend", name: "Friend", role: "mission_lead" as const },
+    ];
+    const joined = leadSnapshot({
+      partnerType: "human",
+      version: 2,
+      view: { team },
+    });
+    mocks.claimPartnerSeat.mockResolvedValue(joined);
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText("Your name"), {
+      target: { value: "Friend" },
+    });
+    fireEvent.change(screen.getByLabelText(DUO_MESSAGES.en.role), {
+      target: { value: "mission_lead" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Join room" }));
+    expect(await screen.findByLabelText(en.missionMap)).toBeInTheDocument();
+    expect(mocks.claimPartnerSeat).toHaveBeenCalledWith({
+      code: "PARTNER",
+      name: "Friend",
+      role: "mission_lead",
+      inviteToken: "private-agent-token",
+    });
+    const start = screen.getByRole("button", {
+      name: DUO_MESSAGES.en.startMission,
+    });
+    expect(start).toBeDisabled();
+    const ready = leadSnapshot({
+      partnerType: "human",
+      version: 3,
+      view: {
+        team: [...team, { id: "field", name: "Guesser", role: "field_agent" }],
+        fieldAgentName: "Guesser",
+        can: { ...joined.view.can, startPartnerMission: true },
+      },
+    });
+    act(() => mocks.onChange?.(ready));
+    expect(screen.getByLabelText(DUO_MESSAGES.en.team)).toHaveTextContent(
+      "Guesser",
+    );
+    expect(start).toBeEnabled();
+    mocks.mutate.mockResolvedValue(
+      leadSnapshot({
+        partnerType: "human",
+        version: 4,
+        view: { ...ready.view, phase: "waiting_for_signal" },
+      }),
+    );
+    fireEvent.click(start);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: DUO_MESSAGES.en.startMission }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(mocks.mutate).toHaveBeenCalledWith(ready.id, 3, {
+      type: "startPartnerMission",
+    });
+    expect(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.copyAgentInvite }),
+    ).toBeInTheDocument();
+  });
   it("asks for a complete invitation when the private token is missing", async () => {
     window.history.replaceState(null, "", "/play/?room=PARTNER");
     mocks.resume.mockResolvedValue({
@@ -133,6 +208,7 @@ describe("human Duo Mission", () => {
     expect(mocks.claimPartnerSeat).toHaveBeenCalledWith({
       code: "PARTNER",
       name: "Friend",
+      role: "field_agent",
       inviteToken: "private-agent-token",
     });
     expect(screen.getByRole("button", { name: "Word 1" })).toBeDisabled();

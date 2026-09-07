@@ -1,6 +1,7 @@
 import {
   initialPartnerMissionState,
   partnerMissionReducer,
+  partnerRoleFor,
   type PartnerCardKind,
   type PartnerMissionAction,
 } from "../engine/partnerMission/index.js";
@@ -41,6 +42,17 @@ export function createPartnerRoomRecord(
         ...(input.kinds ? { kinds: input.kinds } : {}),
       }),
       ...(input.partnerType ? { partnerType: input.partnerType } : {}),
+      ...(input.partnerType === "human"
+        ? {
+            team: [
+              {
+                id: input.hostId,
+                name: input.hostName.trim(),
+                role: "mission_lead" as const,
+              },
+            ],
+          }
+        : {}),
     },
     ui: normalizeRoomUi(null),
     version: 1,
@@ -71,8 +83,5 @@ export function isPartnerRoomMember(
   room: PartnerRoomRecord,
   actorId: string,
 ): boolean {
-  return (
-    room.state.missionLead.id === actorId ||
-    room.state.fieldAgent?.id === actorId
-  );
+  return partnerRoleFor(room.state, actorId) !== null;
 }
