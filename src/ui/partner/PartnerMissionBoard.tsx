@@ -20,6 +20,7 @@ export interface FieldAgentBoardProps extends BoardPresentationProps {
   cards: readonly FieldAgentCard[];
   onSelectCard?: (id: string) => void;
   selectionFull?: boolean;
+  hintScores?: Record<string, number> | null;
 }
 
 const CARD_ROLE: Readonly<Record<PartnerCardKind, CardRole>> = {
@@ -79,6 +80,7 @@ export function FieldAgentBoard({
   activeRevealCardId,
   revealSequenceCardIds,
   visibleRevealCount,
+  hintScores,
 }: FieldAgentBoardProps) {
   const t = PARTNER_MESSAGES[locale];
   const orders = guessOrders(lockedCardIds);
@@ -121,6 +123,8 @@ export function FieldAgentBoard({
             activeReveal={activeRevealCardId === card.id}
             ariaLabel={ariaLabel}
             orderLabel={t.guessOrder}
+            hintScore={!card.revealed ? hintScores?.[card.id] : undefined}
+            hintLocale={locale}
           />
         );
       })}
@@ -141,6 +145,8 @@ function PartnerCardCell({
   activeReveal,
   ariaLabel,
   orderLabel,
+  hintScore,
+  hintLocale,
 }: {
   onSelect?: () => void;
   selected?: boolean;
@@ -154,6 +160,8 @@ function PartnerCardCell({
   activeReveal: boolean;
   ariaLabel: string;
   orderLabel: (order: number) => string;
+  hintScore?: number;
+  hintLocale?: "en" | "ar";
 }) {
   return (
     <div
@@ -182,6 +190,8 @@ function PartnerCardCell({
         onClick={onSelect}
         aria-pressed={selected}
         aria-label={ariaLabel}
+        hintScore={hintScore}
+        hintLocale={hintLocale}
       />
     </div>
   );

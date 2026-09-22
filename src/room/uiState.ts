@@ -12,5 +12,6 @@ export function normalizeRoomUi(ui: Partial<RoomUiState> | null): RoomUiState {
     votes: ui?.votes ?? {},
     clueLog: ui?.clueLog ?? [],
     banners: ui?.banners ?? [],
+    ...(ui?.hints ? { hints: ui.hints } : {}),
   };
 }

@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { Button } from "../components/Button";
 import { FieldAgentBoard } from "./PartnerMissionBoard";
+import type { HintView } from "../../room/hints";
+import { HintControl } from "../hint/HintControl";
+import { useHintHeatmap } from "../hint/useHintHeatmap";
 import {
   CurrentSignal,
   LockedGuessSummary,
@@ -23,6 +26,8 @@ export interface PartnerFieldAgentProps extends PartnerMissionCommonProps {
   onRetryWebMcp?: () => void;
   maxGuesses?: number | null;
   onLockGuesses?: (cardIds: string[]) => Promise<void>;
+  hint?: HintView;
+  onRequestHint?: () => Promise<void>;
 }
 
 export function PartnerFieldAgent({
@@ -41,7 +46,10 @@ export function PartnerFieldAgent({
   presentation,
   capability,
   onRetryWebMcp,
+  hint,
+  onRequestHint,
 }: PartnerFieldAgentProps) {
+  const heatmap = useHintHeatmap(hint);
   const words = new Map(cards.map((card) => [card.id, card.word]));
   const [selected, setSelected] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -123,7 +131,17 @@ export function PartnerFieldAgent({
         activeRevealCardId={presentation?.activeCardId}
         revealSequenceCardIds={presentation?.sequenceCardIds}
         visibleRevealCount={presentation?.visibleRevealCount}
+        hintScores={heatmap.scores}
       />
+      {hint ? (
+        <HintControl
+          hint={hint}
+          locale={locale}
+          visible={heatmap.visible}
+          onToggle={heatmap.toggle}
+          onRequestHint={onRequestHint}
+        />
+      ) : null}
       <LockedGuessSummary
         title={selecting ? duo.draftGuesses : undefined}
         locale={locale}

@@ -199,6 +199,10 @@ export class LocalRoomProvider implements RoomProvider {
     if (room.version !== expectedVersion) {
       throw new Error("ROOM_VERSION_CONFLICT");
     }
+    if (command.type === "requestHint") {
+      // Local preview has no authenticated server or secret provider access.
+      throw new Error("HINT_NOT_CONFIGURED");
+    }
 
     const now = new Date().toISOString();
     if (room.mode === "partner") {

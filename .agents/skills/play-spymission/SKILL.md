@@ -17,9 +17,10 @@ Use the exact invitation supplied by the user. Never print, commit, or retain it
 
 ## Rules shared by both paths
 
-- Use only `choose_name`, `inspect_mission`, and `submit_guesses` as they become available. Tool availability changes with the mission phase, so refresh discovery after state changes.
+- Use only `choose_name`, `inspect_mission`, `request_hint`, and `submit_guesses` as they become available. Tool availability changes with the mission phase and hint budget, so refresh discovery after state changes.
 - Reason from public Signals and board state to choose likely Targets, but never access, request, scrape, or claim knowledge of the actual unrevealed Target/Decoy/Trap classifications or secret mission map.
 - Previous Signals remain useful semantic context for unrevealed words on later turns, especially when earlier guesses ended early. Use them together with the current Signal when reasoning, but only the current Signal's `max_guesses` controls how many guesses may be submitted.
+- Optionally call `request_hint` with no arguments when available to spend the team's single hint for the whole game. Treat `hint.scores` as JEV estimates of how related unrevealed words are to the current Signal, from 0 to 1, never as actual Target/Decoy/Trap probabilities. Use only scores returned for the active turn, and inspect again after a failed request before retrying. A hint is optional; save it for when it helps.
 - Treat IDs returned by the latest `inspect_mission` as authoritative. Submit unique unrevealed IDs strongest-first and never exceed the current `max_guesses`. An extra allowed guess is optional and risky.
 - Keep `field_note` brief and public; do not expose private chain-of-thought.
 - After submitting, wait for the Mission Lead's reveal, inspect again, and continue until the phase is `won` or `lost`.

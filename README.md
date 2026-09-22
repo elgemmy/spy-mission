@@ -50,6 +50,37 @@ The browser exposes a small phase-aware WebMCP surface:
 - `choose_name` — available while joining as the invited Field Agent
 - `inspect_mission` — reads the Field Agent-safe board and current Signal
 - `submit_guesses` — locks ordered guesses during the Field Agent's turn
+- `request_hint` — spends the team's single hint on the current Signal
+
+## JEV hint
+
+Classic, AI Partner, and human Co-op missions each give a team one hint per
+game. A Field Agent can request it while guessing an active Signal. All Field
+Agents on that team share the result and allowance, including late co-op joins.
+Each player can show or hide the heatmap without making another request.
+
+Unrevealed words display independent clue-relevance percentages from red
+(low) through yellow to green (high). These scores describe word association,
+not hidden tile identities or whether a guess is safe. The heatmap expires when
+the turn ends; the allowance stays spent until a new game. Revealed tiles retain
+their normal result colors.
+
+The server calls [TypeSafe's JEV API](https://docs.typesafe.ai/api) with one
+[Noul question](https://docs.typesafe.ai/primitives/noul) per unrevealed word in
+a single request. It sends only public board information and the current Signal,
+never the secret map. Independent questions allow multiple strong matches.
+
+Set `TYPESAFE_API_KEY` in the server environment (Vercel preview/production or
+`.env.local` for a local API server). Never prefix it with `VITE_`. No additional
+database migration is required for hints; they use the room's existing JSON
+storage. The human Co-op migration must already be applied for that mode.
+Frontend-only `npm run dev` local preview cannot call JEV and shows an
+unavailable message without spending the hint. Missing credentials, invalid
+provider results, timeouts, and failed requests also leave the allowance intact.
+
+The implementation uses `jev-latest` and a ten-second request timeout. Live
+English/Arabic scoring should be checked with a real key before release;
+mocked tests verify the integration contract rather than model accuracy.
 
 ## Normal play mode
 

@@ -8,6 +8,8 @@ import { roleLabel, teamLabel } from "../../locale/messages";
 import { useUiLocale } from "../../locale/uiLocale";
 import { useMessages } from "../../locale/useMessages";
 import type { ClueLogEntry, GameBanner, RoomSnapshot } from "../../room";
+import { HintControl } from "../hint/HintControl";
+import { useHintHeatmap } from "../hint/useHintHeatmap";
 
 interface PlayScreenProps {
   room: RoomSnapshot;
@@ -23,6 +25,7 @@ interface PlayScreenProps {
   onReturnToLobby: () => void;
   onRegenerate: () => void;
   onBanPlayer: (targetPlayerId: string) => void;
+  onRequestHint?: () => Promise<void>;
 }
 
 export function PlayScreen({
@@ -39,9 +42,12 @@ export function PlayScreen({
   onReturnToLobby,
   onRegenerate,
   onBanPlayer,
+  onRequestHint,
 }: PlayScreenProps) {
   const { locale } = useUiLocale();
   const t = useMessages().play;
+  const hint = view.me?.role === "operative" ? room.hint : undefined;
+  const heatmap = useHintHeatmap(hint);
 
   return (
     <>
@@ -82,7 +88,18 @@ export function PlayScreen({
         selectedCardIndex={selectedCardIndex}
         onVote={onVote}
         onConfirm={onConfirmGuess}
+        hintScores={heatmap.scores}
       />
+
+      {hint ? (
+        <HintControl
+          hint={hint}
+          locale={locale}
+          visible={heatmap.visible}
+          onToggle={heatmap.toggle}
+          onRequestHint={onRequestHint}
+        />
+      ) : null}
 
       <ClueHistory entries={room.ui.clueLog} />
 
@@ -121,9 +138,7 @@ function BannerOverlay({ banners }: { banners: GameBanner[] }) {
             banner.type === "win" && hasAssassin ? "after-assassin" : "now"
           }
         >
-          <p className="m-0 text-xs font-semibold">
-            {bannerTitle(banner, t)}
-          </p>
+          <p className="m-0 text-xs font-semibold">{bannerTitle(banner, t)}</p>
           <p className="mt-cn-1 m-0 text-2xl font-bold">
             {bannerMessage(banner, locale, t)}
           </p>

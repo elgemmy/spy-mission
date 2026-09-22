@@ -3,6 +3,16 @@ import { LocalRoomProvider } from "./localRoomProvider";
 import type { RoomSnapshot } from "./types";
 
 describe("LocalRoomProvider lifecycle preview", () => {
+  it("reports missing server hints without changing the local room", async () => {
+    const host = new LocalRoomProvider("local-host-hint");
+    const created = await host.create({ name: "Host", lang: "en" });
+    await expect(
+      host.mutate(created.id, created.version, { type: "requestHint" }),
+    ).rejects.toThrow("HINT_NOT_CONFIGURED");
+    expect((await host.load(created.id))?.version).toBe(created.version);
+    await host.mutate(created.id, created.version, { type: "deleteRoom" });
+  });
+
   it("resumes by identity and ignores a submitted name for an active member", async () => {
     const host = new LocalRoomProvider("local-host-resume");
     const guest = new LocalRoomProvider("local-guest-resume");

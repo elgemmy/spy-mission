@@ -43,6 +43,14 @@ node "$SKILL_PATH/scripts/webmcp.mjs" call submit_guesses '{"card_ids":["card-id
 
 Do not show command details in ordinary game messages.
 
+When `request_hint` is available, optionally spend the team's one hint for the whole game before submitting guesses:
+
+```bash
+node "$SKILL_PATH/scripts/webmcp.mjs" call request_hint '{}'
+```
+
+Use the returned `hint.scores` only as clue-relatedness estimates for that turn. Refresh discovery and inspect after a failure before retrying.
+
 ## Watch for meaningful changes
 
 Start exactly one watcher as a background process:

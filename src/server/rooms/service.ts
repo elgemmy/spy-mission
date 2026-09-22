@@ -48,6 +48,13 @@ import type {
   ResumeRoomResult,
 } from "../../room/types.js";
 import { normalizeRoomUi } from "../../room/uiState.js";
+import {
+  HintError,
+  applyTeamHint,
+  hintViewFor,
+  prepareHintRequest,
+} from "../../room/hints.js";
+import { scoreHint } from "../hints/jev.js";
 
 const ROOM_COLUMNS =
   "id,code,host_id,visibility,mode,state,ui,version,created_at,updated_at,invite_hash";
@@ -85,6 +92,7 @@ const roomCommandSchema = z.discriminatedUnion("type", [
     cardIndex: z.number().int().min(0).max(24),
   }),
   z.strictObject({ type: z.literal("clearVote") }),
+  z.strictObject({ type: z.literal("requestHint") }),
   z.strictObject({
     type: z.literal("confirmGuess"),
     cardIndex: z.number().int().min(0).max(24),
@@ -439,6 +447,13 @@ async function mutateRoom(
   if (!stored) {
     throw new ApiError(404, "ROOM_NOT_FOUND");
   }
+  if (
+    command.type === "requestHint" &&
+    hintViewFor(stored.room, userId)?.scores
+  ) {
+    // Teammates and retries share the first stored answer for this turn.
+    return toRoomSnapshot(stored.room, userId);
+  }
   if (stored.room.version !== expectedVersion) {
     if (
       isImmediatelyRepeatedPartnerResolution(
@@ -451,6 +466,10 @@ async function mutateRoom(
       return toRoomSnapshot(stored.room, userId);
     }
     throw new ApiError(409, "ROOM_VERSION_CONFLICT");
+  }
+
+  if (command.type === "requestHint") {
+    return requestTeamHint(stored.room, userId, client);
   }
 
   if (command.type === "deleteRoom") {
@@ -544,6 +563,44 @@ async function mutateRoom(
     client,
   );
   return toRoomSnapshot(updated.room, userId, inviteToken);
+}
+
+async function requestTeamHint(
+  initialRoom: SharedRoomRecord,
+  userId: string,
+  client: SupabaseClient,
+): Promise<SharedRoomSnapshot> {
+  const context = prepareHintRequest(initialRoom, userId);
+  const scores = await scoreHint(context);
+  // Never hold a database transaction open across external inference. Reload
+  // membership and the turn after inference, then apply through the usual CAS.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const fresh = await loadForMember(initialRoom.id, userId, client);
+    if (!fresh) throw new ApiError(404, "ROOM_NOT_FOUND");
+    const next = applyTeamHint(
+      fresh.room,
+      userId,
+      context,
+      scores,
+      new Date().toISOString(),
+    );
+    if (next === fresh.room) return toRoomSnapshot(fresh.room, userId);
+    try {
+      const updated = await persistRoom(
+        next,
+        fresh.room.version,
+        userId,
+        null,
+        client,
+      );
+      return toRoomSnapshot(updated.room, userId);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "ROOM_VERSION_CONFLICT")
+        continue;
+      throw error;
+    }
+  }
+  throw new ApiError(409, "ROOM_VERSION_CONFLICT");
 }
 
 function isImmediatelyRepeatedPartnerResolution(
@@ -883,6 +940,20 @@ class ApiError extends Error {
 function normalizeError(error: unknown): ApiError {
   if (error instanceof ApiError) {
     return error;
+  }
+  if (error instanceof HintError) {
+    const status =
+      error.code === "HINT_WRONG_ROLE"
+        ? 403
+        : error.code === "HINT_NOT_CONFIGURED"
+          ? 503
+          : error.code === "HINT_TIMEOUT"
+            ? 504
+            : error.code === "HINT_PROVIDER_FAILED" ||
+                error.code === "HINT_INVALID_RESPONSE"
+              ? 502
+              : 409;
+    return new ApiError(status, error.code);
   }
   if (isIllegalMove(error)) {
     return new ApiError(409, error.code);

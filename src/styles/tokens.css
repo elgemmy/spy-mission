@@ -43,6 +43,11 @@
   --cn-primary: var(--cn-ink);
   --cn-primary-on: var(--cn-surface);
 
+  /* Clue relevance heatmap: low / midpoint / high, independent of factions. */
+  --cn-hint-low: #e7a59b;
+  --cn-hint-mid: #f0da89;
+  --cn-hint-high: #99c7a6;
+
   /* ---- Radii ------------------------------------------------- */
   --cn-r-card: 12px;
   --cn-r-chip: 999px;

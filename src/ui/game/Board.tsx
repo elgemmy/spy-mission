@@ -2,6 +2,7 @@ import { cn } from "../../lib/cn";
 import { WordCard, type CardRole, type CardView } from "../card";
 import type { PlayerView } from "../../engine";
 import { useMessages } from "../../locale/useMessages";
+import { useUiLocale } from "../../locale/uiLocale";
 
 interface BoardProps {
   view: PlayerView;
@@ -9,6 +10,7 @@ interface BoardProps {
   selectedCardIndex: number | null;
   onVote: (cardIndex: number) => void;
   onConfirm: (cardIndex: number) => void;
+  hintScores?: Record<string, number> | null;
 }
 
 export function Board({
@@ -17,8 +19,10 @@ export function Board({
   selectedCardIndex,
   onVote,
   onConfirm,
+  hintScores,
 }: BoardProps) {
   const t = useMessages().play;
+  const { locale } = useUiLocale();
   const cardView: CardView =
     view.me?.role === "spymaster" || view.phase === "ended"
       ? "spymaster"
@@ -60,6 +64,12 @@ export function Board({
               disabled={!view.can.guess || card.revealed}
               onClick={() => onVote(index)}
               aria-label={card.concept[view.lang]}
+              hintScore={
+                view.me?.role === "operative"
+                  ? hintScores?.[card.concept.id]
+                  : undefined
+              }
+              hintLocale={locale}
             />
           </div>
         );

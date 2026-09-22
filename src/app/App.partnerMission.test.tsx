@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PartnerMissionLeadView, PartnerFieldAgentView } from "../engine";
 import type { PartnerRoomSnapshot, SharedRoomSnapshot } from "../room";
 import { PARTNER_MESSAGES, DUO_MESSAGES } from "../ui/partner";
+import { HINT_MESSAGES } from "../ui/hint/strings";
 
 interface RegisteredTool {
   name: string;
@@ -368,6 +369,168 @@ afterEach(() => {
 });
 
 describe("AI Partner Mission App integration", () => {
+  it("does not leave a hint loading when another room command prevents its request", async () => {
+    const turn = fieldSnapshot({
+      partnerType: "human",
+      version: 3,
+      hint: {
+        used: false,
+        canRequest: true,
+        turnId: "partner:1",
+        scores: null,
+      },
+      view: {
+        phase: "field_agent_turn",
+        turnNumber: 1,
+        signal: { word: "orbit", count: 2 },
+        maxGuesses: 3,
+      },
+    });
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: turn });
+    let resolvePending!: (room: PartnerRoomSnapshot) => void;
+    mocks.mutate.mockImplementation(
+      () =>
+        new Promise<PartnerRoomSnapshot>((resolve) => {
+          resolvePending = resolve;
+        }),
+    );
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Word 1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: DUO_MESSAGES.en.lockGuesses }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: HINT_MESSAGES.en.request }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      HINT_MESSAGES.en.unavailable,
+    );
+    expect(
+      screen.getByRole("button", { name: HINT_MESSAGES.en.request }),
+    ).toBeEnabled();
+    expect(mocks.mutate).toHaveBeenCalledTimes(1);
+    await act(async () => resolvePending(turn));
+  });
+
+  it("shares a WebMCP hint with the board and expires it on the next turn", async () => {
+    const registrations: Array<{ tool: RegisteredTool; signal: AbortSignal }> =
+      [];
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        registerTool: (
+          tool: RegisteredTool,
+          options: { signal: AbortSignal },
+        ) => {
+          registrations.push({ tool, signal: options.signal });
+        },
+      },
+    });
+    const turn = fieldSnapshot({
+      version: 3,
+      hint: {
+        used: false,
+        canRequest: true,
+        turnId: "partner:1",
+        scores: null,
+      },
+      view: {
+        phase: "field_agent_turn",
+        turnNumber: 1,
+        signal: { word: "orbit", count: 2 },
+        maxGuesses: 3,
+      },
+    });
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: turn });
+    const { container } = render(<App />);
+    await waitFor(() =>
+      expect(latestTool(registrations, "request_hint")).toBeDefined(),
+    );
+    mocks.mutate.mockResolvedValue(
+      fieldSnapshot({
+        ...turn,
+        version: 4,
+        hint: {
+          used: true,
+          canRequest: false,
+          turnId: "partner:1",
+          scores: { c01: 0.94, c02: 0.1 },
+        },
+      }),
+    );
+    await act(() => latestTool(registrations, "request_hint").execute({}));
+    expect(mocks.mutate).toHaveBeenCalledWith(turn.id, 3, {
+      type: "requestHint",
+    });
+    expect(
+      await screen.findByRole("button", { name: HINT_MESSAGES.en.hide }),
+    ).toBeInTheDocument();
+    expect(container.textContent).toContain("94%");
+    fireEvent.click(
+      screen.getByRole("button", { name: HINT_MESSAGES.en.hide }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: HINT_MESSAGES.en.show }),
+    );
+    expect(mocks.mutate).toHaveBeenCalledTimes(1);
+    act(() =>
+      mocks.onChange?.(
+        fieldSnapshot({
+          version: 5,
+          hint: { used: true, canRequest: false, turnId: null, scores: null },
+        }),
+      ),
+    );
+    expect(
+      screen.queryByRole("button", { name: HINT_MESSAGES.en.hide }),
+    ).toBeNull();
+    expect(container.textContent).not.toContain("94%");
+    expect(screen.getByText(HINT_MESSAGES.en.used)).toBeInTheDocument();
+  });
+
+  it("lets a human co-op operator request a hint through the authenticated room command", async () => {
+    const turn = fieldSnapshot({
+      partnerType: "human",
+      version: 3,
+      hint: {
+        used: false,
+        canRequest: true,
+        turnId: "partner:1",
+        scores: null,
+      },
+      view: {
+        phase: "field_agent_turn",
+        turnNumber: 1,
+        signal: { word: "orbit", count: 2 },
+        maxGuesses: 3,
+      },
+    });
+    window.history.replaceState(null, "", "/play/?room=PARTNER");
+    mocks.resume.mockResolvedValue({ status: "active", room: turn });
+    mocks.mutate.mockResolvedValue(
+      fieldSnapshot({
+        ...turn,
+        version: 4,
+        hint: {
+          used: true,
+          canRequest: false,
+          turnId: "partner:1",
+          scores: { c01: 0.75 },
+        },
+      }),
+    );
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: HINT_MESSAGES.en.request }),
+    );
+    await screen.findByRole("button", { name: HINT_MESSAGES.en.hide });
+    expect(mocks.mutate).toHaveBeenCalledWith(turn.id, 3, {
+      type: "requestHint",
+    });
+  });
+
   it("creates a private Partner Mission with the human as Mission Lead", async () => {
     mocks.create.mockResolvedValue(leadSnapshot());
     render(<App />);

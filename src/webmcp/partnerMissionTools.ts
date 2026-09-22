@@ -37,6 +37,14 @@ export interface FieldAgentMissionSnapshot {
   targetsRemaining: number;
   cards: readonly FieldAgentCard[];
   lockedCardIds?: readonly string[];
+  /** The currently active turn, independently of any cached hint result. */
+  turnId?: string | null;
+  hint?: {
+    used: boolean;
+    canRequest: boolean;
+    turnId: string | null;
+    scores: Record<string, number> | null;
+  };
 }
 
 export type PartnerMissionWebMcpCapability =
@@ -47,11 +55,14 @@ export type PartnerMissionWebMcpCapability =
       phase: PartnerMissionPhase;
       /** Used only to make submit_guesses' JSON Schema more precise. */
       maxGuesses?: number;
+      /** Only expose request_hint when the application authorizes it. */
+      canRequestHint?: boolean;
     };
 
 export type PartnerMissionToolName =
   | "choose_name"
   | "inspect_mission"
+  | "request_hint"
   | "submit_guesses";
 
 export interface ChooseNameInput {
@@ -82,6 +93,10 @@ export interface PartnerMissionWebMcpHandlers {
     input: SubmitGuessesInput,
     latestMission: FieldAgentMissionSnapshot,
   ): Promise<{ lockedCount: number }>;
+  /** Requests the team's once-per-game hint through the authorized room path. */
+  requestHint?(
+    latestMission: FieldAgentMissionSnapshot,
+  ): Promise<FieldAgentMissionSnapshot>;
 }
 
 export interface WebMcpToolDefinition {
@@ -315,6 +330,55 @@ function safeError(error: unknown, fallback: string): WebMcpToolError {
     : new WebMcpToolError(fallback);
 }
 
+function canRequestHint(snapshot: FieldAgentMissionSnapshot): boolean {
+  return (
+    snapshot.phase === "field_agent_turn" &&
+    snapshot.signal !== null &&
+    snapshot.hint?.canRequest === true &&
+    snapshot.hint.used === false
+  );
+}
+
+function publicHint(snapshot: FieldAgentMissionSnapshot) {
+  if (!snapshot.hint) {
+    return undefined;
+  }
+  const hint = snapshot.hint;
+  const currentScores =
+    snapshot.phase === "field_agent_turn" &&
+    snapshot.signal !== null &&
+    hint.used === true &&
+    typeof snapshot.turnId === "string" &&
+    snapshot.turnId.length > 0 &&
+    hint.turnId === snapshot.turnId &&
+    isRecord(hint.scores)
+      ? hint.scores
+      : null;
+  // Iterate authorized public cards, never keys supplied by the classifier.
+  // This also prevents arbitrary metadata and inherited score properties from
+  // becoming part of an otherwise safe mission projection.
+  const scores = currentScores
+    ? Object.fromEntries(
+        snapshot.cards.flatMap((card) => {
+          const score = currentScores[card.id];
+          return !card.revealed &&
+            Object.hasOwn(currentScores, card.id) &&
+            typeof score === "number" &&
+            Number.isFinite(score) &&
+            score >= 0 &&
+            score <= 1
+            ? [[card.id, score]]
+            : [];
+        }),
+      )
+    : null;
+  return {
+    used: hint.used === true,
+    available: canRequestHint(snapshot),
+    scores,
+  };
+}
+
 function nextInstruction(snapshot: FieldAgentMissionSnapshot): string {
   switch (snapshot.phase) {
     case "waiting_for_agent":
@@ -322,7 +386,7 @@ function nextInstruction(snapshot: FieldAgentMissionSnapshot): string {
     case "waiting_for_signal":
       return "The Mission Lead must transmit a Signal. Call inspect_mission again, optionally with a brief wait.";
     case "field_agent_turn":
-      return `Choose 1 to ${snapshot.maxGuesses ?? 1} unrevealed card IDs in strongest-first order and call submit_guesses.`;
+      return `Choose 1 to ${snapshot.maxGuesses ?? 1} unrevealed card IDs in strongest-first order and call submit_guesses.${canRequestHint(snapshot) ? " You may optionally call request_hint for clue-relatedness scores; this uses your team's single hint for the whole game." : ""}`;
     case "locked":
       return "Your guesses are locked. Wait for the Mission Lead to reveal them, then call inspect_mission again.";
     case "won":
@@ -345,6 +409,7 @@ function missionOutput(
         }
       : { id: card.id, word: card.word, revealed: false },
   );
+  const hint = publicHint(snapshot);
 
   return {
     phase: snapshot.phase,
@@ -354,6 +419,7 @@ function missionOutput(
       snapshot.phase === "field_agent_turn" ? snapshot.maxGuesses : null,
     targets_remaining: snapshot.targetsRemaining,
     cards,
+    ...(hint ? { hint } : {}),
     submission:
       snapshot.phase === "field_agent_turn"
         ? "open"
@@ -419,7 +485,7 @@ function capabilityKey(capability: PartnerMissionWebMcpCapability): string {
   if (capability.kind !== "joined") {
     return capability.kind;
   }
-  return `${capability.kind}:${capability.phase}:${capability.maxGuesses ?? ""}`;
+  return `${capability.kind}:${capability.phase}:${capability.maxGuesses ?? ""}:${capability.canRequestHint === true}`;
 }
 
 function legalToolNames(
@@ -432,7 +498,13 @@ function legalToolNames(
     return [];
   }
   return capability.phase === "field_agent_turn"
-    ? ["inspect_mission", "submit_guesses"]
+    ? [
+        "inspect_mission",
+        ...(capability.canRequestHint === true
+          ? (["request_hint"] as const)
+          : []),
+        "submit_guesses",
+      ]
     : ["inspect_mission"];
 }
 
@@ -443,6 +515,7 @@ export class PartnerMissionWebMcpAdapter {
   private desiredKey: string | null = null;
   private generation = 0;
   private pending: Promise<PartnerMissionWebMcpStatus> | null = null;
+  private hintRequestPending = false;
   private status: PartnerMissionWebMcpStatus = {
     state: "inactive",
     toolCount: 0,
@@ -564,6 +637,8 @@ export class PartnerMissionWebMcpAdapter {
           return this.chooseNameDefinition();
         case "inspect_mission":
           return this.inspectMissionDefinition(registrationSignal);
+        case "request_hint":
+          return this.requestHintDefinition(registrationSignal);
         case "submit_guesses":
           return this.submitGuessesDefinition(
             capability.kind === "joined" ? capability.maxGuesses : undefined,
@@ -606,7 +681,7 @@ export class PartnerMissionWebMcpAdapter {
     return {
       name: "inspect_mission",
       description:
-        "Inspect the public mission board, revealed results, and current Signal. Use wait_seconds for a brief bounded wait when no Signal is active; then follow the returned next instruction.",
+        "Inspect the public mission board, revealed results, current Signal, and hint budget or current clue-relatedness scores when available. Use wait_seconds for a brief bounded wait when no Signal is active; then follow the returned next instruction.",
       inputSchema: INSPECT_MISSION_INPUT_SCHEMA,
       annotations: { readOnlyHint: true },
       execute: async (input) => {
@@ -627,6 +702,53 @@ export class PartnerMissionWebMcpAdapter {
           throw safeError(
             error,
             "Mission state is temporarily unavailable. Call inspect_mission again.",
+          );
+        }
+      },
+    };
+  }
+
+  private requestHintDefinition(
+    registrationSignal: AbortSignal,
+  ): WebMcpToolDefinition {
+    return {
+      name: "request_hint",
+      description:
+        "Optionally spend your team's single hint for the whole game to get JEV clue-relatedness scores from 0 to 1 for unrevealed words in this turn. These estimate semantic relation to the Signal, not actual Target/Decoy/Trap identities. Inspect the returned mission before guessing.",
+      inputSchema: NO_ARGUMENTS_SCHEMA,
+      execute: async (input) => {
+        const value = input ?? {};
+        if (!isRecord(value)) {
+          throw new WebMcpToolError("request_hint takes no arguments.");
+        }
+        assertOnlyProperties(value, []);
+        try {
+          const handlers = this.options.getCurrentHandlers();
+          const latestMission = handlers.getLatestMission();
+          if (
+            registrationSignal.aborted ||
+            !canRequestHint(latestMission) ||
+            !handlers.requestHint
+          ) {
+            throw new WebMcpToolError(
+              "A hint is not available. Call inspect_mission for the current turn and hint budget.",
+            );
+          }
+          if (this.hintRequestPending) {
+            throw new WebMcpToolError(
+              "A hint request is already in progress. Call inspect_mission shortly.",
+            );
+          }
+          this.hintRequestPending = true;
+          try {
+            return missionOutput(await handlers.requestHint(latestMission));
+          } finally {
+            this.hintRequestPending = false;
+          }
+        } catch (error) {
+          throw safeError(
+            error,
+            "The hint could not be requested. Call inspect_mission to check its availability before retrying.",
           );
         }
       },

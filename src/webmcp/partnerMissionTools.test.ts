@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHOOSE_NAME_INPUT_SCHEMA,
+  EMPTY_WEBMCP_INPUT_SCHEMA,
   INSPECT_MISSION_INPUT_SCHEMA,
   PartnerMissionWebMcpAdapter,
   WebMcpToolError,
@@ -136,7 +137,12 @@ describe("WebMCP capability detection", () => {
 });
 
 describe("WebMCP tool schemas and legal sets", () => {
-  it("publishes strict JSON Schemas for all three tools", () => {
+  it("publishes strict JSON Schemas for the mission tools", () => {
+    expect(EMPTY_WEBMCP_INPUT_SCHEMA).toEqual({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    });
     expect(CHOOSE_NAME_INPUT_SCHEMA).toMatchObject({
       type: "object",
       required: ["name"],
@@ -172,6 +178,18 @@ describe("WebMCP tool schemas and legal sets", () => {
       { kind: "joined", phase: "field_agent_turn", maxGuesses: 3 },
       ["inspect_mission", "submit_guesses"],
     ],
+    [
+      { kind: "joined", phase: "field_agent_turn", canRequestHint: true },
+      ["inspect_mission", "request_hint", "submit_guesses"],
+    ],
+    [
+      { kind: "joined", phase: "waiting_for_signal", canRequestHint: true },
+      ["inspect_mission"],
+    ],
+    [
+      { kind: "joined", phase: "locked", canRequestHint: true },
+      ["inspect_mission"],
+    ],
     [{ kind: "joined", phase: "locked" }, ["inspect_mission"]],
     [{ kind: "joined", phase: "won" }, ["inspect_mission"]],
     [{ kind: "joined", phase: "lost" }, ["inspect_mission"]],
@@ -195,6 +213,252 @@ describe("WebMCP tool schemas and legal sets", () => {
         expect(definition.annotations).toBeUndefined();
       }
     }
+  });
+});
+
+describe("WebMCP team hint", () => {
+  const capability: PartnerMissionWebMcpCapability = {
+    kind: "joined",
+    phase: "field_agent_turn",
+    maxGuesses: 3,
+    canRequestHint: true,
+  };
+
+  function hintMission(
+    overrides: Partial<FieldAgentMissionSnapshot> = {},
+  ): FieldAgentMissionSnapshot {
+    return mission({
+      phase: "field_agent_turn",
+      signal: { word: "orbit", count: 2 },
+      maxGuesses: 3,
+      turnId: "turn-1",
+      hint: {
+        used: false,
+        canRequest: true,
+        turnId: "turn-1",
+        scores: null,
+      },
+      ...overrides,
+    });
+  }
+
+  it("refreshes registration when hint availability changes within a turn", async () => {
+    const harness = adapterHarness(hintMission());
+    await harness.adapter.setCapability(capability);
+    const original = [...harness.registered];
+
+    await harness.adapter.setCapability({
+      ...capability,
+      canRequestHint: false,
+    });
+
+    expect(original.every(({ signal }) => signal.aborted)).toBe(true);
+    expect(harness.adapter.getStatus().toolNames).toEqual([
+      "inspect_mission",
+      "submit_guesses",
+    ]);
+  });
+
+  it("requests the latest mission's hint once and returns only safe scores", async () => {
+    const harness = adapterHarness(hintMission());
+    harness.handlers.requestHint = vi.fn(async (latest) => {
+      const updated = hintMission({
+        version: latest.version + 1,
+        hint: {
+          used: true,
+          canRequest: false,
+          turnId: "turn-1",
+          scores: { c01: 0.93, c02: 0.1, hidden_kind: 0.9 },
+        },
+      });
+      harness.setMission(updated);
+      return updated;
+    });
+    await harness.adapter.setCapability(capability);
+    harness.setMission(hintMission({ version: 12 }));
+    const tool = byName(harness.registered, "request_hint").definition;
+
+    await expect(tool.execute({})).resolves.toMatchObject({
+      hint: { used: true, available: false, scores: { c01: 0.93 } },
+    });
+    expect(harness.handlers.requestHint).toHaveBeenCalledWith(
+      expect.objectContaining({ version: 12 }),
+    );
+    await expect(tool.execute({})).rejects.toThrow("A hint is not available");
+    expect(harness.handlers.requestHint).toHaveBeenCalledOnce();
+  });
+
+  it("exposes an optional hint budget through inspect_mission", async () => {
+    const harness = adapterHarness(hintMission());
+    await harness.adapter.setCapability(capability);
+
+    await expect(
+      byName(harness.registered, "inspect_mission").definition.execute({}),
+    ).resolves.toMatchObject({
+      hint: { used: false, available: true, scores: null },
+      next: expect.stringContaining("optionally call request_hint"),
+    });
+  });
+
+  it("rejects a stale registered hint tool even if the old snapshot is available", async () => {
+    const harness = adapterHarness(hintMission());
+    harness.handlers.requestHint = vi.fn(async () => hintMission());
+    await harness.adapter.setCapability(capability);
+    const staleTool = byName(harness.registered, "request_hint").definition;
+    await harness.adapter.setCapability({ kind: "inactive" });
+
+    await expect(staleTool.execute({})).rejects.toThrow(
+      "A hint is not available",
+    );
+    expect(harness.handlers.requestHint).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    hintMission({ phase: "locked" }),
+    hintMission({ signal: null }),
+    hintMission({ hint: undefined }),
+    hintMission({
+      hint: { used: false, canRequest: false, turnId: "turn-1", scores: null },
+    }),
+  ])(
+    "rejects invocation when the latest mission no longer permits a hint",
+    async (latest) => {
+      const harness = adapterHarness(hintMission());
+      harness.handlers.requestHint = vi.fn(async () => hintMission());
+      await harness.adapter.setCapability(capability);
+      harness.setMission(latest);
+
+      await expect(
+        byName(harness.registered, "request_hint").definition.execute({}),
+      ).rejects.toThrow("A hint is not available");
+      expect(harness.handlers.requestHint).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["hint", [], { card_ids: ["c01"] }])(
+    "rejects nonempty or malformed arguments before requesting a hint",
+    async (input) => {
+      const harness = adapterHarness(hintMission());
+      harness.handlers.requestHint = vi.fn(async () => hintMission());
+      await harness.adapter.setCapability(capability);
+
+      await expect(
+        byName(harness.registered, "request_hint").definition.execute(input),
+      ).rejects.toBeInstanceOf(WebMcpToolError);
+      expect(harness.handlers.requestHint).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not issue concurrent requests for the team's hint", async () => {
+    const harness = adapterHarness(hintMission());
+    let complete!: (snapshot: FieldAgentMissionSnapshot) => void;
+    harness.handlers.requestHint = vi.fn(
+      () =>
+        new Promise<FieldAgentMissionSnapshot>(
+          (resolve) => (complete = resolve),
+        ),
+    );
+    await harness.adapter.setCapability(capability);
+    const tool = byName(harness.registered, "request_hint").definition;
+    const first = tool.execute({});
+
+    await expect(tool.execute({})).rejects.toThrow("already in progress");
+    expect(harness.handlers.requestHint).toHaveBeenCalledOnce();
+    complete(hintMission());
+    await first;
+  });
+
+  it("sanitizes failures without blocking a later retry", async () => {
+    const harness = adapterHarness(hintMission());
+    harness.handlers.requestHint = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new Error("secret JEV API key and upstream payload"),
+      )
+      .mockResolvedValueOnce(hintMission());
+    await harness.adapter.setCapability(capability);
+    const tool = byName(harness.registered, "request_hint").definition;
+
+    await expect(tool.execute({})).rejects.toThrow(
+      "The hint could not be requested. Call inspect_mission to check its availability before retrying.",
+    );
+    await expect(tool.execute({})).resolves.toMatchObject({
+      phase: "field_agent_turn",
+    });
+  });
+
+  it("filters revealed, unknown, inherited, and invalid scores without leaking metadata", async () => {
+    const scores = Object.assign(Object.create({ inherited: 0.8 }), {
+      c01: 0,
+      c02: 0.8,
+      strong: 1,
+      negative: -0.01,
+      excessive: 1.01,
+      infinite: Infinity,
+      nan: NaN,
+      text: "0.8",
+      unknown: 0.4,
+      secret_map: "trap",
+    }) as Record<string, number>;
+    const source = hintMission({
+      cards: [
+        ...mission().cards,
+        ...[
+          "strong",
+          "negative",
+          "excessive",
+          "infinite",
+          "nan",
+          "text",
+          "inherited",
+        ].map((id) => ({ id, word: id, revealed: false as const })),
+      ],
+      hint: { used: true, canRequest: false, turnId: "turn-1", scores },
+    });
+    const harness = adapterHarness(source);
+    await harness.adapter.setCapability(capability);
+    const output = await byName(
+      harness.registered,
+      "inspect_mission",
+    ).definition.execute({});
+
+    expect(output).toHaveProperty("hint", {
+      used: true,
+      available: false,
+      scores: { c01: 0, strong: 1 },
+    });
+    expect(JSON.stringify(output)).not.toContain("trap");
+    expect(JSON.stringify(output)).not.toContain("secret_map");
+  });
+
+  it.each<Partial<FieldAgentMissionSnapshot>>([
+    { phase: "waiting_for_signal" },
+    { phase: "locked" },
+    { phase: "won" },
+    { phase: "lost" },
+    { turnId: "turn-2" },
+    { turnId: null },
+    { turnId: undefined },
+    { signal: null },
+  ])("hides scores outside their active turn for %o", async (overrides) => {
+    const harness = adapterHarness(
+      hintMission({
+        hint: {
+          used: true,
+          canRequest: false,
+          turnId: "turn-1",
+          scores: { c01: 0.9 },
+        },
+        ...overrides,
+      }),
+    );
+    await harness.adapter.setCapability(capability);
+
+    await expect(
+      byName(harness.registered, "inspect_mission").definition.execute({}),
+    ).resolves.toMatchObject({
+      hint: { used: true, available: false, scores: null },
+    });
   });
 });
 

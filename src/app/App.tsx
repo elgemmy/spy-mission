@@ -599,6 +599,17 @@ function AppShell() {
     }
   };
 
+  const requestHint = async () => {
+    // HintControl owns its localized failure feedback and repeat-tap guard.
+    // commit keeps abandoned room requests from restoring a stale screen.
+    const result = await commit({ type: "requestHint" });
+    // Another pending room action can prevent commit from sending anything.
+    // Do not tell HintControl to wait for a snapshot that will never arrive.
+    if (!result || !("id" in result)) {
+      throw new Error("HINT_NOT_AVAILABLE");
+    }
+  };
+
   const startPartnerMission = async () => {
     try {
       await commit({ type: "startPartnerMission" });
@@ -1122,6 +1133,51 @@ function AppShell() {
           throw webMcpError(caught, "submit_guesses");
         }
       },
+      requestHint: async (latest) => {
+        const current = roomRef.current;
+        const generation = lifecycleGenerationRef.current;
+        if (
+          current?.mode !== "partner" ||
+          current.partnerType === "human" ||
+          current.view.viewerRole !== "field_agent" ||
+          current.version !== latest.version
+        ) {
+          throw new WebMcpToolError(
+            "The mission changed. Call inspect_mission before requesting a hint.",
+          );
+        }
+        try {
+          const result = await roomProvider.mutate(
+            current.id,
+            current.version,
+            { type: "requestHint" },
+          );
+          if (
+            lifecycleGenerationRef.current !== generation ||
+            activeRoomRef.current !== current.id ||
+            !("id" in result) ||
+            result.mode !== "partner" ||
+            result.view.viewerRole !== "field_agent"
+          ) {
+            throw new WebMcpToolError(
+              "The mission changed. Call inspect_mission to see the current hint status.",
+            );
+          }
+          publishRoom(result);
+          const fresh = roomRef.current;
+          if (
+            fresh?.mode !== "partner" ||
+            fresh.view.viewerRole !== "field_agent"
+          ) {
+            throw new WebMcpToolError(
+              "The Field Agent mission is no longer active.",
+            );
+          }
+          return toFieldAgentMissionSnapshot(fresh, fresh.view);
+        } catch (caught) {
+          throw webMcpError(caught, "request_hint");
+        }
+      },
     };
   });
 
@@ -1141,6 +1197,9 @@ function AppShell() {
     room.view.viewerRole === "field_agent"
       ? room.view.maxGuesses
       : null;
+  const canRequestAgentHint = Boolean(
+    fieldAgentPhase && room?.hint?.canRequest,
+  );
 
   useEffect(() => {
     let current = true;
@@ -1150,6 +1209,7 @@ function AppShell() {
         ? ({
             kind: "joined",
             phase: fieldAgentPhase,
+            canRequestHint: canRequestAgentHint,
             ...(fieldAgentMaxGuesses
               ? { maxGuesses: fieldAgentMaxGuesses }
               : {}),
@@ -1178,6 +1238,7 @@ function AppShell() {
       current = false;
     };
   }, [
+    canRequestAgentHint,
     fieldAgentMaxGuesses,
     fieldAgentPhase,
     partnerInviteActive,
@@ -1344,6 +1405,8 @@ function AppShell() {
                 partnerType={room.partnerType}
                 maxGuesses={room.view.maxGuesses}
                 onLockGuesses={lockDuoGuesses}
+                hint={room.hint}
+                onRequestHint={requestHint}
                 locale={locale}
                 boardLang={room.view.lang}
                 phase={visiblePartnerPhase(room.view, revealPresentation)}
@@ -1413,6 +1476,7 @@ function AppShell() {
                 onGiveClue={giveClue}
                 onConfirmGuess={confirmCard}
                 onEndTurn={endTurn}
+                onRequestHint={requestHint}
                 onReturnToLobby={confirmReturnToLobby}
                 onRegenerate={confirmRegenerate}
                 onBanPlayer={confirmBanPlayer}
@@ -2274,15 +2338,22 @@ function toFieldAgentMissionSnapshot(
     targetsRemaining: view.targetsRemaining,
     cards: toFieldAgentCards(view),
     lockedCardIds: view.lockedCardIds,
+    hint: room.hint,
+    turnId: room.hint?.turnId,
   };
 }
 
 function webMcpError(
   caught: unknown,
-  tool: "choose_name" | "submit_guesses",
+  tool: "choose_name" | "submit_guesses" | "request_hint",
 ): WebMcpToolError {
   if (caught instanceof WebMcpToolError) {
     return caught;
+  }
+  if (tool === "request_hint") {
+    return new WebMcpToolError(
+      "The hint could not be obtained. Call inspect_mission for the current hint status before retrying.",
+    );
   }
   const code =
     isIllegalMove(caught) || caught instanceof RoomError
