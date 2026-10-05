@@ -402,7 +402,7 @@ async function joinRoom(
     if (!error && data) {
       return toRoomSnapshot(rowToStoredRoom(data).room, userId);
     }
-    if (error?.code === "40001") {
+    if (isRoomVersionConflict(error)) {
       continue;
     }
     throwDatabaseError(error);
@@ -809,13 +809,20 @@ function validInvite(
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
+// Business conflicts are not PostgreSQL serialization failures (40001).
+function isRoomVersionConflict(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  return error?.code === "PT409" || error?.message === "ROOM_VERSION_CONFLICT";
+}
+
 function throwDatabaseError(
   error: { code?: string; message?: string } | null,
 ): void {
   if (!error) {
     return;
   }
-  if (error.code === "40001") {
+  if (isRoomVersionConflict(error)) {
     throw new ApiError(409, "ROOM_VERSION_CONFLICT");
   }
   const knownCode = [

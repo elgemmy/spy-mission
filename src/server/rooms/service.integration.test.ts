@@ -160,6 +160,50 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
     }
   }, 20_000);
 
+  it("returns non-retryable HTTP 409 for stale versions in every room RPC", async () => {
+    const [host, member, joiner] = await Promise.all([
+      anonymousIdentity(),
+      anonymousIdentity(),
+      anonymousIdentity(),
+    ]);
+    const created = await createRoom(host, "Host");
+    try {
+      await joinRoom(member, created.code, "Member");
+      const before = await rawRoom(created.id);
+      const membersBefore = await rawMembers(created.id);
+      const probes = serverRpcProbes(host.userId).filter(
+        ({ name }) => name !== "server_create_room",
+      );
+      for (const { name, args } of probes) {
+        const result = await adminClient()
+          .rpc(name, {
+            ...args,
+            p_room_id: created.id,
+            p_expected_version: before.version - 1,
+            ...(name === "server_join_room"
+              ? { p_user_id: joiner.userId }
+              : {}),
+            ...(name === "server_leave_room"
+              ? { p_actor_id: member.userId }
+              : {}),
+            ...(name === "server_ban_room_member"
+              ? { p_target_user_id: member.userId }
+              : {}),
+          })
+          .abortSignal(AbortSignal.timeout(3_000));
+        expect(result.status, name).toBe(409);
+        expect(result.error, name).toMatchObject({
+          code: "PT409",
+          message: "ROOM_VERSION_CONFLICT",
+        });
+        expect(await rawRoom(created.id), name).toEqual(before);
+        expect(await rawMembers(created.id), name).toEqual(membersBefore);
+      }
+    } finally {
+      await deleteIfPresent(host, created.id);
+    }
+  }, 20_000);
+
   it("fails closed when active membership persistently lacks a player", async () => {
     const [host, member] = await Promise.all([
       anonymousIdentity(),
