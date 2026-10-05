@@ -25,6 +25,10 @@ npx vitest run src/server/rooms/service.integration.test.ts
 npx supabase db reset --local --version 0003 --no-seed
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0003-populated.sql
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/migrations/0004_room_lifecycle.sql
+psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0006-legacy-upgrade.test.sql
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/migrations/0005_partner_mission.sql
+psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0006-before-upgrade.sql
+psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/migrations/20261005151545_room_version_conflict.sql
+psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0006-upgrade.test.sql
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0005-upgrade.test.sql
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0004-upgrade.test.sql

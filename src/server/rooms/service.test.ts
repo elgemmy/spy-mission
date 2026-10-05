@@ -120,6 +120,115 @@ describe("room server boundary", () => {
     expect(client.rpc).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      { code: "PT409", message: "room version conflict" },
+      409,
+      "ROOM_VERSION_CONFLICT",
+    ],
+    [
+      { code: "P0001", message: "ROOM_VERSION_CONFLICT" },
+      409,
+      "ROOM_VERSION_CONFLICT",
+    ],
+    [
+      { code: "40001", message: "serialization failure" },
+      503,
+      "ROOM_STORAGE_ERROR",
+    ],
+  ])("maps RPC error %j to %s / %s", async (error, status, code) => {
+    const client = fakeClient();
+    vi.mocked(client.rpc).mockReturnValue({
+      single: vi.fn(async () => ({ data: null, error })),
+    } as never);
+    setAdminClientForTests(client);
+
+    const response = await handleRoomsRequest(
+      request({
+        op: "command",
+        roomId: ROOM_ID,
+        expectedVersion: 8,
+        command: { type: "renamePlayer", name: "New name" },
+      }),
+    );
+
+    expect(response.status).toBe(status);
+    await expect(response.json()).resolves.toEqual({ error: code });
+    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(client.rpc).toHaveBeenCalledWith(
+      "server_update_room",
+      expect.any(Object),
+    );
+  });
+
+  it("reloads a room before retrying a PT409 join", async () => {
+    const row = storedRoomRow();
+    const state = row.state as ReturnType<typeof startTestGame>;
+    state.phase = "lobby";
+    delete state.players[USER_ID];
+    const client = fakeClient({ row, member: false });
+    const argsSeen: number[] = [];
+    vi.mocked(client.rpc).mockImplementation(
+      (_name, args) =>
+        ({
+          single: vi.fn(async () => {
+            argsSeen.push(args?.p_expected_version as number);
+            if (argsSeen.length === 1) {
+              row.version = 9;
+              return {
+                data: null,
+                error: { code: "PT409", message: "ROOM_VERSION_CONFLICT" },
+              };
+            }
+            return {
+              data: { ...row, state: args?.p_state, version: 10 },
+              error: null,
+            };
+          }),
+        }) as never,
+    );
+    setAdminClientForTests(client);
+
+    const response = await handleRoomsRequest(
+      request({ op: "join", code: "TESTRM", name: "Joiner" }),
+    );
+    expect(response.status).toBe(200);
+    expect(argsSeen).toEqual([8, 9]);
+  });
+
+  it.each([
+    [
+      { code: "PT409", message: "ROOM_VERSION_CONFLICT" },
+      4,
+      409,
+      "ROOM_VERSION_CONFLICT",
+    ],
+    [
+      { code: "40001", message: "serialization failure" },
+      1,
+      503,
+      "ROOM_STORAGE_ERROR",
+    ],
+    [{ code: "PT403", message: "ROOM_BANNED" }, 1, 403, "ROOM_BANNED"],
+  ])("bounds join attempts for %j", async (error, attempts, status, code) => {
+    const row = storedRoomRow();
+    const state = row.state as ReturnType<typeof startTestGame>;
+    state.phase = "lobby";
+    delete state.players[USER_ID];
+    const client = fakeClient({ row, member: false });
+    vi.mocked(client.rpc).mockReturnValue({
+      single: vi.fn(async () => ({ data: null, error })),
+    } as never);
+    setAdminClientForTests(client);
+
+    const response = await handleRoomsRequest(
+      request({ op: "join", code: "TESTRM", name: "Joiner" }),
+    );
+    expect(response.status).toBe(status);
+    await expect(response.json()).resolves.toEqual({ error: code });
+    expect(client.rpc).toHaveBeenCalledTimes(attempts);
+  });
+
   it("rejects requests without a player access token", async () => {
     setAdminClientForTests(fakeClient());
     const response = await handleRoomsRequest(
