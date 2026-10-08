@@ -10,6 +10,7 @@ import type {
   PartnerMissionState,
   PartnerMissionView,
 } from "../engine/partnerMission/index.js";
+import type { HintView, TeamHint } from "./hints.js";
 
 export type Unsubscribe = () => void;
 export type RoomVisibility = "public" | "private";
@@ -31,6 +32,7 @@ export interface RoomUiState {
   votes: Record<string, number | null>;
   clueLog: ClueLogEntry[];
   banners: GameBanner[];
+  hints?: Partial<Record<"red" | "blue" | "partner", TeamHint>>;
 }
 
 export interface RoomRecord {
@@ -91,6 +93,7 @@ export interface RoomSnapshot {
   visibility: RoomVisibility;
   view: PlayerView;
   ui: RoomUiState;
+  hint?: HintView;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -99,11 +102,13 @@ export interface RoomSnapshot {
 
 export interface PartnerRoomSnapshot {
   mode: "partner";
+  partnerType?: "ai" | "human";
   id: string;
   code: string;
   hostId: string;
   visibility: "private";
   view: PartnerMissionView;
+  hint?: HintView;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -117,6 +122,7 @@ export interface CreateSharedRoomInput {
   lang: Lang;
   visibility?: RoomVisibility;
   mode?: RoomMode;
+  partnerType?: "ai" | "human";
 }
 
 export type CreateClassicRoomInput = CreateSharedRoomInput & {
@@ -132,11 +138,18 @@ export interface JoinSharedRoomInput {
   inviteToken?: string;
 }
 
-export type ClaimPartnerSeatInput = JoinSharedRoomInput;
+export type ClaimPartnerSeatInput = JoinSharedRoomInput & {
+  role?: "mission_lead" | "field_agent";
+};
 
 export type ResumeRoomResult =
   | { status: "active"; room: SharedRoomSnapshot }
-  | { status: "join"; code: string; mode: "partner" }
+  | {
+      status: "join";
+      code: string;
+      mode: "partner";
+      partnerType?: "ai" | "human";
+    }
   | { status: "join"; code: string; mode?: "classic" }
   | { status: "notFound" };
 
@@ -156,6 +169,8 @@ export type RoomStateCommand =
 
 export type RoomCommand =
   | RoomStateCommand
+  | { type: "requestHint" }
+  | { type: "startPartnerMission" }
   | { type: "giveSignal"; word: string; count: number }
   | { type: "lockGuesses"; cardIds: string[]; fieldNote?: string }
   | { type: "resolveLockedGuesses" }

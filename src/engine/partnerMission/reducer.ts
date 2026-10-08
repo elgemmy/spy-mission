@@ -1,5 +1,6 @@
 import { IllegalMove } from "../contract.js";
 import { normalizePartnerName } from "./initialState.js";
+import { partnerPlayers, partnerRoleFor, partnerTeamReady } from "./team.js";
 import {
   PARTNER_MAX_FIELD_NOTE_LENGTH,
   PARTNER_MAX_SIGNAL_COUNT,
@@ -14,7 +15,7 @@ import {
 } from "./types.js";
 
 function assertMissionLead(state: PartnerMissionState, actorId: string): void {
-  if (state.missionLead.id !== actorId) {
+  if (partnerRoleFor(state, actorId) !== "mission_lead") {
     throw new IllegalMove("WRONG_ROLE");
   }
 }
@@ -23,7 +24,7 @@ function assertFieldAgent(state: PartnerMissionState, actorId: string): void {
   if (!state.fieldAgent) {
     throw new IllegalMove("NOT_A_PLAYER");
   }
-  if (state.fieldAgent.id !== actorId) {
+  if (partnerRoleFor(state, actorId) !== "field_agent") {
     throw new IllegalMove("WRONG_ROLE");
   }
 }
@@ -125,6 +126,26 @@ export function partnerMissionReducer(
 ): PartnerMissionState {
   switch (action.type) {
     case "claimFieldAgent": {
+      if (state.partnerType === "human") {
+        const team = partnerPlayers(state);
+        // Roles never change after joining: Leads have already seen the map.
+        if (team.some((player) => player.id === actorId))
+          throw new IllegalMove("ALREADY_JOINED");
+        if (state.phase === "won" || state.phase === "lost")
+          throw new IllegalMove("WRONG_PHASE");
+        const role = action.role ?? "field_agent";
+        if (role !== "mission_lead" && role !== "field_agent")
+          throw new IllegalMove("WRONG_ROLE");
+        const player = { id: actorId, name: normalizePartnerName(action.name) };
+        return {
+          ...state,
+          team: [...team, { ...player, role }],
+          fieldAgent:
+            state.fieldAgent ?? (role === "field_agent" ? player : null),
+        };
+      }
+      if (action.role && action.role !== "field_agent")
+        throw new IllegalMove("WRONG_ROLE");
       if (actorId === state.missionLead.id) {
         throw new IllegalMove("WRONG_ROLE");
       }
@@ -145,6 +166,14 @@ export function partnerMissionReducer(
           name: normalizePartnerName(action.name),
         },
       };
+    }
+
+    case "startPartnerMission": {
+      assertMissionLead(state, actorId);
+      if (state.partnerType !== "human" || state.phase !== "waiting_for_agent")
+        throw new IllegalMove("WRONG_PHASE");
+      if (!partnerTeamReady(state)) throw new IllegalMove("NOT_ENOUGH_PLAYERS");
+      return { ...state, phase: "waiting_for_signal" };
     }
 
     case "giveSignal": {

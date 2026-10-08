@@ -1,3 +1,4 @@
+import { partnerPlayers, partnerRoleFor, partnerTeamReady } from "./team.js";
 import type {
   PartnerFieldAgentView,
   PartnerFieldCard,
@@ -17,10 +18,19 @@ function capabilities(
   viewerRole: "mission_lead" | "field_agent" | null,
 ): PartnerMissionCapabilities {
   return {
+    ...(state.partnerType === "human"
+      ? {
+          startPartnerMission:
+            viewerRole === "mission_lead" &&
+            state.phase === "waiting_for_agent" &&
+            partnerTeamReady(state),
+        }
+      : {}),
     claimFieldAgent:
       viewerRole === null &&
-      state.fieldAgent === null &&
-      state.phase === "waiting_for_agent",
+      (state.partnerType === "human"
+        ? state.phase !== "won" && state.phase !== "lost"
+        : state.fieldAgent === null && state.phase === "waiting_for_agent"),
     giveSignal:
       viewerRole === "mission_lead" && state.phase === "waiting_for_signal",
     lockGuesses:
@@ -55,12 +65,7 @@ export function partnerMissionViewFor(
   state: PartnerMissionState,
   actorId: string,
 ): PartnerMissionView {
-  const viewerRole =
-    state.missionLead.id === actorId
-      ? "mission_lead"
-      : state.fieldAgent?.id === actorId
-        ? "field_agent"
-        : null;
+  const viewerRole = partnerRoleFor(state, actorId);
 
   if (viewerRole === null) {
     return {
@@ -70,13 +75,15 @@ export function partnerMissionViewFor(
       viewerRole,
       missionLeadName: state.missionLead.name,
       fieldAgentName: state.fieldAgent?.name ?? null,
-      seatAvailable:
-        state.fieldAgent === null && state.phase === "waiting_for_agent",
+      seatAvailable: capabilities(state, viewerRole).claimFieldAgent,
       can: capabilities(state, viewerRole),
     };
   }
 
   const common = {
+    ...(state.partnerType === "human"
+      ? { team: partnerPlayers(state).map((player) => ({ ...player })) }
+      : {}),
     roomId: state.roomId,
     lang: state.lang,
     phase: state.phase,

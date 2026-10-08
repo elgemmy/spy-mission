@@ -21,6 +21,7 @@ export SUPABASE_SECRET_KEY="${SERVICE_ROLE_KEY}"
 export SUPABASE_DB_URL="${DB_URL}"
 
 npx vitest run src/server/rooms/service.integration.test.ts
+psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/cooperative-team.test.sql
 
 npx supabase db reset --local --version 0003 --no-seed
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0003-populated.sql
@@ -32,3 +33,6 @@ psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/migrations/20261005151545
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0006-upgrade.test.sql
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0005-upgrade.test.sql
 psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/0004-upgrade.test.sql
+
+psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/migrations/20260907223339_cooperative_team.sql
+psql "${DB_URL}" --set=ON_ERROR_STOP=1 --file supabase/tests/cooperative-team.test.sql

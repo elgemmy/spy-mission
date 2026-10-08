@@ -84,6 +84,27 @@
     inset 0 -2px 0 rgba(0, 0, 0, 0.05);
 }
 
+.cn-card.has-hint:not(.is-revealed)[data-view="operative"]
+  .cn-card__face--front {
+  background: var(--cn-hint-color, var(--cn-surface));
+  color: var(--cn-ink);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-content: stretch;
+  justify-items: center;
+  gap: var(--cn-space-1);
+}
+
+.cn-card__hint-score {
+  color: var(--cn-ink);
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 .cn-card[data-view="spymaster"] .cn-card__face--front {
   background: var(--c-tint);
   color: var(--c-ink);

@@ -75,6 +75,7 @@ export type WebMcpCapability =
   | { state: "ready"; toolCount: number };
 
 export interface PartnerMissionCommonProps {
+  partnerType?: "ai" | "human";
   locale: "en" | "ar";
   boardLang: CardLang;
   phase: PartnerMissionPhase;

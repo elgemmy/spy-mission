@@ -34,6 +34,36 @@ const baseView: PlayerView = {
 };
 
 describe("Board", () => {
+  it("maps hint scores by public concept ID and skips revealed cards", () => {
+    render(
+      <Board
+        view={{
+          ...baseView,
+          lang: "en",
+          board: [
+            baseView.board[0]!,
+            {
+              concept: { id: "word-2", en: "Moon", ar: "قمر" },
+              revealed: true,
+              kind: "red",
+            },
+          ],
+        }}
+        votes={{}}
+        selectedCardIndex={null}
+        onVote={vi.fn()}
+        onConfirm={vi.fn()}
+        hintScores={{ "word-1": 0.5, "word-2": 1 }}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "word: 50% clue relevance" }),
+    ).toHaveClass("has-hint");
+    expect(screen.getByRole("button", { name: "Moon" })).not.toHaveClass(
+      "has-hint",
+    );
+  });
+
   it("uses key-tint card view for everyone after the game ends", () => {
     const endedView: PlayerView = {
       ...baseView,

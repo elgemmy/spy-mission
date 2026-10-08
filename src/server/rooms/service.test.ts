@@ -328,94 +328,120 @@ describe("room server boundary", () => {
     await expect(response.json()).resolves.toEqual({ data: null });
   });
 
-  it("returns structurally redacted Partner state to the Field Agent", async () => {
-    const row = partnerRoomRow({ fieldAgentId: AGENT_ID });
-    setAdminClientForTests(fakeClient({ row, userId: AGENT_ID }));
+  it.each([undefined, "human"] as const)(
+    "returns structurally redacted Partner state to the Field Agent (%s)",
+    async (partnerType) => {
+      const row = partnerRoomRow({ fieldAgentId: AGENT_ID, partnerType });
+      setAdminClientForTests(fakeClient({ row, userId: AGENT_ID }));
 
-    const response = await handleRoomsRequest(
-      request({ op: "get", roomId: ROOM_ID }),
-    );
-    const payload = (await response.json()) as {
-      data: { mode: string; view: { board: Array<Record<string, unknown>> } };
-    };
+      const response = await handleRoomsRequest(
+        request({ op: "get", roomId: ROOM_ID }),
+      );
+      const payload = (await response.json()) as {
+        data: { mode: string; view: { board: Array<Record<string, unknown>> } };
+      };
 
-    expect(response.status).toBe(200);
-    expect(payload.data.mode).toBe("partner");
-    expect(payload.data).not.toHaveProperty("state");
-    expect(payload.data.view.board).toHaveLength(25);
-    expect(payload.data.view.board.every((card) => !("kind" in card))).toBe(
-      true,
-    );
-    expect(JSON.stringify(payload.data.view.board)).not.toMatch(
-      /"(?:kind|result)":/,
-    );
-  });
+      expect(response.status).toBe(200);
+      expect(payload.data.mode).toBe("partner");
+      expect(payload.data).not.toHaveProperty("state");
+      expect(payload.data.view.board).toHaveLength(25);
+      expect(payload.data.view.board.every((card) => !("kind" in card))).toBe(
+        true,
+      );
+      expect(JSON.stringify(payload.data.view.board)).not.toMatch(
+        /"(?:kind|result)":/,
+      );
+    },
+  );
 
-  it("routes nonmembers to Partner onboarding without exposing a board", async () => {
-    setAdminClientForTests(
-      fakeClient({ row: partnerRoomRow(), member: false, userId: AGENT_ID }),
-    );
+  it.each([undefined, "human"] as const)(
+    "routes nonmembers to Partner onboarding without exposing a board (%s)",
+    async (partnerType) => {
+      setAdminClientForTests(
+        fakeClient({
+          row: partnerRoomRow({ partnerType }),
+          member: false,
+          userId: AGENT_ID,
+        }),
+      );
 
-    const response = await handleRoomsRequest(
-      request({ op: "resume", code: "PARTNER" }),
-    );
+      const response = await handleRoomsRequest(
+        request({ op: "resume", code: "PARTNER" }),
+      );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      data: { status: "join", code: "PARTNER", mode: "partner" },
-    });
-  });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        data: {
+          status: "join",
+          code: "PARTNER",
+          mode: "partner",
+          ...(partnerType ? { partnerType } : {}),
+        },
+      });
+    },
+  );
 
-  it("creates Partner rooms as private Mission Lead rooms", async () => {
-    const client = fakeClient({ userId: LEAD_ID });
-    vi.mocked(client.rpc).mockImplementation(
-      (_name, args) =>
-        ({
-          single: vi.fn(async () => ({
-            data: {
-              id: args?.p_id,
-              code: args?.p_code,
-              host_id: args?.p_host_id,
-              visibility: args?.p_visibility,
-              mode: args?.p_mode,
-              state: args?.p_state,
-              ui: args?.p_ui,
-              version: args?.p_version,
-              created_at: args?.p_created_at,
-              updated_at: args?.p_updated_at,
-              invite_hash: args?.p_invite_hash,
-            },
-            error: null,
-          })),
-        }) as never,
-    );
-    setAdminClientForTests(client);
+  it.each([undefined, "human"] as const)(
+    "creates Partner rooms as private Mission Lead rooms (%s)",
+    async (partnerType) => {
+      const client = fakeClient({ userId: LEAD_ID });
+      vi.mocked(client.rpc).mockImplementation(
+        (_name, args) =>
+          ({
+            single: vi.fn(async () => ({
+              data: {
+                id: args?.p_id,
+                code: args?.p_code,
+                host_id: args?.p_host_id,
+                visibility: args?.p_visibility,
+                mode: args?.p_mode,
+                state: args?.p_state,
+                ui: args?.p_ui,
+                version: args?.p_version,
+                created_at: args?.p_created_at,
+                updated_at: args?.p_updated_at,
+                invite_hash: args?.p_invite_hash,
+              },
+              error: null,
+            })),
+          }) as never,
+      );
+      setAdminClientForTests(client);
 
-    const response = await handleRoomsRequest(
-      request({
-        op: "create",
-        name: "Lead",
-        lang: "en",
+      const response = await handleRoomsRequest(
+        request({
+          op: "create",
+          name: "Lead",
+          lang: "en",
+          mode: "partner",
+          partnerType,
+          visibility: "public",
+        }),
+      );
+      const payload = (await response.json()) as {
+        data: {
+          mode: string;
+          visibility: string;
+          view: { viewerRole: string };
+        };
+      };
+
+      expect(response.status).toBe(200);
+      expect(payload.data).toMatchObject({
         mode: "partner",
-        visibility: "public",
-      }),
-    );
-    const payload = (await response.json()) as {
-      data: { mode: string; visibility: string; view: { viewerRole: string } };
-    };
-
-    expect(response.status).toBe(200);
-    expect(payload.data).toMatchObject({
-      mode: "partner",
-      visibility: "private",
-      view: { viewerRole: "mission_lead" },
-    });
-    expect(vi.mocked(client.rpc).mock.calls[0]?.[0]).toBe("server_create_room");
-    expect(vi.mocked(client.rpc).mock.calls[0]?.[1]).toMatchObject({
-      p_mode: "partner",
-      p_visibility: "private",
-    });
-  });
+        visibility: "private",
+        view: { viewerRole: "mission_lead" },
+      });
+      expect(vi.mocked(client.rpc).mock.calls[0]?.[0]).toBe(
+        "server_create_room",
+      );
+      expect(vi.mocked(client.rpc).mock.calls[0]?.[1]).toMatchObject({
+        p_mode: "partner",
+        p_visibility: "private",
+        p_state: { ...(partnerType ? { partnerType } : {}), mode: "partner" },
+      });
+    },
+  );
 
   it.each([LEAD_ID, AGENT_ID])(
     "resumes an active Partner member by authenticated identity (%s)",
@@ -705,6 +731,7 @@ function fakeClient(
 function partnerRoomRow(
   options: {
     fieldAgentId?: string;
+    partnerType?: "ai" | "human";
     inviteToken?: string;
   } = {},
 ): Record<string, unknown> {
@@ -721,6 +748,7 @@ function partnerRoomRow(
     concepts,
     seed: 42,
   });
+  if (options.partnerType) state.partnerType = options.partnerType;
   if (options.fieldAgentId) {
     state = partnerMissionReducer(
       state,

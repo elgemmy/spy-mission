@@ -23,6 +23,20 @@ const fieldCards: FieldAgentCard[] = leadCards.map(({ id, word }) => ({
 }));
 
 describe("Partner Mission UI", () => {
+  it("maps field-agent relevance by card ID and preserves revealed result labels", () => {
+    render(
+      <FieldAgentBoard
+        locale="en"
+        boardLang="en"
+        cards={[{ id: "c01", word: "Moon", revealed: false }, { id: "c02", word: "Sun", revealed: true, result: "decoy" }]}
+        lockedCardIds={[]}
+        hintScores={{ c01: 0.5, c02: 1 }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Moon: 50% clue relevance" })).toHaveClass("has-hint");
+    expect(screen.getByRole("button", { name: "Sun: Decoy" })).not.toHaveClass("has-hint");
+  });
+
   it("renders a 25-card secret map and the seat invite until the Field Agent joins", () => {
     const { container } = render(
       <PartnerMissionLead

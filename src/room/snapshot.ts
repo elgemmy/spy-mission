@@ -1,5 +1,6 @@
 import { viewFor } from "../engine/index.js";
 import { partnerMissionViewFor } from "../engine/partnerMission/index.js";
+import { hintViewFor } from "./hints.js";
 import type {
   PartnerRoomRecord,
   PartnerRoomSnapshot,
@@ -30,14 +31,19 @@ export function toRoomSnapshot(
   playerId: string,
   inviteToken?: string,
 ): SharedRoomSnapshot {
+  const hint = hintViewFor(room, playerId);
   if (room.mode === "partner") {
     return {
       mode: "partner",
+      ...(room.state.partnerType
+        ? { partnerType: room.state.partnerType }
+        : {}),
       id: room.id,
       code: room.code,
       hostId: room.hostId,
       visibility: "private",
       view: partnerMissionViewFor(room.state, playerId),
+      ...(hint ? { hint } : {}),
       version: room.version,
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
@@ -51,7 +57,12 @@ export function toRoomSnapshot(
     hostId: room.hostId,
     visibility: room.visibility,
     view: viewFor(room.state, playerId),
-    ui: room.ui,
+    ui: {
+      votes: room.ui.votes,
+      clueLog: room.ui.clueLog,
+      banners: room.ui.banners,
+    },
+    ...(hint ? { hint } : {}),
     version: room.version,
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,

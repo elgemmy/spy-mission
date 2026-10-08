@@ -215,3 +215,92 @@ const ar: PartnerMissionMessages = {
 export const PARTNER_MESSAGES: Readonly<
   Record<"en" | "ar", PartnerMissionMessages>
 > = { en, ar };
+
+export const DUO_MESSAGES = {
+  en: {
+    partnerMission: "Co-op Mission",
+    createHint:
+      "One team, one mission. Invite any number of Mission Leads and Field Agents, each on their own device.",
+    waitingForPartner: "Gather your team, then start the mission.",
+    team: "Your team",
+    role: "Your role",
+    leads: "Mission Leads",
+    agents: "Field Agents",
+    startMission: "Start mission",
+    minimumTeam:
+      "Start with at least one Mission Lead and one Field Agent. There is no player limit.",
+    roleFixed:
+      "Your role stays fixed for this mission. Leads can see the secret map.",
+    sharedTurn:
+      "Agree on guesses together. Any Lead can send the Signal; any Field Agent can lock guesses for the whole team. The first accepted submission counts.",
+    waitingForSignal: () => "Waiting for a Mission Lead to send the Signal",
+    waitingForNextSignal: () => "Waiting for the next Signal",
+    guessesLocked: (_name: string, count: number) =>
+      `Team locked ${count} guesses`,
+    revealingGuesses: () => "Revealing the team’s guesses…",
+    phaseLabel: (phase: PartnerMissionPhase) =>
+      phase === "waiting_for_agent"
+        ? "Assembling the team"
+        : en.phaseLabel(phase),
+    seatOpen: "Waiting for your partner…",
+    copyAgentInvite: "Copy team invitation",
+    joinHint:
+      "Choose your role. Mission Leads see the secret map and send Signals; Field Agents work together to guess.",
+    inviteRequired:
+      "Ask your partner for the full private invitation link to join this mission.",
+    selectHint:
+      "Tap words in guess order. Tap again to remove. A decoy ends the turn; a trap ends the mission.",
+    selectionCount: (selected: number, max: number) =>
+      `${selected} of ${max} guesses selected (Signal + 1 maximum)`,
+    draftGuesses: "Selected guess order",
+    lockGuesses: "Lock guesses",
+    locking: "Locking guesses…",
+    clearSelection: "Clear selection",
+  },
+  ar: {
+    partnerMission: "المهمة التعاونية",
+    createHint:
+      "فريق واحد ومهمة واحدة. ادعُ أي عدد من قادة المهمة والعملاء الميدانيين، كلٌ من جهازه.",
+    waitingForPartner: "اجمع فريقك ثم ابدأ المهمة.",
+    team: "فريقك",
+    role: "دورك",
+    leads: "قادة المهمة",
+    agents: "العملاء الميدانيون",
+    startMission: "ابدأ المهمة",
+    minimumTeam:
+      "ابدأ بقائد مهمة وعميل ميداني على الأقل. لا يوجد حد لعدد اللاعبين.",
+    roleFixed: "يبقى دورك ثابتًا في هذه المهمة. يرى القادة الخريطة السرية.",
+    sharedTurn:
+      "اتفقوا على التخمينات معًا. يمكن لأي قائد إرسال الإشارة ولأي عميل تثبيت التخمينات للفريق كله. يُعتمد أول إرسال مقبول.",
+    waitingForSignal: () => "بانتظار إرسال الإشارة من أحد القادة",
+    waitingForNextSignal: () => "بانتظار الإشارة التالية",
+    guessesLocked: (_name: string, count: number) =>
+      `ثبّت الفريق ${count} تخمينات`,
+    revealingGuesses: () => "جارٍ كشف تخمينات الفريق…",
+    phaseLabel: (phase: PartnerMissionPhase) =>
+      phase === "waiting_for_agent" ? "تجميع الفريق" : ar.phaseLabel(phase),
+    seatOpen: "بانتظار شريكك…",
+    copyAgentInvite: "نسخ دعوة الفريق",
+    joinHint:
+      "اختر دورك. يرى قادة المهمة الخريطة السرية ويرسلون الإشارات، ويتعاون العملاء الميدانيون في التخمين.",
+    inviteRequired:
+      "اطلب من شريكك رابط الدعوة الخاص الكامل للانضمام إلى هذه المهمة.",
+    selectHint:
+      "اضغط الكلمات بترتيب التخمين. اضغط مجددًا لإزالة الاختيار. التمويه ينهي الدور والفخ ينهي المهمة.",
+    selectionCount: (selected: number, max: number) =>
+      `تم اختيار ${selected} من ${max} تخمينات (عدد الإشارة + ١ كحد أقصى)`,
+    draftGuesses: "ترتيب التخمينات المختارة",
+    lockGuesses: "تثبيت التخمينات",
+    locking: "جارٍ تثبيت التخمينات…",
+    clearSelection: "مسح الاختيارات",
+  },
+} as const;
+
+export function getPartnerMessages(
+  locale: "en" | "ar",
+  partnerType?: "ai" | "human",
+) {
+  return partnerType === "human"
+    ? { ...PARTNER_MESSAGES[locale], ...DUO_MESSAGES[locale] }
+    : PARTNER_MESSAGES[locale];
+}

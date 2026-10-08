@@ -22,6 +22,18 @@ States: `data-view="operative|spymaster"` + `.is-revealed`. The internal values
 map to Field Agent and Mission Lead. Glyph carries identity so nothing depends
 on colour alone.
 
+**Clue heatmap extension** — an unrevealed Field Agent tile may add `.has-hint`
+with `--cn-hint-color`. Interpolate the hint-only `--cn-hint-low`,
+`--cn-hint-mid`, and `--cn-hint-high` tokens at scores 0, 0.5, and 1. Show a
+localized numeric percentage below the word and include clue relevance in the
+accessible name. Keep word sizing and wrapping; revealed tiles and Mission Lead
+views retain the original faction presentation.
+
+The board's hint panel uses the standard surface, spacing, and secondary button.
+It explains one hint per team/game, indicates request progress or failure, and
+switches to Show/Hide heatmap when scores arrive. Its red/yellow/green legend
+follows interface direction. Every button has a minimum 44px touch target.
+
 ---
 
 ## TopBar

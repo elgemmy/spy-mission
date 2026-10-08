@@ -19,6 +19,23 @@ A mobile-first family game:
 - The board is bilingual: every concept carries English and Arabic labels
 - Rooms persist across refresh; leaving the URL leaves the table
 
+## Co-op Mission
+
+Play as one team with any number of Mission Leads and Field Agents. Create a
+**Co-op Mission**, then share the private invitation. Players choose their role
+when joining; a Lead can start once there is at least one person in each role.
+Roles stay fixed because Leads have already seen the secret map. More players
+can join while the mission is running.
+
+Any Lead can send the team's one-word Signal and count. Field Agents agree on
+guesses, then any one of them locks an ordered selection of up to the count
+plus one. The first accepted submission counts for the team. A decoy ends the
+turn, a trap loses the mission, and finding all eight targets wins.
+
+Apply `supabase/migrations/20260907223339_cooperative_team.sql` before deploying
+this version. It lifts the human team size limit while preserving AI rooms and
+existing human pairs. Each player uses their own device; no WebMCP is required.
+
 ## AI Partner Mission
 
 AI Partner Mission is Spy Mission's WebMCP-powered cooperative mode.
@@ -33,6 +50,37 @@ The browser exposes a small phase-aware WebMCP surface:
 - `choose_name` — available while joining as the invited Field Agent
 - `inspect_mission` — reads the Field Agent-safe board and current Signal
 - `submit_guesses` — locks ordered guesses during the Field Agent's turn
+- `request_hint` — spends the team's single hint on the current Signal
+
+## JEV hint
+
+Classic, AI Partner, and human Co-op missions each give a team one hint per
+game. A Field Agent can request it while guessing an active Signal. All Field
+Agents on that team share the result and allowance, including late co-op joins.
+Each player can show or hide the heatmap without making another request.
+
+Unrevealed words display independent clue-relevance percentages from red
+(low) through yellow to green (high). These scores describe word association,
+not hidden tile identities or whether a guess is safe. The heatmap expires when
+the turn ends; the allowance stays spent until a new game. Revealed tiles retain
+their normal result colors.
+
+The server calls [TypeSafe's JEV API](https://docs.typesafe.ai/api) with one
+[Noul question](https://docs.typesafe.ai/primitives/noul) per unrevealed word in
+a single request. It sends only public board information and the current Signal,
+never the secret map. Independent questions allow multiple strong matches.
+
+Set `TYPESAFE_API_KEY` in the server environment (Vercel preview/production or
+`.env.local` for a local API server). Never prefix it with `VITE_`. No additional
+database migration is required for hints; they use the room's existing JSON
+storage. The human Co-op migration must already be applied for that mode.
+Frontend-only `npm run dev` local preview cannot call JEV and shows an
+unavailable message without spending the hint. Missing credentials, invalid
+provider results, timeouts, and failed requests also leave the allowance intact.
+
+The implementation uses `jev-latest` and a ten-second request timeout. Live
+English/Arabic scoring should be checked with a real key before release;
+mocked tests verify the integration contract rather than model accuracy.
 
 ## Normal play mode
 
@@ -142,7 +190,7 @@ npm run test:supabase
 ```
 
 That command starts a **disposable** project-local Supabase stack, applies
-migrations `0001` through `0004`, runs the real API / Realtime / permission
+all migrations, runs the real API / Realtime / permission
 suite, then verifies a populated `0003` → `0004` upgrade. It stops and removes
 that local data when it finishes.
 
@@ -157,6 +205,8 @@ Current migration files:
 2. `supabase/migrations/0002_lock_down_rooms.sql`
 3. `supabase/migrations/0003_secure_multiplayer.sql`
 4. `supabase/migrations/0004_room_lifecycle.sql`
+5. `supabase/migrations/0005_partner_mission.sql`
+6. `supabase/migrations/20260907223339_cooperative_team.sql`
 
 `0001`–`0003` are immutable. Further schema changes are forward-only.
 

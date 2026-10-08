@@ -18,7 +18,12 @@ export {
   type PartnerFieldAgentProps,
 } from "./PartnerFieldAgent";
 export { WebMcpCapabilityIndicator } from "./PartnerMissionShared";
-export { PARTNER_MESSAGES, type PartnerMissionMessages } from "./strings";
+export {
+  PARTNER_MESSAGES,
+  DUO_MESSAGES,
+  getPartnerMessages,
+  type PartnerMissionMessages,
+} from "./strings";
 export type {
   FieldAgentCard,
   MissionLeadCard,

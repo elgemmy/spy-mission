@@ -19,6 +19,7 @@ import {
   PARTNER_MIN_SIGNAL_COUNT,
   PARTNER_TARGET_COUNT,
   PARTNER_DECOY_COUNT,
+  partnerRoleFor,
   type PartnerCardKind,
 } from "../../engine/partnerMission/index.js";
 import { sampleConceptsForBoard } from "../../content/words/sampler.js";
@@ -47,6 +48,13 @@ import type {
   ResumeRoomResult,
 } from "../../room/types.js";
 import { normalizeRoomUi } from "../../room/uiState.js";
+import {
+  HintError,
+  applyTeamHint,
+  hintViewFor,
+  prepareHintRequest,
+} from "../../room/hints.js";
+import { scoreHint } from "../hints/jev.js";
 
 const ROOM_COLUMNS =
   "id,code,host_id,visibility,mode,state,ui,version,created_at,updated_at,invite_hash";
@@ -84,6 +92,7 @@ const roomCommandSchema = z.discriminatedUnion("type", [
     cardIndex: z.number().int().min(0).max(24),
   }),
   z.strictObject({ type: z.literal("clearVote") }),
+  z.strictObject({ type: z.literal("requestHint") }),
   z.strictObject({
     type: z.literal("confirmGuess"),
     cardIndex: z.number().int().min(0).max(24),
@@ -107,6 +116,7 @@ const roomCommandSchema = z.discriminatedUnion("type", [
     fieldNote: z.string().max(PARTNER_MAX_FIELD_NOTE_LENGTH).optional(),
   }),
   z.strictObject({ type: z.literal("resolveLockedGuesses") }),
+  z.strictObject({ type: z.literal("startPartnerMission") }),
   z.strictObject({ type: z.literal("leaveRoom") }),
   z.strictObject({ type: z.literal("banPlayer"), targetPlayerId: playerId }),
   z.strictObject({ type: z.literal("deleteRoom") }),
@@ -119,6 +129,7 @@ const requestSchema = z.discriminatedUnion("op", [
     lang: z.enum(["ar", "en"]),
     visibility: z.enum(["public", "private"]).optional(),
     mode: z.enum(["classic", "partner"]).optional(),
+    partnerType: z.enum(["ai", "human"]).optional(),
   }),
   z.strictObject({
     op: z.literal("join"),
@@ -128,6 +139,7 @@ const requestSchema = z.discriminatedUnion("op", [
   }),
   z.strictObject({
     op: z.literal("claimPartnerSeat"),
+    role: z.enum(["mission_lead", "field_agent"]).optional(),
     code: roomCode,
     name: playerName,
     inviteToken: z.string().min(32).max(128),
@@ -257,6 +269,7 @@ async function createRoom(
   const room =
     mode === "partner"
       ? createPartnerRoomRecord({
+          partnerType: request.partnerType,
           id,
           code: createRoomCode(),
           hostId: userId,
@@ -328,7 +341,14 @@ async function resumeRoom(
     };
   }
   return stored.room.mode === "partner"
-    ? { status: "join", code: stored.room.code, mode: "partner" }
+    ? {
+        status: "join",
+        code: stored.room.code,
+        mode: "partner",
+        ...(stored.room.state.partnerType
+          ? { partnerType: stored.room.state.partnerType }
+          : {}),
+      }
     : { status: "join", code: stored.room.code };
 }
 
@@ -375,7 +395,13 @@ async function joinRoom(
         ? applyPartnerRoomAction(
             stored.room,
             userId,
-            { type: "claimFieldAgent", name: request.name },
+            {
+              type: "claimFieldAgent",
+              name: request.name,
+              ...(request.op === "claimPartnerSeat" && request.role
+                ? { role: request.role }
+                : {}),
+            },
             new Date().toISOString(),
           )
         : joinRoomRecord(
@@ -421,6 +447,13 @@ async function mutateRoom(
   if (!stored) {
     throw new ApiError(404, "ROOM_NOT_FOUND");
   }
+  if (
+    command.type === "requestHint" &&
+    hintViewFor(stored.room, userId)?.scores
+  ) {
+    // Teammates and retries share the first stored answer for this turn.
+    return toRoomSnapshot(stored.room, userId);
+  }
   if (stored.room.version !== expectedVersion) {
     if (
       isImmediatelyRepeatedPartnerResolution(
@@ -435,6 +468,10 @@ async function mutateRoom(
     throw new ApiError(409, "ROOM_VERSION_CONFLICT");
   }
 
+  if (command.type === "requestHint") {
+    return requestTeamHint(stored.room, userId, client);
+  }
+
   if (command.type === "deleteRoom") {
     await deleteRoom(id, expectedVersion, userId, client);
     return { deleted: true };
@@ -442,6 +479,7 @@ async function mutateRoom(
   if (stored.room.mode === "partner") {
     if (
       command.type !== "giveSignal" &&
+      command.type !== "startPartnerMission" &&
       command.type !== "lockGuesses" &&
       command.type !== "resolveLockedGuesses"
     ) {
@@ -467,6 +505,7 @@ async function mutateRoom(
   }
   if (
     command.type === "giveSignal" ||
+    command.type === "startPartnerMission" ||
     command.type === "lockGuesses" ||
     command.type === "resolveLockedGuesses"
   ) {
@@ -526,6 +565,44 @@ async function mutateRoom(
   return toRoomSnapshot(updated.room, userId, inviteToken);
 }
 
+async function requestTeamHint(
+  initialRoom: SharedRoomRecord,
+  userId: string,
+  client: SupabaseClient,
+): Promise<SharedRoomSnapshot> {
+  const context = prepareHintRequest(initialRoom, userId);
+  const scores = await scoreHint(context);
+  // Never hold a database transaction open across external inference. Reload
+  // membership and the turn after inference, then apply through the usual CAS.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const fresh = await loadForMember(initialRoom.id, userId, client);
+    if (!fresh) throw new ApiError(404, "ROOM_NOT_FOUND");
+    const next = applyTeamHint(
+      fresh.room,
+      userId,
+      context,
+      scores,
+      new Date().toISOString(),
+    );
+    if (next === fresh.room) return toRoomSnapshot(fresh.room, userId);
+    try {
+      const updated = await persistRoom(
+        next,
+        fresh.room.version,
+        userId,
+        null,
+        client,
+      );
+      return toRoomSnapshot(updated.room, userId);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "ROOM_VERSION_CONFLICT")
+        continue;
+      throw error;
+    }
+  }
+  throw new ApiError(409, "ROOM_VERSION_CONFLICT");
+}
+
 function isImmediatelyRepeatedPartnerResolution(
   room: SharedRoomRecord,
   expectedVersion: number,
@@ -535,7 +612,7 @@ function isImmediatelyRepeatedPartnerResolution(
   if (
     room.mode !== "partner" ||
     command.type !== "resolveLockedGuesses" ||
-    room.state.missionLead.id !== userId ||
+    partnerRoleFor(room.state, userId) !== "mission_lead" ||
     room.version !== expectedVersion + 1
   ) {
     return false;
@@ -870,6 +947,20 @@ class ApiError extends Error {
 function normalizeError(error: unknown): ApiError {
   if (error instanceof ApiError) {
     return error;
+  }
+  if (error instanceof HintError) {
+    const status =
+      error.code === "HINT_WRONG_ROLE"
+        ? 403
+        : error.code === "HINT_NOT_CONFIGURED"
+          ? 503
+          : error.code === "HINT_TIMEOUT"
+            ? 504
+            : error.code === "HINT_PROVIDER_FAILED" ||
+                error.code === "HINT_INVALID_RESPONSE"
+              ? 502
+              : 409;
+    return new ApiError(status, error.code);
   }
   if (isIllegalMove(error)) {
     return new ApiError(409, error.code);

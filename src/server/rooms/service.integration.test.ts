@@ -768,6 +768,124 @@ describe.skipIf(!enabled).sequential("secure multiplayer integration", () => {
     }
   }, 30_000);
 
+  it("runs a human team with multiple Leads and Field Agents and serializes shared turns", async () => {
+    const [host, lead, first, second, late] = await Promise.all(
+      Array.from({ length: 5 }, () => anonymousIdentity()),
+    );
+    const created = await success<PartnerRoomSnapshot>(host!, {
+      op: "create",
+      name: "Host",
+      lang: "en",
+      mode: "partner",
+      partnerType: "human",
+    });
+    const latest = (actor: Identity) =>
+      success<PartnerRoomSnapshot>(actor, { op: "get", roomId: created.id });
+    const join = (actor: Identity, role: "mission_lead" | "field_agent") =>
+      success<PartnerRoomSnapshot>(actor, {
+        op: "claimPartnerSeat",
+        code: created.code,
+        name: role,
+        role,
+        inviteToken: created.inviteToken,
+      });
+    try {
+      const alone = await call(host!, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: created.version,
+        command: { type: "startPartnerMission" },
+      });
+      expect(alone.payload.error).toBe("NOT_ENOUGH_PLAYERS");
+      await Promise.all([
+        join(lead!, "mission_lead"),
+        join(first!, "field_agent"),
+        join(second!, "field_agent"),
+      ]);
+      const ready = await latest(lead!);
+      if (ready.view.viewerRole !== "mission_lead")
+        throw new Error("LEAD_EXPECTED");
+      expect(ready.view.team).toHaveLength(4);
+      expect(ready.view.can.startPartnerMission).toBe(true);
+      const started = await success<PartnerRoomSnapshot>(lead!, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: ready.version,
+        command: { type: "startPartnerMission" },
+      });
+      const signals = await Promise.all(
+        [host!, lead!].map((actor) =>
+          call(actor, {
+            op: "command",
+            roomId: created.id,
+            expectedVersion: started.version,
+            command: { type: "giveSignal", word: "orbit", count: 2 },
+          }),
+        ),
+      );
+      expect(signals.filter((r) => r.response.ok)).toHaveLength(1);
+      await join(late!, "field_agent");
+      const turn = await latest(late!);
+      if (turn.view.viewerRole !== "field_agent")
+        throw new Error("FIELD_EXPECTED");
+      expect(turn.view.phase).toBe("field_agent_turn");
+      expect(turn.view.team).toHaveLength(5);
+      expect(JSON.stringify(turn.view.board)).not.toMatch(/"(?:kind|result)":/);
+      const safeCards = ready.view.board
+        .filter((card) => card.kind === "target")
+        .slice(0, 2)
+        .map((card) => card.id);
+      const locks = await Promise.all(
+        [first!, second!].map((actor, index) =>
+          call(actor, {
+            op: "command",
+            roomId: created.id,
+            expectedVersion: turn.version,
+            command: { type: "lockGuesses", cardIds: [safeCards[index]] },
+          }),
+        ),
+      );
+      expect(locks.filter((r) => r.response.ok)).toHaveLength(1);
+      const locked = await latest(lead!);
+      const resolutions = await Promise.all(
+        [host!, lead!].map((actor) =>
+          call(actor, {
+            op: "command",
+            roomId: created.id,
+            expectedVersion: locked.version,
+            command: { type: "resolveLockedGuesses" },
+          }),
+        ),
+      );
+      expect(resolutions.some((r) => r.response.ok)).toBe(true);
+      for (const result of resolutions) {
+        if (!result.response.ok)
+          expect(result.payload.error).toBe("ROOM_VERSION_CONFLICT");
+      }
+      // A competing Lead can retry the same completed lock without revealing twice.
+      const repeated = await call(lead!, {
+        op: "command",
+        roomId: created.id,
+        expectedVersion: locked.version,
+        command: { type: "resolveLockedGuesses" },
+      });
+      expect(repeated.response.ok).toBe(true);
+      const resumed = await success<ResumeRoomResult>(late!, {
+        op: "resume",
+        code: created.code,
+      });
+      expect(resumed).toMatchObject({
+        status: "active",
+        room: {
+          partnerType: "human",
+          view: { viewerRole: "field_agent", targetsRemaining: 7 },
+        },
+      });
+    } finally {
+      await deleteIfPresent(host!, created.id);
+    }
+  }, 30_000);
+
   it("runs the identity-bound Partner Mission server path without hidden-state leaks", async () => {
     const [lead, first, second] = await Promise.all([
       anonymousIdentity(),
