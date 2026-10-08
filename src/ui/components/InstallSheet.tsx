@@ -16,6 +16,7 @@ export function InstallSheet({ onClose }: InstallSheetProps) {
   const t = useMessages().play;
   const { canPrompt, prompt, isStandalone, platform } = useInstallPrompt();
   const [dismissedHint, setDismissedHint] = useState(false);
+  const [pending, setPending] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<Element | null>(null);
 
@@ -42,13 +43,18 @@ export function InstallSheet({ onClose }: InstallSheetProps) {
   }, [onClose]);
 
   const handlePrompt = async () => {
-    const outcome = await prompt();
-    if (outcome === "accepted") {
-      onClose();
-      return;
-    }
-    if (outcome === "dismissed") {
-      setDismissedHint(true);
+    setPending(true);
+    try {
+      const outcome = await prompt();
+      if (outcome === "accepted") {
+        onClose();
+        return;
+      }
+      if (outcome === "dismissed") {
+        setDismissedHint(true);
+      }
+    } finally {
+      setPending(false);
     }
   };
 
@@ -82,7 +88,13 @@ export function InstallSheet({ onClose }: InstallSheetProps) {
 
             {canPrompt ? (
               <>
-                <Button onClick={handlePrompt}>{t.installNow}</Button>
+                <Button
+                  onClick={handlePrompt}
+                  disabled={pending}
+                  aria-busy={pending}
+                >
+                  {t.installNow}
+                </Button>
                 {dismissedHint ? (
                   <p className="text-ink-soft m-0 text-xs">
                     {t.installLaterHint}

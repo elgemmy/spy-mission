@@ -151,24 +151,73 @@ describe("LandingPage", () => {
     ).not.toBeDisabled();
   });
 
-  it("copies the room code and switches the lobby language", () => {
-    const { container } = render(<LandingPage />);
-    const lobby = region(container, ".cn-lp-lobby");
+  it("copies the room code and switches the lobby language", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
 
-    expect(lobby).toHaveAttribute("dir", "ltr");
+    try {
+      const { container } = render(<LandingPage />);
+      const lobby = region(container, ".cn-lp-lobby");
 
-    fireEvent.click(
-      within(lobby).getByRole("button", { name: STR.en.lobby.copy }),
-    );
-    expect(
-      within(lobby).getByRole("button", { name: STR.en.lobby.copied }),
-    ).toBeInTheDocument();
+      expect(lobby).toHaveAttribute("dir", "ltr");
 
-    fireEvent.click(
-      within(lobby).getByRole("button", { name: STR.en.lobby.boardLangAr }),
-    );
+      await act(async () => {
+        fireEvent.click(
+          within(lobby).getByRole("button", { name: STR.en.lobby.copy }),
+        );
+        await Promise.resolve();
+      });
+      expect(
+        within(lobby).getByRole("button", { name: STR.en.lobby.copied }),
+      ).toBeInTheDocument();
 
-    expect(region(container, ".cn-lp-lobby")).toHaveAttribute("dir", "rtl");
+      fireEvent.click(
+        within(lobby).getByRole("button", { name: STR.en.lobby.boardLangAr }),
+      );
+
+      expect(region(container, ".cn-lp-lobby")).toHaveAttribute("dir", "rtl");
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(navigator, "clipboard", descriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+    }
+  });
+
+  it("does not show the copied state when the clipboard write fails", async () => {
+    const writeText = vi.fn(() => Promise.reject(new Error("denied")));
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      const { container } = render(<LandingPage />);
+      const lobby = region(container, ".cn-lp-lobby");
+
+      await act(async () => {
+        fireEvent.click(
+          within(lobby).getByRole("button", { name: STR.en.lobby.copy }),
+        );
+        await Promise.resolve();
+      });
+
+      expect(
+        within(lobby).queryByRole("button", { name: STR.en.lobby.copied }),
+      ).not.toBeInTheDocument();
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(navigator, "clipboard", descriptor);
+      } else {
+        Reflect.deleteProperty(navigator, "clipboard");
+      }
+    }
   });
 
   it("starts the in-game preview from the pre-revealed key", () => {

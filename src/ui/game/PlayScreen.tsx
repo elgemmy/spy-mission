@@ -121,9 +121,7 @@ function BannerOverlay({ banners }: { banners: GameBanner[] }) {
             banner.type === "win" && hasAssassin ? "after-assassin" : "now"
           }
         >
-          <p className="m-0 text-xs font-semibold">
-            {bannerTitle(banner, t)}
-          </p>
+          <p className="m-0 text-xs font-semibold">{bannerTitle(banner, t)}</p>
           <p className="mt-cn-1 m-0 text-2xl font-bold">
             {bannerMessage(banner, locale, t)}
           </p>
@@ -188,10 +186,10 @@ function ClueHistory({ entries }: { entries: ClueLogEntry[] }) {
             key={entry.id}
             className="gap-cn-3 flex items-center justify-between text-sm"
           >
-            <span className="text-ink font-semibold">
+            <span className="cn-clue-log__word text-ink font-semibold">
               {t.signalLogItem(teamLabel(locale, entry.team), entry.clue.word)}
             </span>
-            <span className="text-ink-soft font-mono">
+            <span className="text-ink-soft shrink-0 font-mono">
               {formatCount(entry.clue.count)}
             </span>
           </li>

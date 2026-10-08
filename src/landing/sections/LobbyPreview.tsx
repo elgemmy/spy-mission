@@ -146,11 +146,13 @@ export function LobbyPreview({ lang }: LobbyPreviewProps) {
 
   const copy = () => {
     try {
-      void navigator.clipboard?.writeText(DEMO_ROOM_CODE).catch(() => {});
+      void navigator.clipboard
+        ?.writeText(DEMO_ROOM_CODE)
+        .then(() => setCopied(true))
+        .catch(() => {});
     } catch {
       // Clipboard access is a nicety here; the code is visible either way.
     }
-    setCopied(true);
   };
 
   return (
