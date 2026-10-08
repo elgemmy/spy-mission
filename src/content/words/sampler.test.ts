@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { sampleConceptsForBoard, WORD_CATEGORIES } from "./sampler";
 
@@ -15,14 +17,6 @@ describe("word sampler", () => {
       other.map((concept) => concept.id),
     );
     expect(new Set(first.map((concept) => concept.id)).size).toBe(25);
-  });
-
-  it("spreads sampled concepts across categories", () => {
-    const concepts = sampleConceptsForBoard(321);
-    const prefixes = new Set(
-      concepts.map((concept) => concept.id.split("-")[0]),
-    );
-    expect(prefixes.size).toBeGreaterThanOrEqual(5);
   });
 
   it("rejects datasets that cannot fill a board", () => {

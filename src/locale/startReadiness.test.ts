@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import type { PlayerView } from "../engine";
 import { missingStartSeats, startReadiness } from "./startReadiness";

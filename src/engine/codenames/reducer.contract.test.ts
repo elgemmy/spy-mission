@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import { IllegalMove } from "../contract";
 import { buildBoard } from "./deal";
