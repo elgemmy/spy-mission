@@ -3,6 +3,98 @@ import { LocalRoomProvider } from "./localRoomProvider";
 import type { RoomSnapshot } from "./types";
 
 describe("LocalRoomProvider lifecycle preview", () => {
+  it("clears only the leaving player's invite cache, preserving the original link", async () => {
+    const host = new LocalRoomProvider("invite-authority-host");
+    const guest = new LocalRoomProvider("invite-cache-guest");
+    const room = await host.create({
+      name: "Host",
+      lang: "en",
+      visibility: "private",
+    });
+    const token = room.inviteToken;
+    const joined = await guest.join({
+      code: room.code,
+      name: "Guest",
+      inviteToken: token,
+    });
+    expect(guest.getInviteToken(room.id)).toBe(token);
+    await guest.mutate(room.id, joined.version, { type: "leaveRoom" });
+    guest.clearRoomStorage(room.id);
+    expect(guest.getInviteToken(room.id)).toBeNull();
+    expect(host.getInviteToken(room.id)).toBe(token);
+    const rejoined = await guest.join({
+      code: room.code,
+      name: "Back",
+      inviteToken: token,
+    });
+    expect(rejoined.view.me?.id).toBe("invite-cache-guest");
+    await host.mutate(room.id, rejoined.version, { type: "deleteRoom" });
+  });
+
+  it("does not give a public-code guest the host's private invite", async () => {
+    const host = new LocalRoomProvider("private-token-host");
+    const guest = new LocalRoomProvider("public-code-guest");
+    const room = await host.create({ name: "Host", lang: "en" });
+    const joined = await guest.join({ code: room.code, name: "Guest" });
+    const resumed = await guest.load(room.id);
+    expect(guest.getInviteToken(room.id)).toBeNull();
+    expect(resumed?.inviteToken).toBeUndefined();
+    await host.mutate(room.id, joined.version, { type: "deleteRoom" });
+  });
+
+  it("rejects a concurrent stale mutation instead of overwriting the winning change", async () => {
+    const host = new LocalRoomProvider("concurrent-host");
+    const room = await host.create({ name: "Host", lang: "en" });
+    const results = await Promise.allSettled([
+      host.mutate(room.id, room.version, {
+        type: "renamePlayer",
+        name: "First",
+      }),
+      host.mutate(room.id, room.version, {
+        type: "renamePlayer",
+        name: "Second",
+      }),
+    ]);
+    expect(results.map((result) => result.status)).toEqual([
+      "fulfilled",
+      "rejected",
+    ]);
+    expect(results[1]).toMatchObject({
+      reason: new Error("ROOM_VERSION_CONFLICT"),
+    });
+    const latest = await host.load(room.id);
+    if (!latest || latest.mode === "partner")
+      throw new Error("CLASSIC_ROOM_EXPECTED");
+    expect(playerName(latest, "concurrent-host")).toBe("First");
+    await host.mutate(room.id, latest!.version, { type: "deleteRoom" });
+  });
+
+  it("does not ban a player when a concurrent command has already won", async () => {
+    const host = new LocalRoomProvider("stale-ban-host");
+    const guest = new LocalRoomProvider("stale-ban-guest");
+    const room = await host.create({ name: "Host", lang: "en" });
+    const joined = await guest.join({ code: room.code, name: "Guest" });
+    const results = await Promise.allSettled([
+      host.mutate(room.id, joined.version, {
+        type: "renamePlayer",
+        name: "First",
+      }),
+      host.mutate(room.id, joined.version, {
+        type: "banPlayer",
+        targetPlayerId: "stale-ban-guest",
+      }),
+    ]);
+    expect(results[1]).toMatchObject({
+      status: "rejected",
+      reason: new Error("ROOM_VERSION_CONFLICT"),
+    });
+    await expect(guest.resume(room.code)).resolves.toMatchObject({
+      status: "active",
+    });
+    const latest = await host.load(room.id);
+    await host.mutate(room.id, latest!.version, { type: "deleteRoom" });
+  });
+
   it("resumes by identity and ignores a submitted name for an active member", async () => {
     const host = new LocalRoomProvider("local-host-resume");
     const guest = new LocalRoomProvider("local-guest-resume");

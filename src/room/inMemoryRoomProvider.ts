@@ -8,11 +8,8 @@ export class InMemoryRoomProvider implements RoomStorage {
   private readonly codes = new Map<string, string>();
   private readonly listeners = new Map<string, Set<Listener>>();
 
-  async create(room: SharedRoomRecord): Promise<void> {
-    const normalized = normalizeRoomRecord(room);
-    this.rooms.set(normalized.id, normalized);
-    this.codes.set(normalized.code, normalized.id);
-    this.notify(normalized);
+  create(room: SharedRoomRecord): Promise<void> {
+    return this.save(room);
   }
 
   async delete(roomId: string): Promise<void> {
@@ -21,7 +18,7 @@ export class InMemoryRoomProvider implements RoomStorage {
       this.codes.delete(room.code);
     }
     this.rooms.delete(roomId);
-    this.notifyDelete(roomId);
+    this.notify(roomId, null);
     this.listeners.delete(roomId);
   }
 
@@ -37,12 +34,20 @@ export class InMemoryRoomProvider implements RoomStorage {
     return this.load(roomId);
   }
 
-  async save(room: SharedRoomRecord, _expectedVersion?: number): Promise<void> {
-    void _expectedVersion;
+  assertVersion(roomId: string, expectedVersion: number): void {
+    if (this.rooms.get(roomId)?.version !== expectedVersion) {
+      throw new Error("ROOM_VERSION_CONFLICT");
+    }
+  }
+
+  async save(room: SharedRoomRecord, expectedVersion?: number): Promise<void> {
+    if (expectedVersion !== undefined) {
+      this.assertVersion(room.id, expectedVersion);
+    }
     const normalized = normalizeRoomRecord(room);
     this.rooms.set(normalized.id, normalized);
     this.codes.set(normalized.code, normalized.id);
-    this.notify(normalized);
+    this.notify(normalized.id, normalized);
   }
 
   subscribe(
@@ -66,20 +71,11 @@ export class InMemoryRoomProvider implements RoomStorage {
     };
   }
 
-  private notify(room: SharedRoomRecord): void {
-    const roomListeners = this.listeners.get(room.id);
-    if (roomListeners) {
-      for (const listener of roomListeners) {
-        listener(room);
-      }
-    }
-  }
-
-  private notifyDelete(roomId: string): void {
+  private notify(roomId: string, room: SharedRoomRecord | null): void {
     const roomListeners = this.listeners.get(roomId);
     if (roomListeners) {
       for (const listener of roomListeners) {
-        listener(null);
+        listener(room);
       }
     }
   }

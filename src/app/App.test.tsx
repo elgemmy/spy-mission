@@ -488,7 +488,10 @@ describe("App room lifecycle", () => {
     });
     window.history.replaceState(null, "", "/play/?room=TESTROOM");
     mocks.resume.mockResolvedValue({ status: "active", room: guestRoom });
-    mocks.mutate.mockResolvedValue({ left: true });
+    mocks.mutate.mockImplementation(async () => {
+      mocks.onChange?.(null);
+      return { left: true };
+    });
     render(<App />);
     await screen.findByText("TESTROOM");
 
@@ -502,14 +505,50 @@ describe("App room lifecycle", () => {
       type: "leaveRoom",
     });
     expect(mocks.clearRoomStorage).toHaveBeenCalledWith(guestRoom.id);
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(window.location.pathname + window.location.search).toBe("/play/");
+  });
+
+  it("ignores a deletion response from before the same room was resumed", async () => {
+    let complete!: (result: { deleted: true }) => void;
+    mocks.mutate.mockReturnValue(
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+    );
+    window.history.replaceState(null, "", "/play/?room=TESTROOM");
+    mocks.resume.mockResolvedValue({ status: "active", room: snapshot() });
+    render(<App />);
+    await screen.findByText("TESTROOM");
+    fireEvent.click(screen.getByRole("button", { name: en.deleteRoom }));
+    fireEvent.click(
+      screen.getByRole("button", { name: en.confirmDeleteAction }),
+    );
+    act(() => {
+      window.history.replaceState(null, "", "/play/");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    act(() => {
+      window.history.replaceState(null, "", "/play/?room=TESTROOM");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await screen.findByText("TESTROOM");
+    await act(async () => {
+      complete({ deleted: true });
+    });
+    expect(window.location.search).toBe("?room=TESTROOM");
+    expect(screen.getByText("TESTROOM")).toBeInTheDocument();
+    expect(mocks.clearRoomStorage).not.toHaveBeenCalled();
   });
 
   it("clears URL and room storage after confirmed host deletion", async () => {
     const hostRoom = snapshot();
     window.history.replaceState(null, "", "/play/?room=TESTROOM");
     mocks.resume.mockResolvedValue({ status: "active", room: hostRoom });
-    mocks.mutate.mockResolvedValue({ deleted: true });
+    mocks.mutate.mockImplementation(async () => {
+      mocks.onChange?.(null);
+      return { deleted: true };
+    });
     render(<App />);
     await screen.findByText("TESTROOM");
 
@@ -521,6 +560,7 @@ describe("App room lifecycle", () => {
       type: "deleteRoom",
     });
     expect(mocks.clearRoomStorage).toHaveBeenCalledWith(hostRoom.id);
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(window.location.pathname + window.location.search).toBe("/play/");
   });
 });
