@@ -15,6 +15,7 @@ export {
   normalizePartnerName,
 } from "./initialState.js";
 export { partnerMissionReducer } from "./reducer.js";
+export { partnerPlayers, partnerRoleFor, partnerTeamReady } from "./team.js";
 export {
   PARTNER_BOARD_SIZE,
   PARTNER_DECOY_COUNT,
@@ -40,6 +41,7 @@ export type {
   PartnerMissionOnboardingView,
   PartnerMissionPhase,
   PartnerMissionPlayer,
+  PartnerTeamPlayer,
   PartnerMissionRole,
   PartnerMissionSignal,
   PartnerMissionState,

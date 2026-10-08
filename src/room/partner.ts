@@ -1,6 +1,7 @@
 import {
   initialPartnerMissionState,
   partnerMissionReducer,
+  partnerRoleFor,
   type PartnerCardKind,
   type PartnerMissionAction,
 } from "../engine/partnerMission/index.js";
@@ -9,6 +10,7 @@ import { normalizeRoomUi } from "./uiState.js";
 import type { PartnerRoomRecord } from "./types.js";
 
 export interface CreatePartnerRoomRecordInput {
+  partnerType?: "ai" | "human";
   id: string;
   code: string;
   hostId: string;
@@ -29,15 +31,29 @@ export function createPartnerRoomRecord(
     code: input.code.toUpperCase(),
     hostId: input.hostId,
     visibility: "private",
-    state: initialPartnerMissionState({
-      roomId: input.id,
-      lang: input.lang,
-      missionLeadId: input.hostId,
-      missionLeadName: input.hostName,
-      concepts: input.concepts,
-      seed: input.seed,
-      ...(input.kinds ? { kinds: input.kinds } : {}),
-    }),
+    state: {
+      ...initialPartnerMissionState({
+        roomId: input.id,
+        lang: input.lang,
+        missionLeadId: input.hostId,
+        missionLeadName: input.hostName,
+        concepts: input.concepts,
+        seed: input.seed,
+        ...(input.kinds ? { kinds: input.kinds } : {}),
+      }),
+      ...(input.partnerType ? { partnerType: input.partnerType } : {}),
+      ...(input.partnerType === "human"
+        ? {
+            team: [
+              {
+                id: input.hostId,
+                name: input.hostName.trim(),
+                role: "mission_lead" as const,
+              },
+            ],
+          }
+        : {}),
+    },
     ui: normalizeRoomUi(null),
     version: 1,
     createdAt: input.now,
@@ -67,8 +83,5 @@ export function isPartnerRoomMember(
   room: PartnerRoomRecord,
   actorId: string,
 ): boolean {
-  return (
-    room.state.missionLead.id === actorId ||
-    room.state.fieldAgent?.id === actorId
-  );
+  return partnerRoleFor(room.state, actorId) !== null;
 }

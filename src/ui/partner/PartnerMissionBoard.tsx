@@ -18,6 +18,8 @@ export interface MissionLeadBoardProps extends BoardPresentationProps {
 
 export interface FieldAgentBoardProps extends BoardPresentationProps {
   cards: readonly FieldAgentCard[];
+  onSelectCard?: (id: string) => void;
+  selectionFull?: boolean;
 }
 
 const CARD_ROLE: Readonly<Record<PartnerCardKind, CardRole>> = {
@@ -68,6 +70,8 @@ export function MissionLeadBoard({
 }
 
 export function FieldAgentBoard({
+  onSelectCard,
+  selectionFull,
   cards,
   locale,
   boardLang,
@@ -103,6 +107,14 @@ export function FieldAgentBoard({
             word={card.word}
             role={role}
             view="operative"
+            onSelect={
+              !card.revealed &&
+              onSelectCard &&
+              (!selectionFull || orders.has(card.id))
+                ? () => onSelectCard(card.id)
+                : undefined
+            }
+            selected={onSelectCard ? orders.has(card.id) : undefined}
             revealed={revealed}
             boardLang={boardLang}
             order={orders.get(card.id)}
@@ -117,6 +129,8 @@ export function FieldAgentBoard({
 }
 
 function PartnerCardCell({
+  onSelect,
+  selected,
   id,
   word,
   role,
@@ -128,6 +142,8 @@ function PartnerCardCell({
   ariaLabel,
   orderLabel,
 }: {
+  onSelect?: () => void;
+  selected?: boolean;
   id: string;
   word: string;
   role: CardRole;
@@ -162,7 +178,9 @@ function PartnerCardCell({
         view={view}
         revealed={revealed}
         lang={boardLang}
-        disabled
+        disabled={!onSelect}
+        onClick={onSelect}
+        aria-pressed={selected}
         aria-label={ariaLabel}
       />
     </div>

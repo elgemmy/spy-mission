@@ -653,3 +653,148 @@ describe("Partner Mission projections", () => {
     ).toEqual(partnerMissionViewFor(state, AGENT_ID));
   });
 });
+
+describe("human cooperative team", () => {
+  const join = (
+    state: PartnerMissionState,
+    id: string,
+    role: "mission_lead" | "field_agent",
+  ) =>
+    partnerMissionReducer(
+      state,
+      { type: "claimFieldAgent", name: id, role },
+      id,
+    );
+
+  it("requires both roles before a Lead starts, and supports more than twelve players", () => {
+    let state: PartnerMissionState = { ...fresh(), partnerType: "human" };
+    state = join(state, "second-lead", "mission_lead");
+    expectCode(
+      () =>
+        partnerMissionReducer(state, { type: "startPartnerMission" }, LEAD_ID),
+      "NOT_ENOUGH_PLAYERS",
+    );
+    expectCode(
+      () =>
+        partnerMissionReducer(
+          state,
+          { type: "giveSignal", word: "orbit", count: 1 },
+          LEAD_ID,
+        ),
+      "WRONG_PHASE",
+    );
+    for (let i = 0; i < 14; i++)
+      state = join(state, `field-${i}`, "field_agent");
+    expect(state.team).toHaveLength(16);
+    expect(state.phase).toBe("waiting_for_agent");
+    expectCode(
+      () =>
+        partnerMissionReducer(
+          state,
+          { type: "startPartnerMission" },
+          "field-0",
+        ),
+      "WRONG_ROLE",
+    );
+    const started = partnerMissionReducer(
+      state,
+      { type: "startPartnerMission" },
+      "second-lead",
+    );
+    expect(started.phase).toBe("waiting_for_signal");
+  });
+
+  it("lets additional Leads and Field Agents act on the same mission with role-safe views", () => {
+    let state: PartnerMissionState = { ...fresh(), partnerType: "human" };
+    state = join(state, "second-lead", "mission_lead");
+    state = join(state, "first-field", "field_agent");
+    state = partnerMissionReducer(
+      state,
+      { type: "startPartnerMission" },
+      LEAD_ID,
+    );
+    state = partnerMissionReducer(
+      state,
+      { type: "giveSignal", word: "orbit", count: 2 },
+      "second-lead",
+    );
+    // Joining during a turn neither resets it nor changes existing members.
+    const originalBoard = state.board;
+    state = join(state, "second-field", "field_agent");
+    expect(state.phase).toBe("field_agent_turn");
+    expect(state.board).toBe(originalBoard);
+    expect(partnerMissionViewFor(state, "second-lead")).toMatchObject({
+      viewerRole: "mission_lead",
+      board: state.board,
+    });
+    const field = partnerMissionViewFor(state, "second-field");
+    expect(field.viewerRole).toBe("field_agent");
+    expect(JSON.stringify("board" in field ? field.board : null)).not.toMatch(
+      /"(?:kind|result)":/,
+    );
+    expect(partnerMissionViewFor(state, "outsider")).not.toHaveProperty("team");
+    expectCode(
+      () =>
+        partnerMissionReducer(
+          state,
+          { type: "claimFieldAgent", name: "changed", role: "field_agent" },
+          "second-lead",
+        ),
+      "ALREADY_JOINED",
+    );
+    const cards = [
+      idsOfKind(state, "target")[0]!,
+      idsOfKind(state, "decoy")[0]!,
+      idsOfKind(state, "trap")[0]!,
+    ];
+    expectCode(
+      () =>
+        partnerMissionReducer(
+          state,
+          { type: "lockGuesses", cardIds: cards },
+          "second-lead",
+        ),
+      "WRONG_ROLE",
+    );
+    const locked = partnerMissionReducer(
+      state,
+      { type: "lockGuesses", cardIds: cards },
+      "second-field",
+    );
+    expectCode(
+      () =>
+        partnerMissionReducer(
+          locked,
+          { type: "lockGuesses", cardIds: [cards[2]!] },
+          "first-field",
+        ),
+      "WRONG_PHASE",
+    );
+    const resolved = partnerMissionReducer(
+      locked,
+      { type: "resolveLockedGuesses" },
+      "second-lead",
+    );
+    expect(resolved.previousTurn?.reveals.map((r) => r.result)).toEqual([
+      "target",
+      "decoy",
+    ]);
+    expect(resolved.phase).toBe("waiting_for_signal");
+  });
+
+  it("keeps legacy human pairs playable, rejects terminal joins, and preserves AI role limits", () => {
+    const legacy = { ...withSignal(), partnerType: "human" as const };
+    const extended = join(legacy, "extra", "mission_lead");
+    expect(extended.team?.map((p) => p.id)).toEqual([
+      LEAD_ID,
+      AGENT_ID,
+      "extra",
+    ]);
+    expect(extended.signal).toEqual(legacy.signal);
+    expectCode(
+      () => join({ ...extended, phase: "won" }, "late", "field_agent"),
+      "WRONG_PHASE",
+    );
+    expectCode(() => join(fresh(), "extra", "mission_lead"), "WRONG_ROLE");
+  });
+});
